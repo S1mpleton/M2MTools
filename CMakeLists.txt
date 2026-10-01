@@ -29,6 +29,15 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         automatondata.h automatondata.cpp
         editvalidator.h editvalidator.cpp
 
+        listnamesvalidator.h listnamesvalidator.cpp
+        compositevalidator.h compositevalidator.cpp
+        mooredelegate.h mooredelegate.cpp
+        mealydelegate.h mealydelegate.cpp
+        ValidationResult.h
+        namelistparser.h namelistparser.cpp
+
+
+
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET M2MTools APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

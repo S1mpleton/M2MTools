@@ -1,9 +1,34 @@
 #ifndef AUTOMATONDATA_H
 #define AUTOMATONDATA_H
 
-#include <qobject.h>
+#include "ValidationResult.h"
+#include <QObject>
 #include <QMap>
 #include <QList>
+#include <QHash>
+#include <QString>
+
+enum class NameField {
+    State,
+    Input,
+    Output
+};
+
+static const QHash<NameField, QString> kNameFieldNames = {
+    { NameField::State,  "State"  },
+    { NameField::Input,  "Input"  },
+    { NameField::Output, "Output" },
+    };
+
+QString nameFieldToString(NameField f);
+
+enum class CellKind {
+    Empty,              // something uneditable
+    StateHeader,        // "State" / Name state
+    InputHeader,        // "x1", "x2"
+    MooreOutput,        // "Output" — state output
+    Transition          // transition cell (Moore or Mealy)
+};
 
 enum class VariantType {
     MealyToMoore,
@@ -36,13 +61,14 @@ public:
     void setVariantNumber(int n);
     void setVariantType(VariantType t);
 
-    void setStateNames(const QStringList& names);
-    void setInputSignalNames(const QStringList& names);
-    void setOutputSignalNames(const QStringList& names);
+    ValidationResult setStateNames(const QStringList& names);
+    ValidationResult setInputSignalNames(const QStringList& names);
+    ValidationResult setOutputSignalNames(const QStringList& names);
 
     void setTransition(int inputIndex, int stateIndex, const CellData& cell);
     void setMooreOutput(const QString& state, const QStringList& outputs);
 
+    CellKind cellKind(int row, int col) const;
 
 private:
     VariantType m_type = VariantType::MealyToMoore;
@@ -56,6 +82,7 @@ private:
     QVector<QVector<CellData>> m_transitionTable;
 
     void rebuildTransitionTable();
+    ValidationResult checkInvariant(const QStringList& candidate, NameField field) const;
 };
 
 #endif // AUTOMATONDATA_H

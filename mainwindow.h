@@ -30,8 +30,9 @@ private:
     Ui::MainWindow *ui;
     AutomatonData m_data;
 
+    bool m_updatingTable = false;
+
     void setupConnections();
     void refreshTable();
-    QStringList parseNames(const QString& text) const;
 };
 #endif // MAINWINDOW_H
