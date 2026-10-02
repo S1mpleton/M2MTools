@@ -4,6 +4,7 @@
 #include "automatondata.h"
 
 #include <QStyledItemDelegate>
+#include <QWidget>
 
 class MealyDelegate : public QStyledItemDelegate
 {
@@ -16,9 +17,12 @@ public:
 
     void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override;
 
+    static QString normalizeOutputList(const QString& text);
+
+    static QWidget* createContainer(QWidget* parent);
+
 private:
     const AutomatonData* m_data;
-    static QString normalizeOutputList(const QString& text);
 
 protected:
     bool eventFilter(QObject *object, QEvent *event) override;

@@ -17,8 +17,9 @@ MealyDelegate::MealyDelegate(const AutomatonData* data, QObject* parent)
 
 }
 
-QWidget* MealyDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem&, const QModelIndex&) const {
-    qDebug() << "=== createEditor ===";
+QWidget* MealyDelegate::createContainer(QWidget* parent)
+{
+    // === createContainer ===
     QWidget* container = new QWidget(parent);
     container->setObjectName("containerEdit");
     container->setAutoFillBackground(true);
@@ -27,18 +28,22 @@ QWidget* MealyDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem
     pal.setColor(QPalette::Window, pal.color(QPalette::Base));
     container->setPalette(pal);
 
-
+    // === layout ===
     QHBoxLayout* layout = new QHBoxLayout(container);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(2);
 
+    // === createStateEdit ===
     QLineEdit* stateEdit = new QLineEdit(container);
+
     stateEdit->setValidator(new EditValidator(stateEdit, QRegularExpression("[^a-zA-Zа-яА-ЯёЁ0-9]")));
     stateEdit->setObjectName("stateEdit");
 
+    // === seporator
     QLabel* slash = new QLabel("/", container);
     slash->setAlignment(Qt::AlignCenter);
 
+    // === createOutputEdit ===
     QLineEdit* outputEdit = new QLineEdit(container);
 
     CompositeValidator *composite = new CompositeValidator(outputEdit);
@@ -48,16 +53,30 @@ QWidget* MealyDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem
     outputEdit->setValidator(composite);
     outputEdit->setObjectName("outputEdit");
 
+    // settings
     container->setFocusProxy(stateEdit);
-
-    stateEdit->installEventFilter(const_cast<MealyDelegate*>(this));
-    outputEdit->installEventFilter(const_cast<MealyDelegate*>(this));
 
     layout->addWidget(stateEdit, 1);
     layout->addWidget(slash, 0);
     layout->addWidget(outputEdit, 1);
 
     container->setLayout(layout);
+
+    return container;
+}
+
+QWidget* MealyDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem&, const QModelIndex&) const {
+    qDebug() << "=== createEditor ===";
+    QWidget* container = createContainer(parent);
+
+    auto* stateEdit  = container->findChild<QLineEdit*>("stateEdit");
+    auto* outputEdit = container->findChild<QLineEdit*>("outputEdit");
+
+    Q_ASSERT(stateEdit && outputEdit);
+
+    stateEdit->installEventFilter(const_cast<MealyDelegate*>(this));
+    outputEdit->installEventFilter(const_cast<MealyDelegate*>(this));
+
     return container;
 }
 

@@ -19,7 +19,7 @@ QWidget* MooreDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem
         composite->addValidator(new EditValidator());
         composite->addValidator(new ListNamesValidator());
 
-        editor->setValidator(new EditValidator(composite));
+        editor->setValidator(composite);
 
     } else if (kind == CellKind::Transition) {
         editor->setValidator(new EditValidator(editor, QRegularExpression("[^a-zA-Zа-яА-ЯёЁ0-9]")));

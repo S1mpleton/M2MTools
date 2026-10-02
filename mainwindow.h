@@ -2,6 +2,9 @@
 #define MAINWINDOW_H
 
 #include "automatondata.h"
+#include "tablecellerrorpresenter.h"
+
+#include <QLineEdit>
 #include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
@@ -25,14 +28,24 @@ private slots:
     void onStateNamesChanged(const QString& text);
     void onInputNamesChanged(const QString& text);
     void onOutputNamesChanged(const QString& text);
+    void onTableCellChanged(int row, int col);
 
 private:
     Ui::MainWindow *ui;
     AutomatonData m_data;
 
     bool m_updatingTable = false;
+    bool m_updatingUi = false;
 
+    IErrorPresenter* m_stateNamesPresenter = nullptr;
+    IErrorPresenter* m_inputNamesPresenter = nullptr;
+    IErrorPresenter* m_outputNamesPresenter = nullptr;
+
+    TableCellErrorPresenter* m_cellPresenter = nullptr;
+
+    void setupPresenters();
     void setupConnections();
     void refreshTable();
+
 };
 #endif // MAINWINDOW_H

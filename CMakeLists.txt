@@ -35,6 +35,11 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         mealydelegate.h mealydelegate.cpp
         ValidationResult.h
         namelistparser.h namelistparser.cpp
+        resources.qrc
+        fielderrorhighlighter.h fielderrorhighlighter.cpp
+        tablecellerrorpresenter.h tablecellerrorpresenter.cpp
+        IErrorPresenter.h
+        errorpresenterfactory.h errorpresenterfactory.cpp
 
 
 

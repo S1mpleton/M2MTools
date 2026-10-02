@@ -3,6 +3,7 @@
 
 #include "compositevalidator.h"
 #include "editvalidator.h"
+#include "errorpresenterfactory.h"
 #include "listnamesvalidator.h"
 #include "mealydelegate.h"
 #include "mooredelegate.h"
@@ -19,6 +20,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    // m_highlighter = new FieldErrorHighlighter(ui->statusbar, this);
+
     CompositeValidator *composite = new CompositeValidator(this);
     composite->addValidator(new EditValidator());
     composite->addValidator(new ListNamesValidator());
@@ -29,6 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->transitionTableWidget->setItemDelegate(new MealyDelegate(&m_data, this));
 
+    setupPresenters();
     setupConnections();
     refreshTable();
 }
@@ -36,6 +40,20 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::setupPresenters() {
+    m_stateNamesPresenter = ErrorPresenterFactory::forLineEdit(
+        ui->stateNamesLineEdit, ui->statusbar, this);
+
+    m_inputNamesPresenter = ErrorPresenterFactory::forLineEdit(
+        ui->InputSignalNamesLineEdit, ui->statusbar, this);
+
+    m_outputNamesPresenter = ErrorPresenterFactory::forLineEdit(
+        ui->OutputSignalNamesLineEdit, ui->statusbar, this);
+
+    m_cellPresenter = m_cellPresenter = new TableCellErrorPresenter(
+        ui->transitionTableWidget, 0, 0, ui->statusbar, this);
 }
 
 void MainWindow::setupConnections() {
@@ -50,9 +68,9 @@ void MainWindow::setupConnections() {
             this, &MainWindow::onInputNamesChanged);
     connect(ui->OutputSignalNamesLineEdit, &QLineEdit::textChanged,
             this, &MainWindow::onOutputNamesChanged);
-
+    connect(ui->transitionTableWidget, &QTableWidget::cellChanged,
+            this, &MainWindow::onTableCellChanged);
 }
-
 
 void MainWindow::onVariantTypeChanged(int index) {
     qDebug() << index;
@@ -75,52 +93,74 @@ void MainWindow::onVariantNumberChanged(int number) {
 }
 
 void MainWindow::onStateNamesChanged(const QString& text) {
-    QStringList names = NameListParser::parse(text);
+    if (m_updatingUi) return;
 
+    QStringList names = NameListParser::parse(text);
     ValidationResult result = m_data.setStateNames(names);
+
     if (!result.ok) {
-        ui->stateNamesLineEdit->setStyleSheet("background: #CC2222;");
-        statusBar()->showMessage(result.message);
+        m_stateNamesPresenter->show(result);
         return;
     }
 
-    ui->stateNamesLineEdit->setStyleSheet("");
-    statusBar()->showMessage(result.message);
-
+    m_stateNamesPresenter->clear(result);
     refreshTable();
 }
 
 void MainWindow::onInputNamesChanged(const QString& text) {
-    QStringList names = NameListParser::parse(text);
+    if (m_updatingUi) return;
 
+    QStringList names = NameListParser::parse(text);
     ValidationResult result = m_data.setInputSignalNames(names);
+
     if (!result.ok) {
-        ui->InputSignalNamesLineEdit->setStyleSheet("background: #CC2222;");
-        statusBar()->showMessage(result.message);
+        m_inputNamesPresenter->show(result);
         return;
     }
 
-    ui->InputSignalNamesLineEdit->setStyleSheet("");
-    statusBar()->showMessage(result.message);
+    m_inputNamesPresenter->clear(result);
     refreshTable();
 }
 
 void MainWindow::onOutputNamesChanged(const QString& text) {
-    QStringList names = NameListParser::parse(text);
+    if (m_updatingUi) return;
 
+    QStringList names = NameListParser::parse(text);
     ValidationResult result = m_data.setOutputSignalNames(names);
+
     if (!result.ok) {
-        ui->OutputSignalNamesLineEdit->setStyleSheet("background: #CC2222;");
-        statusBar()->showMessage(result.message);
+        m_outputNamesPresenter->show(result);
         return;
     }
 
-    ui->OutputSignalNamesLineEdit->setStyleSheet("");
-    statusBar()->showMessage(result.message);
+    m_outputNamesPresenter->clear(result);
+}
+
+void MainWindow::onTableCellChanged(int row, int col) {
+    if (m_updatingUi) return;
+
+    auto* item = ui->transitionTableWidget->item(row, col);
+    if (!item) return;
+
+    const QString text = item->text();
+    const CellKind kind = m_data.cellKind(row, col);
+
+    const ValidationResult r = (kind == CellKind::MooreOutput)
+        ? m_data.setMooreOutputCell(col, text)
+        : m_data.setTransitionCell(row, col, text);
+
+    m_cellPresenter->setCoordinates(row, col);
+
+    if (r.ok) {
+        m_cellPresenter->clear(r);
+    } else {
+        m_cellPresenter->show(r);
+    }
 }
 
 void MainWindow::refreshTable() {
     m_updatingTable = true;
+    m_updatingUi = true;
 
     QTableWidget* t = ui->transitionTableWidget;
     t->clear();
@@ -204,6 +244,7 @@ void MainWindow::refreshTable() {
     }
 
     m_updatingTable = false;
+    m_updatingUi = false;
 }
 
 

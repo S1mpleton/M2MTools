@@ -65,9 +65,13 @@ public:
     ValidationResult setInputSignalNames(const QStringList& names);
     ValidationResult setOutputSignalNames(const QStringList& names);
 
+    ValidationResult setTransitionCell(int row, int col, const QString& text);
+    ValidationResult setMooreOutputCell(int col,const QString& text);
+
     void setTransition(int inputIndex, int stateIndex, const CellData& cell);
     void setMooreOutput(const QString& state, const QStringList& outputs);
 
+    // Other
     CellKind cellKind(int row, int col) const;
 
 private:
@@ -83,6 +87,7 @@ private:
 
     void rebuildTransitionTable();
     ValidationResult checkInvariant(const QStringList& candidate, NameField field) const;
+    ValidationResult validateCellContent(int row, int col, const QString& text) const;
 };
 
 #endif // AUTOMATONDATA_H

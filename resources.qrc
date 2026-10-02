@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/ui">
+        <file>resources/icons/warning.png</file>
+    </qresource>
+</RCC>

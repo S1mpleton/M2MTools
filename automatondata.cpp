@@ -1,4 +1,5 @@
 #include "automatondata.h"
+#include "namelistparser.h"
 
 #include <QSet>
 
@@ -120,8 +121,72 @@ ValidationResult AutomatonData::setOutputSignalNames(const QStringList& names) {
     return result;
 }
 
-ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, NameField field) const
-{
+ValidationResult AutomatonData::setMooreOutputCell(int col, const QString& text) {
+    // Boundaries of the land
+    const int stateIndex = col - 1;
+    if (stateIndex < 0 || stateIndex >= m_stateNames.size())
+        return ValidationResult::failure("Invalid column index");
+
+    // Validation
+    const ValidationResult check = validateCellContent(0, col, text);
+    if (!check.ok)
+        return check;
+
+    // Recording
+    const QString trimmed = text.trimmed();
+    QStringList outputs;
+
+    if (!(trimmed.isEmpty() || trimmed == "—" || trimmed == "-")) {
+        outputs = NameListParser::parse(trimmed);
+    }
+
+    m_mooreOutputs[m_stateNames[stateIndex]] = outputs;
+    return ValidationResult::success("Changes applied");
+}
+
+ValidationResult AutomatonData::setTransitionCell(int row, int col, const QString& text) {
+    // Boundaries
+    const int rowOffset = (m_type == VariantType::MooreToMealy) ? 2 : 1;
+    const int inputIndex = row - rowOffset;
+    const int stateIndex = col - 1;
+
+    if (inputIndex < 0 || inputIndex >= m_inputSignalNames.size())
+        return ValidationResult::failure("Invalid row index");
+    if (stateIndex < 0 || stateIndex >= m_stateNames.size())
+        return ValidationResult::failure("Invalid column index");
+
+    // Validation
+    const ValidationResult check = validateCellContent(row, col, text);
+    if (!check.ok)
+        return check;
+
+    // Recording
+    const QString trimmed = text.trimmed();
+    CellData cell;
+
+    if (trimmed.isEmpty() || trimmed == "—" || trimmed == "-") {
+    } else if (m_type == VariantType::MooreToMealy) {
+        cell.nextState = trimmed;
+    } else {
+        const int slashPos = trimmed.indexOf('/');
+        if (slashPos < 0)
+            return ValidationResult::failure("Internal error: format not verified");
+
+        const QString statePart  = trimmed.left(slashPos).trimmed();
+        const QString outputPart = trimmed.mid(slashPos + 1).trimmed();
+
+        if (statePart != "—" && statePart != "-")
+            cell.nextState = statePart;
+
+        if (outputPart != "—" && outputPart != "-")
+            cell.outputSignals = NameListParser::parse(outputPart);
+    }
+
+    m_transitionTable[inputIndex][stateIndex] = cell;
+    return ValidationResult::success("Changes applied");
+}
+
+ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, NameField field) const {
     // Duplicates within the list itself
     QSet<QString> seen;
     for (const QString& name : candidate) {
@@ -181,4 +246,82 @@ ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, Nam
         QString("The list '%1' is valid.")
             .arg(nameFieldToString(field))
     );
+}
+
+ValidationResult AutomatonData::validateCellContent(int row, int col, const QString& text) const {
+    const CellKind kind = cellKind(row, col);
+
+    if (kind == CellKind::Empty
+        || kind == CellKind::StateHeader
+        || kind == CellKind::InputHeader) {
+        return ValidationResult::failure("This cell cannot be edited.");
+    }
+
+    const QString trimmed = text.trimmed();
+
+    if (trimmed.isEmpty() || trimmed == "—" || trimmed == "-")
+        return ValidationResult::success();
+
+    switch (kind) {
+    case CellKind::MooreOutput: {
+        QStringList names = NameListParser::parse(trimmed);
+        QSet<QString> seen;
+        for (const QString& name : std::as_const(names)) {
+            if (!m_outputSignalNames.contains(name))
+                return ValidationResult::failure(
+                    QString("Unknown output signal: %1").arg(name), name);
+            if (seen.contains(name))
+                return ValidationResult::failure(
+                    QString("Duplicate: %1").arg(name), name);
+            seen.insert(name);
+        }
+        return ValidationResult::success();
+    }
+
+    case CellKind::Transition: {
+        if (m_type == VariantType::MooreToMealy) {
+            if (trimmed.contains(','))
+                return ValidationResult::failure("The state cannot contain commas.");
+            if (!m_stateNames.contains(trimmed))
+                return ValidationResult::failure(
+                    QString("Unknown state: %1").arg(trimmed), trimmed);
+            return ValidationResult::success();
+        }
+
+        const int slashPos = trimmed.indexOf('/');
+        if (slashPos < 0)
+            return ValidationResult::failure("Expected format: state / output");
+
+        const QString statePart  = trimmed.left(slashPos).trimmed();
+        const QString outputPart = trimmed.mid(slashPos + 1).trimmed();
+
+        // Left side
+        if (!statePart.isEmpty() && statePart != "—") {
+            if (statePart.contains(','))
+                return ValidationResult::failure("The state cannot contain commas.", statePart);
+            if (!m_stateNames.contains(statePart))
+                return ValidationResult::failure(
+                    QString("Unknown state: %1").arg(statePart), statePart);
+        }
+
+        // Right side
+        if (!outputPart.isEmpty() && outputPart != "—") {
+            QStringList outs = NameListParser::parse(outputPart);
+            QSet<QString> seen;
+            for (const QString& name : std::as_const(outs)) {
+                if (!m_outputSignalNames.contains(name))
+                    return ValidationResult::failure(
+                        QString("Unknown output signal: %1").arg(name), name);
+                if (seen.contains(name))
+                    return ValidationResult::failure(
+                        QString("Duplicate: %1").arg(name), name);
+                seen.insert(name);
+            }
+        }
+        return ValidationResult::success();
+    }
+
+    default:
+        return ValidationResult::failure("Unsupported cell type");
+    }
 }
