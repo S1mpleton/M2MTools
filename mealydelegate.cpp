@@ -12,21 +12,15 @@
 
 
 MealyDelegate::MealyDelegate(const AutomatonData* data, QObject* parent)
-    : QStyledItemDelegate(parent), m_data(data)
-{
+    : QStyledItemDelegate(parent), m_data(data) {
 
 }
 
-QWidget* MealyDelegate::createContainer(QWidget* parent)
-{
+QWidget* MealyDelegate::createContainer(QWidget* parent) {
     // === createContainer ===
     QWidget* container = new QWidget(parent);
-    container->setObjectName("containerEdit");
     container->setAutoFillBackground(true);
-
-    QPalette pal = container->palette();
-    pal.setColor(QPalette::Window, pal.color(QPalette::Base));
-    container->setPalette(pal);
+    container->setObjectName("containerEdit");
 
     // === layout ===
     QHBoxLayout* layout = new QHBoxLayout(container);
@@ -39,7 +33,7 @@ QWidget* MealyDelegate::createContainer(QWidget* parent)
     stateEdit->setValidator(new EditValidator(stateEdit, QRegularExpression("[^a-zA-Zа-яА-ЯёЁ0-9]")));
     stateEdit->setObjectName("stateEdit");
 
-    // === seporator
+    // === seporator ===
     QLabel* slash = new QLabel("/", container);
     slash->setAlignment(Qt::AlignCenter);
 
@@ -53,7 +47,7 @@ QWidget* MealyDelegate::createContainer(QWidget* parent)
     outputEdit->setValidator(composite);
     outputEdit->setObjectName("outputEdit");
 
-    // settings
+    // === settings ===
     container->setFocusProxy(stateEdit);
 
     layout->addWidget(stateEdit, 1);
@@ -111,8 +105,7 @@ void MealyDelegate::setEditorData(QWidget* editor, const QModelIndex& index) con
     if (outputEdit) outputEdit->setText(outputPart);
 }
 
-void MealyDelegate::setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const
-{
+void MealyDelegate::setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const {
     qDebug() << "=== setModelData ===";
     auto* container = qobject_cast<QWidget*>(editor);
     if (!container) return;
@@ -131,8 +124,7 @@ void MealyDelegate::setModelData(QWidget* editor, QAbstractItemModel* model, con
     model->setData(index, result, Qt::EditRole);
 }
 
-bool MealyDelegate::eventFilter(QObject *object, QEvent *event)
-{
+bool MealyDelegate::eventFilter(QObject *object, QEvent *event) {
     auto* lineEdit = qobject_cast<QLineEdit*>(object);
     if (lineEdit && (lineEdit->objectName() == "stateEdit" || lineEdit->objectName() == "outputEdit")) {
         if (event->type() == QEvent::FocusOut) {
@@ -152,8 +144,7 @@ bool MealyDelegate::eventFilter(QObject *object, QEvent *event)
     return QStyledItemDelegate::eventFilter(object, event);
 }
 
-QString MealyDelegate::normalizeOutputList(const QString& text)
-{
+QString MealyDelegate::normalizeOutputList(const QString& text) {
     if (text == "—") return text;
     QStringList parts = text.split(',', Qt::SkipEmptyParts);
     for (QString& p : parts) p = p.trimmed();

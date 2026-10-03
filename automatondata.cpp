@@ -2,6 +2,7 @@
 #include "namelistparser.h"
 
 #include <QSet>
+#include <QRegularExpression>
 
 QString nameFieldToString(NameField f)
 {
@@ -49,10 +50,13 @@ void AutomatonData::setVariantType(VariantType t){
 }
 
 ValidationResult AutomatonData::setStateNames(const QStringList& names) {
-    ValidationResult result = checkInvariant(names, NameField::State);
+    ValidationResult validNames = validateNameList(names);
+    if (!validNames.ok) return validNames;
 
-    if (!result.ok) return result;
-    if (m_stateNames == names) return result;
+    ValidationResult validInvariant = checkInvariant(names, NameField::State);
+
+    if (!validInvariant.ok) return validInvariant;
+    if (m_stateNames == names) return validInvariant;
 
     QMap<QString, int> oldIndex;
     for (int i = 0; i < m_stateNames.size(); ++i)
@@ -78,14 +82,17 @@ ValidationResult AutomatonData::setStateNames(const QStringList& names) {
             ++it;
     }
 
-    return result;
+    return validInvariant;
 }
 
 ValidationResult AutomatonData::setInputSignalNames(const QStringList& names) {
-    ValidationResult result = checkInvariant(names, NameField::Input);
+    ValidationResult validNames = validateNameList(names);
+    if (!validNames.ok) return validNames;
 
-    if (!result.ok) return result;
-    if (m_inputSignalNames == names) return result;
+    ValidationResult validInvariant = checkInvariant(names, NameField::Input);
+
+    if (!validInvariant.ok) return validInvariant;
+    if (m_inputSignalNames == names) return validInvariant;
 
     QMap<QString, int> oldIndex;
     for (int i = 0; i < m_inputSignalNames.size(); ++i)
@@ -107,18 +114,21 @@ ValidationResult AutomatonData::setInputSignalNames(const QStringList& names) {
     m_inputSignalNames = names;
     m_transitionTable = newTable;
 
-    return result;
+    return validInvariant;
 }
 
 ValidationResult AutomatonData::setOutputSignalNames(const QStringList& names) {
-    ValidationResult result = checkInvariant(names, NameField::Output);
+    ValidationResult validNames = validateNameList(names);
+    if (!validNames.ok) return validNames;
 
-    if (!result.ok) return result;
-    if (m_outputSignalNames == names) return result;
+    ValidationResult validInvariant = checkInvariant(names, NameField::Output);
+
+    if (!validInvariant.ok) return validInvariant;
+    if (m_outputSignalNames == names) return validInvariant;
 
     m_outputSignalNames = names;
 
-    return result;
+    return validInvariant;
 }
 
 ValidationResult AutomatonData::setMooreOutputCell(int col, const QString& text) {
@@ -201,7 +211,7 @@ ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, Nam
         seen.insert(name);
     }
 
-    // 2. Intersection with other fields
+    // Intersection with other fields
     const QStringList* others[2];
     QStringList otherNames;
 
@@ -248,6 +258,36 @@ ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, Nam
     );
 }
 
+ValidationResult AutomatonData::validateNameList(const QStringList& names) const {
+    static const QRegularExpression allowedChars(QStringLiteral("^[A-Za-zА-Яа-яЁё0-9]+$"));
+    static const QRegularExpression startsWithLetter(QStringLiteral("^[A-Za-zА-Яа-яЁё]"));
+
+    for (const QString& name : names) {
+        // Empty name
+        if (name.isEmpty()) {
+            return ValidationResult::failure(QStringLiteral("The name cannot be empty."));
+
+        }
+
+        // Letters and numbers only
+        if (!allowedChars.match(name).hasMatch())
+            return ValidationResult::failure(
+                QStringLiteral(
+                    "The name '%1' contains invalid characters. "
+                    "Only letters and numbers are allowed."
+                    ).arg(name), name);
+
+        // The word must start with the letter.
+        if (!startsWithLetter.match(name).hasMatch())
+            return ValidationResult::failure(
+                QStringLiteral(
+                    "The name '%1' must start with a letter."
+                    ).arg(name), name);
+    }
+
+    return ValidationResult::success();
+}
+
 ValidationResult AutomatonData::validateCellContent(int row, int col, const QString& text) const {
     const CellKind kind = cellKind(row, col);
 
@@ -265,6 +305,9 @@ ValidationResult AutomatonData::validateCellContent(int row, int col, const QStr
     switch (kind) {
     case CellKind::MooreOutput: {
         QStringList names = NameListParser::parse(trimmed);
+        ValidationResult validNames = validateNameList(names);
+        if (!validNames.ok) return validNames;
+
         QSet<QString> seen;
         for (const QString& name : std::as_const(names)) {
             if (!m_outputSignalNames.contains(name))
@@ -307,6 +350,9 @@ ValidationResult AutomatonData::validateCellContent(int row, int col, const QStr
         // Right side
         if (!outputPart.isEmpty() && outputPart != "—") {
             QStringList outs = NameListParser::parse(outputPart);
+            ValidationResult validNames = validateNameList(outs);
+            if (!validNames.ok) return validNames;
+
             QSet<QString> seen;
             for (const QString& name : std::as_const(outs)) {
                 if (!m_outputSignalNames.contains(name))

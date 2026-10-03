@@ -87,6 +87,7 @@ private:
 
     void rebuildTransitionTable();
     ValidationResult checkInvariant(const QStringList& candidate, NameField field) const;
+    ValidationResult validateNameList(const QStringList& names) const;
     ValidationResult validateCellContent(int row, int col, const QString& text) const;
 };
 

@@ -12,6 +12,7 @@ MooreDelegate::MooreDelegate(const AutomatonData* data, QObject* parent)
 QWidget* MooreDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem&, const QModelIndex& index) const
 {
     QLineEdit* editor = new QLineEdit(parent);
+    editor->setAutoFillBackground(true);
 
     auto kind = m_data->cellKind(index.row(), index.column());
     if (kind == CellKind::MooreOutput) {
