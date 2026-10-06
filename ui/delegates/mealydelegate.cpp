@@ -1,7 +1,8 @@
 #include "mealydelegate.h"
-#include "editvalidator.h"
-#include "compositevalidator.h"
-#include "listnamesvalidator.h"
+
+#include "validation/editvalidator.h"
+#include "validation/compositevalidator.h"
+#include "validation/listnamesvalidator.h"
 
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -9,7 +10,6 @@
 #include <QEvent>
 #include <QApplication>
 #include <qabstractitemview.h>
-
 
 MealyDelegate::MealyDelegate(const AutomatonData* data, QObject* parent)
     : QStyledItemDelegate(parent), m_data(data) {

@@ -1,8 +1,8 @@
 #ifndef FIELDERRORHIGHLIGHTER_H
 #define FIELDERRORHIGHLIGHTER_H
 
-#include "IErrorPresenter.h"
-#include "ValidationResult.h"
+#include "ierrorpresenter.h"
+#include "core/validationresult.h"
 
 #include <QObject>
 #include <QStatusBar>

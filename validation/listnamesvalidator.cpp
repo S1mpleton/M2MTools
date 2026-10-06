@@ -1,7 +1,5 @@
 #include "listnamesvalidator.h"
 
-
-
 ListNamesValidator::ListNamesValidator(QObject *parent)
     : QValidator(parent) {
 

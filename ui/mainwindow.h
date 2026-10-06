@@ -1,8 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "automatondata.h"
-#include "tablecellerrorpresenter.h"
+#include "core/automatondata.h"
+#include "data/variantservice.h"
+#include "ui/presenters/tablecellerrorpresenter.h"
 
 #include <QLineEdit>
 #include <QMainWindow>
@@ -18,7 +19,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(VariantService* service, QWidget *parent = nullptr);
     ~MainWindow() override;
 
 private slots:
@@ -30,6 +31,9 @@ private slots:
     void onOutputNamesChanged(const QString& text);
     void onTableCellChanged(int row, int col);
 
+    void onLoadVariantPushButton();
+    void onSavePushButtonClicked();
+
 private:
     Ui::MainWindow *ui;
     AutomatonData m_data;
@@ -37,6 +41,7 @@ private:
     bool m_updatingTable = false;
     bool m_updatingUi = false;
 
+    VariantService* m_variantService = nullptr;
     IErrorPresenter* m_stateNamesPresenter = nullptr;
     IErrorPresenter* m_inputNamesPresenter = nullptr;
     IErrorPresenter* m_outputNamesPresenter = nullptr;

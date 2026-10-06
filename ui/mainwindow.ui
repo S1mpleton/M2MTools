@@ -76,14 +76,14 @@
     <item row="4" column="0">
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QPushButton" name="pushButton_2">
+       <widget class="QPushButton" name="savePushButton">
         <property name="text">
          <string>Save</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton">
+       <widget class="QPushButton" name="loadVariantPushButton">
         <property name="text">
          <string>Load variant</string>
         </property>

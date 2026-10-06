@@ -3,11 +3,13 @@
 
 #include <QSet>
 #include <QRegularExpression>
+#include <QJsonArray>
 
-QString nameFieldToString(NameField f)
+QString nameFieldToString(FieldType f)
 {
     return kNameFieldNames.value(f);
 }
+
 
 AutomatonData::AutomatonData() {}
 
@@ -53,10 +55,14 @@ ValidationResult AutomatonData::setStateNames(const QStringList& names) {
     ValidationResult validNames = validateNameList(names);
     if (!validNames.ok) return validNames;
 
-    ValidationResult validInvariant = checkInvariant(names, NameField::State);
+    ValidationResult validInvariant = checkInvariant(names, FieldType::State);
 
     if (!validInvariant.ok) return validInvariant;
     if (m_stateNames == names) return validInvariant;
+
+    // if (!m_initialState.isEmpty() && !names.contains(m_initialState)) {
+    //     m_initialState.clear();
+    // }
 
     QMap<QString, int> oldIndex;
     for (int i = 0; i < m_stateNames.size(); ++i)
@@ -82,6 +88,8 @@ ValidationResult AutomatonData::setStateNames(const QStringList& names) {
             ++it;
     }
 
+    setInitialState(m_stateNames.isEmpty() ? QString("") : m_stateNames.first()); // hotfix
+
     return validInvariant;
 }
 
@@ -89,7 +97,7 @@ ValidationResult AutomatonData::setInputSignalNames(const QStringList& names) {
     ValidationResult validNames = validateNameList(names);
     if (!validNames.ok) return validNames;
 
-    ValidationResult validInvariant = checkInvariant(names, NameField::Input);
+    ValidationResult validInvariant = checkInvariant(names, FieldType::Input);
 
     if (!validInvariant.ok) return validInvariant;
     if (m_inputSignalNames == names) return validInvariant;
@@ -121,7 +129,7 @@ ValidationResult AutomatonData::setOutputSignalNames(const QStringList& names) {
     ValidationResult validNames = validateNameList(names);
     if (!validNames.ok) return validNames;
 
-    ValidationResult validInvariant = checkInvariant(names, NameField::Output);
+    ValidationResult validInvariant = checkInvariant(names, FieldType::Output);
 
     if (!validInvariant.ok) return validInvariant;
     if (m_outputSignalNames == names) return validInvariant;
@@ -152,6 +160,17 @@ ValidationResult AutomatonData::setMooreOutputCell(int col, const QString& text)
 
     m_mooreOutputs[m_stateNames[stateIndex]] = outputs;
     return ValidationResult::success("Changes applied");
+}
+
+ValidationResult AutomatonData::setMooreOutputCellByName(const QString& stateName, const QString& text) {
+    const int stateIdx = m_stateNames.indexOf(stateName);
+    if (stateIdx < 0)
+        return ValidationResult::failure(
+            QStringLiteral("Неизвестное состояние: «%1»").arg(stateName),
+            stateName);
+
+    // Строка 0 — выходы Мура, столбец stateIdx + 1
+    return setMooreOutputCell(stateIdx + 1, text);
 }
 
 ValidationResult AutomatonData::setTransitionCell(int row, int col, const QString& text) {
@@ -196,7 +215,48 @@ ValidationResult AutomatonData::setTransitionCell(int row, int col, const QStrin
     return ValidationResult::success("Changes applied");
 }
 
-ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, NameField field) const {
+ValidationResult AutomatonData::setTransitionCellByName(
+    const QString& inputName,
+    const QString& stateName,
+    const QString& text) {
+
+    // 1. Проверяем, что имена существуют
+    const int inputIdx = m_inputSignalNames.indexOf(inputName);
+    if (inputIdx < 0)
+        return ValidationResult::failure(
+            QStringLiteral("Неизвестный входной сигнал: «%1»").arg(inputName),
+            inputName);
+
+    const int stateIdx = m_stateNames.indexOf(stateName);
+    if (stateIdx < 0)
+        return ValidationResult::failure(
+            QStringLiteral("Неизвестное состояние: «%1»").arg(stateName),
+            stateName);
+
+    // 2. Вычисляем координаты в UI-таблице
+    const int rowOffset = (m_type == VariantType::MooreToMealy) ? 2 : 1;
+    const int row = inputIdx + rowOffset;
+    const int col = stateIdx + 1;
+
+    // 3. Делегируем основному сеттеру — валидация и запись там
+    return setTransitionCell(row, col, text);
+}
+
+ValidationResult AutomatonData::setInitialState(const QString& name) {
+    qDebug() << " start setInitialState";
+    if (!name.isEmpty() && !m_stateNames.contains(name))
+        return ValidationResult::failure(
+            QStringLiteral("Начальное состояние «%1» отсутствует "
+                           "в списке состояний").arg(name),
+            name);
+    m_initialState = name;
+
+    qDebug() << "end setInitialState";
+    return ValidationResult::success();
+}
+
+
+ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, FieldType field) const {
     // Duplicates within the list itself
     QSet<QString> seen;
     for (const QString& name : candidate) {
@@ -216,28 +276,28 @@ ValidationResult AutomatonData::checkInvariant(const QStringList& candidate, Nam
     QStringList otherNames;
 
     switch (field) {
-    case NameField::State:
+    case FieldType::State:
         others[0] = &m_inputSignalNames;
-        otherNames.append(nameFieldToString(NameField::Input));
+        otherNames.append(nameFieldToString(FieldType::Input));
 
         others[1] = &m_outputSignalNames;
-        otherNames.append(nameFieldToString(NameField::Output));
+        otherNames.append(nameFieldToString(FieldType::Output));
         break;
 
-    case NameField::Input:
+    case FieldType::Input:
         others[0] = &m_stateNames;
-        otherNames.append(nameFieldToString(NameField::State));
+        otherNames.append(nameFieldToString(FieldType::State));
 
         others[1] = &m_outputSignalNames;
-        otherNames.append(nameFieldToString(NameField::Output));
+        otherNames.append(nameFieldToString(FieldType::Output));
         break;
 
-    case NameField::Output:
+    case FieldType::Output:
         others[0] = &m_stateNames;
-        otherNames.append(nameFieldToString(NameField::State));
+        otherNames.append(nameFieldToString(FieldType::State));
 
         others[1] = &m_inputSignalNames;
-        otherNames.append(nameFieldToString(NameField::Input));
+        otherNames.append(nameFieldToString(FieldType::Input));
         break;
     }
 

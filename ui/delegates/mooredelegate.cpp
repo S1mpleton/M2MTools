@@ -1,7 +1,8 @@
 #include "mooredelegate.h"
-#include "compositevalidator.h"
-#include "listnamesvalidator.h"
-#include "editvalidator.h"
+
+#include "validation/compositevalidator.h"
+#include "validation/listnamesvalidator.h"
+#include "validation/editvalidator.h"
 
 MooreDelegate::MooreDelegate(const AutomatonData* data, QObject* parent)
     : QStyledItemDelegate(parent), m_data(data)

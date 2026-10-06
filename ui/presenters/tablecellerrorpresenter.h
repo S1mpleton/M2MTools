@@ -1,7 +1,7 @@
 #ifndef TABLECELLERRORPRESENTER_H
 #define TABLECELLERRORPRESENTER_H
 
-#include "IErrorPresenter.h"
+#include "ierrorpresenter.h"
 
 #include <QTableWidget>
 #include <QPointer>

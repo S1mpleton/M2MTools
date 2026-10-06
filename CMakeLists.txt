@@ -9,16 +9,18 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools Sql)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools Sql)
+
 
 set(TS_FILES M2MTools_ru_RU.ts)
 
+
 set(PROJECT_SOURCES
         main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+        ui/mainwindow.cpp
+        ui/mainwindow.h
+        ui/mainwindow.ui
         ${TS_FILES}
 )
 
@@ -26,24 +28,39 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(M2MTools
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        automatondata.h automatondata.cpp
-        editvalidator.h editvalidator.cpp
+        core/automatondata.h core/automatondata.cpp
+        core/namelistparser.h core/namelistparser.cpp
+        core/validationresult.h
 
-        listnamesvalidator.h listnamesvalidator.cpp
-        compositevalidator.h compositevalidator.cpp
-        mooredelegate.h mooredelegate.cpp
-        mealydelegate.h mealydelegate.cpp
-        ValidationResult.h
-        namelistparser.h namelistparser.cpp
+        core/hash/hashprovider.h
+        core/hash/saltedsha256provider.h core/hash/saltedsha256provider.cpp
+        core/hash/rsaprovider.h core/hash/rsaprovider.cpp
+
+        validation/editvalidator.h validation/editvalidator.cpp
+        validation/listnamesvalidator.h validation/listnamesvalidator.cpp
+        validation/compositevalidator.h validation/compositevalidator.cpp
+
+        ui/delegates/mooredelegate.h ui/delegates/mooredelegate.cpp
+        ui/delegates/mealydelegate.h ui/delegates/mealydelegate.cpp
+
+        ui/presenters/fielderrorhighlighter.h ui/presenters/fielderrorhighlighter.cpp
+        ui/presenters/tablecellerrorpresenter.h ui/presenters/tablecellerrorpresenter.cpp
+        ui/presenters/ierrorpresenter.h
+        ui/presenters/errorpresenterfactory.h ui/presenters/errorpresenterfactory.cpp
+
         resources.qrc
-        fielderrorhighlighter.h fielderrorhighlighter.cpp
-        tablecellerrorpresenter.h tablecellerrorpresenter.cpp
-        IErrorPresenter.h
-        errorpresenterfactory.h errorpresenterfactory.cpp
-
-
-
+        data/sqlrequests.h
+        data/database.h data/database.cpp
+        data/schemamanager.h data/schemamanager.cpp
+        data/transaction.h data/transaction.cpp
+        data/variantrepository.h data/variantrepository.cpp
+        data/variantservice.h data/variantservice.cpp
     )
+
+target_include_directories(M2MTools PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET M2MTools APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
@@ -66,7 +83,10 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(M2MTools PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(M2MTools PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Sql
+)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

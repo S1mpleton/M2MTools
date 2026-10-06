@@ -1,7 +1,7 @@
 #ifndef IERRORPRESENTER_H
 #define IERRORPRESENTER_H
 
-#include "ValidationResult.h"
+#include "core/validationresult.h"
 #include <QObject>
 
 class IErrorPresenter : public QObject {

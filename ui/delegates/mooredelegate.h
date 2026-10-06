@@ -1,7 +1,7 @@
 #ifndef MOOREDELEGATE_H
 #define MOOREDELEGATE_H
 
-#include "automatondata.h"
+#include "core/automatondata.h"
 
 #include <QStyledItemDelegate>
 #include <QLineEdit>

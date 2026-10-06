@@ -1,26 +1,30 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
-#include "compositevalidator.h"
-#include "editvalidator.h"
-#include "errorpresenterfactory.h"
-#include "listnamesvalidator.h"
-#include "mealydelegate.h"
-#include "mooredelegate.h"
-#include "namelistparser.h"
+#include "validation/compositevalidator.h"
+#include "validation/editvalidator.h"
+#include "validation/listnamesvalidator.h"
+
+#include "ui/presenters/errorpresenterfactory.h"
+
+#include "ui/delegates/mealydelegate.h"
+#include "ui/delegates/mooredelegate.h"
+
+#include "core/namelistparser.h"
 
 #include <QDebug>
+#include <QPushButton>
 #include <QRegularExpression>
+#include <QMessageBox>
 
 
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(VariantService* service, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    , m_variantService(service)
+    , ui(new Ui::MainWindow)   
 {
     ui->setupUi(this);
-
-    // m_highlighter = new FieldErrorHighlighter(ui->statusbar, this);
 
     CompositeValidator *composite = new CompositeValidator(this);
     composite->addValidator(new EditValidator());
@@ -70,11 +74,44 @@ void MainWindow::setupConnections() {
             this, &MainWindow::onOutputNamesChanged);
     connect(ui->transitionTableWidget, &QTableWidget::cellChanged,
             this, &MainWindow::onTableCellChanged);
+
+    connect(ui->savePushButton, &QPushButton::clicked,
+            this, &MainWindow::onSavePushButtonClicked);
+    connect(ui->loadVariantPushButton, &QPushButton::clicked,
+            this,  &MainWindow::onLoadVariantPushButton);
+}
+
+void MainWindow::onLoadVariantPushButton() {
+    auto result = m_variantService->loadVariant(1);
+}
+
+void MainWindow::onSavePushButtonClicked(){
+    qDebug() << "CLICKED Save button";
+
+    if (m_data.getStateNames().isEmpty()) {
+        QMessageBox::warning(this, "Сохранение", "Не заданы состояния автомата.");
+        return;
+    }
+    if (m_data.getInputSignalNames().isEmpty()) {
+        QMessageBox::warning(this, "Сохранение", "Не заданы входные сигналы.");
+        return;
+    }
+
+    const ServiceResult result = m_variantService->saveVariant(m_data);
+
+    // 4. Реагируем на результат
+    if (result.ok) {
+        ui->statusbar->showMessage(
+            tr("Вариант №%1 сохранён").arg(m_data.getVariantNumber()), 3000);
+    } else {
+        QMessageBox::critical(this, tr("Ошибка сохранения"),
+                              tr("Не удалось сохранить вариант:\n%1").arg(result.message));
+    }
+
+
 }
 
 void MainWindow::onVariantTypeChanged(int index) {
-    qDebug() << index;
-
     if (!index){
         m_data.setVariantType(VariantType::MealyToMoore);
         ui->transitionTableWidget->setItemDelegate(new MealyDelegate(&m_data, this));
@@ -87,8 +124,6 @@ void MainWindow::onVariantTypeChanged(int index) {
 }
 
 void MainWindow::onVariantNumberChanged(int number) {
-    qDebug() << number;
-
     m_data.setVariantNumber(number);
 }
 
@@ -246,6 +281,7 @@ void MainWindow::refreshTable() {
     m_updatingTable = false;
     m_updatingUi = false;
 }
+
 
 
 

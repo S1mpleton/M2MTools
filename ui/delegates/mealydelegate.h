@@ -1,7 +1,7 @@
 #ifndef MEALYDELEGATE_H
 #define MEALYDELEGATE_H
 
-#include "automatondata.h"
+#include "core/automatondata.h"
 
 #include <QStyledItemDelegate>
 #include <QWidget>

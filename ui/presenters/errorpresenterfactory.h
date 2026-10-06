@@ -1,7 +1,7 @@
 #ifndef ERRORPRESENTERFACTORY_H
 #define ERRORPRESENTERFACTORY_H
 
-#include "IErrorPresenter.h"
+#include "ierrorpresenter.h"
 
 #include <QStatusBar>
 #include <QLineEdit>

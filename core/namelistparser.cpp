@@ -15,6 +15,6 @@ QStringList NameListParser::parse(const QString& text) {
         if (!trimmed.isEmpty())
             result.append(trimmed);
     }
-    return result;
 
+    return result;
 }
