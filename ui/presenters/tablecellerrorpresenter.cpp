@@ -27,20 +27,20 @@ void TableCellErrorPresenter::setCoordinates(int row, int col) {
     m_col = col;
 }
 
-void TableCellErrorPresenter::show(const ValidationResult& result) {
+void TableCellErrorPresenter::show(const Result& result) {
     if (auto* it = item()) {
         it->setBackground(QBrush(kErrorBackground));
-        it->setToolTip(result.message);
+        it->setToolTip(result.message());
     }
     if (m_statusBar)
-        m_statusBar->showMessage(result.message);
+        m_statusBar->showMessage(result.message());
 }
 
-void TableCellErrorPresenter::clear(const ValidationResult& result) {
+void TableCellErrorPresenter::clear(const Result& result) {
     if (auto* it = item()) {
         it->setBackground(QBrush());
         it->setToolTip("");
     }
     if (m_statusBar)
-        m_statusBar->showMessage(result.message, 2500);
+        m_statusBar->showMessage(result.message(), 2500);
 }

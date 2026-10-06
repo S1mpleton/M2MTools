@@ -27,8 +27,14 @@ private slots:
     void onVariantNumberChanged(int number);
 
     void onStateNamesChanged(const QString& text);
+    // void onStateNamesEditingFinished();
+
     void onInputNamesChanged(const QString& text);
+    // void onInputNamesEditingFinished();
+
     void onOutputNamesChanged(const QString& text);
+    // void onOutputNamesEditingFinished();
+
     void onTableCellChanged(int row, int col);
 
     void onLoadVariantPushButton();

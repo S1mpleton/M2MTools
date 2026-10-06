@@ -21,8 +21,8 @@ public:
 
     void setCoordinates(int row, int col);
 
-    void show(const ValidationResult& result) override;
-    void clear(const ValidationResult& result) override;
+    void show(const Result& result) override;
+    void clear(const Result& result) override;
 
 private:
     QTableWidgetItem* item() const;

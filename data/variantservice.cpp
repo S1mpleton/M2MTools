@@ -173,7 +173,7 @@ std::optional<AutomatonData> VariantService::loadVariant(int variantNumber, Serv
 
     // Загружаем общие данные
     AutomatonData data;
-    data.setVariantType(variantStringToType(variant->conversion));
+    data.setVariantType(variantTypeStringToType(variant->conversion));
     data.setVariantNumber(variantNumber);
 
     auto states  = m_repo->findStates(variant->id);
@@ -200,7 +200,7 @@ std::optional<AutomatonData> VariantService::loadVariant(int variantNumber, Serv
     data.setInitialState(initialState);
 
     // Загружаем переходы и выходы
-    if (variantStringToType(variant->conversion) == VariantType::MooreToMealy) {
+    if (variantTypeStringToType(variant->conversion) == VariantType::MooreToMealy) {
         auto loaded = loadMoore(variant->id, result);
         if (!loaded) return std::nullopt;
         return loaded;

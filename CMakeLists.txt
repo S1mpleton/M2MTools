@@ -30,7 +30,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${PROJECT_SOURCES}
         core/automatondata.h core/automatondata.cpp
         core/namelistparser.h core/namelistparser.cpp
-        core/validationresult.h
+
 
         core/hash/hashprovider.h
         core/hash/saltedsha256provider.h core/hash/saltedsha256provider.cpp
@@ -55,6 +55,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         data/transaction.h data/transaction.cpp
         data/variantrepository.h data/variantrepository.cpp
         data/variantservice.h data/variantservice.cpp
+        core/result.h
+        infrastructure/logger.h infrastructure/logger.cpp
+        core/result.cpp
     )
 
 target_include_directories(M2MTools PRIVATE

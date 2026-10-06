@@ -5,6 +5,8 @@
 #include "validation/editvalidator.h"
 #include "validation/listnamesvalidator.h"
 
+#include "infrastructure/logger.h"
+
 #include "ui/presenters/errorpresenterfactory.h"
 
 #include "ui/delegates/mealydelegate.h"
@@ -127,28 +129,36 @@ void MainWindow::onVariantNumberChanged(int number) {
     m_data.setVariantNumber(number);
 }
 
+// STATE signals
 void MainWindow::onStateNamesChanged(const QString& text) {
     if (m_updatingUi) return;
 
     QStringList names = NameListParser::parse(text);
-    ValidationResult result = m_data.setStateNames(names);
+    Result result = m_data.setStateNames(names);
 
-    if (!result.ok) {
+    Logger::log(result);
+
+    if (!result.ok()) {
         m_stateNamesPresenter->show(result);
         return;
     }
 
     m_stateNamesPresenter->clear(result);
+
     refreshTable();
 }
 
+
+// INPUT signals
 void MainWindow::onInputNamesChanged(const QString& text) {
     if (m_updatingUi) return;
 
     QStringList names = NameListParser::parse(text);
-    ValidationResult result = m_data.setInputSignalNames(names);
+    Result result = m_data.setInputSignalNames(names);
 
-    if (!result.ok) {
+    Logger::log(result);
+
+    if (!result.ok()) {
         m_inputNamesPresenter->show(result);
         return;
     }
@@ -157,13 +167,17 @@ void MainWindow::onInputNamesChanged(const QString& text) {
     refreshTable();
 }
 
+
+// OUTPUT signals
 void MainWindow::onOutputNamesChanged(const QString& text) {
     if (m_updatingUi) return;
 
     QStringList names = NameListParser::parse(text);
-    ValidationResult result = m_data.setOutputSignalNames(names);
+    Result result = m_data.setOutputSignalNames(names);
 
-    if (!result.ok) {
+    Logger::log(result);
+
+    if (!result.ok()) {
         m_outputNamesPresenter->show(result);
         return;
     }
@@ -180,16 +194,18 @@ void MainWindow::onTableCellChanged(int row, int col) {
     const QString text = item->text();
     const CellKind kind = m_data.cellKind(row, col);
 
-    const ValidationResult r = (kind == CellKind::MooreOutput)
+    const Result result = (kind == CellKind::MooreOutput)
         ? m_data.setMooreOutputCell(col, text)
         : m_data.setTransitionCell(row, col, text);
 
     m_cellPresenter->setCoordinates(row, col);
 
-    if (r.ok) {
-        m_cellPresenter->clear(r);
+    Logger::log(result);
+
+    if (result.ok()) {
+        m_cellPresenter->clear(result);
     } else {
-        m_cellPresenter->show(r);
+        m_cellPresenter->show(result);
     }
 }
 

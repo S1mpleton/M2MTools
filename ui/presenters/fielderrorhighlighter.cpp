@@ -12,11 +12,11 @@ FieldErrorHighlighter::FieldErrorHighlighter(QLineEdit* field, QStatusBar* statu
 
 }
 
-void FieldErrorHighlighter::show(const ValidationResult& result) {
+void FieldErrorHighlighter::show(const Result& result) {
     if (!m_field) return;
 
     m_field->setStyleSheet(QString::fromLatin1(kErrorStyle));
-    m_field->setToolTip(result.message);
+    m_field->setToolTip(result.message());
 
     // Иконку добавляем только один раз
     if (!m_field->findChild<QAction*>(kErrorIconId)) {
@@ -25,10 +25,10 @@ void FieldErrorHighlighter::show(const ValidationResult& result) {
     }
 
     if (m_statusBar)
-        m_statusBar->showMessage(result.message);
+        m_statusBar->showMessage(result.message());
 }
 
-void FieldErrorHighlighter::clear(const ValidationResult& result) {
+void FieldErrorHighlighter::clear(const Result& result) {
     if (!m_field) return;
 
     m_field->setStyleSheet("");
@@ -40,5 +40,5 @@ void FieldErrorHighlighter::clear(const ValidationResult& result) {
     }
 
     if (m_statusBar)
-        m_statusBar->showMessage(result.message, 2500);
+        m_statusBar->showMessage(result.message(), 2500);
 }

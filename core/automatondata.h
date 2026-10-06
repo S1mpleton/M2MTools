@@ -1,7 +1,7 @@
 #ifndef AUTOMATONDATA_H
 #define AUTOMATONDATA_H
 
-#include "validationresult.h"
+#include "core/result.h"
 
 #include <QObject>
 #include <QMap>
@@ -16,42 +16,10 @@ enum class FieldType {
     Output
 };
 
-static const QHash<FieldType, QString> kNameFieldNames = {
-    { FieldType::State,  "State"  },
-    { FieldType::Input,  "Input"  },
-    { FieldType::Output, "Output" },
-    };
-
-QString nameFieldToString(FieldType f);
-
 enum class VariantType {
     MealyToMoore,
     MooreToMealy
 };
-
-inline VariantType variantStringToType(QString typeString) {
-    if (typeString == QString("MealyToMoore")) return VariantType::MealyToMoore;
-    if (typeString == QString("MooreToMealy")) return VariantType::MooreToMealy;
-
-    qDebug() << "Не тот ВАРИАНТ ТИП";
-    return VariantType::MealyToMoore;
-}
-
-inline QString variantTypeToString(VariantType type) {
-    switch (type) {
-    case VariantType::MooreToMealy: return QStringLiteral("MooreToMealy");
-    case VariantType::MealyToMoore: return QStringLiteral("MealyToMoore");
-    }
-    return {};
-}
-
-inline QString variantTypeDisplayName(VariantType type) {
-    switch (type) {
-    case VariantType::MooreToMealy: return QObject::tr("Мур → Мили");
-    case VariantType::MealyToMoore: return QObject::tr("Мили → Мур");
-    }
-    return {};
-}
 
 enum class CellKind {
     Empty,              // something uneditable
@@ -60,6 +28,14 @@ enum class CellKind {
     MooreOutput,        // "Output" — state output
     Transition          // transition cell (Moore or Mealy)
 };
+
+FieldType fieldTypeStringToType(QString fieldTypeString);
+QString fieldTypeToString(FieldType fieldType);
+QString fieldTypeDisplayName(FieldType fieldType);
+
+VariantType variantTypeStringToType(QString variantTypeString);
+QString variantTypeToString(VariantType variantType);
+QString variantTypeDisplayName(VariantType variantType);
 
 struct CellData {
     QString nextState;
@@ -88,16 +64,16 @@ public:
     void setVariantNumber(int n);
     void setVariantType(VariantType t);
 
-    ValidationResult setInitialState(const QString& name);
-    ValidationResult setStateNames(const QStringList& names);
-    ValidationResult setInputSignalNames(const QStringList& names);
-    ValidationResult setOutputSignalNames(const QStringList& names);
+    Result setInitialState(const QString& name);
+    Result setStateNames(const QStringList& names);
+    Result setInputSignalNames(const QStringList& names);
+    Result setOutputSignalNames(const QStringList& names);
 
-    ValidationResult setTransitionCell(int row, int col, const QString& text);
-    ValidationResult setMooreOutputCell(int col,const QString& text);
+    Result setTransitionCell(int row, int col, const QString& text);
+    Result setMooreOutputCell(int col,const QString& text);
 
-    ValidationResult setTransitionCellByName(const QString& inputName, const QString& stateName, const QString& text);
-    ValidationResult setMooreOutputCellByName(const QString& stateName, const QString& text);
+    Result setTransitionCellByName(const QString& inputName, const QString& stateName, const QString& text);
+    Result setMooreOutputCellByName(const QString& stateName, const QString& text);
 
     void setTransition(int inputIndex, int stateIndex, const CellData& cell);
     void setMooreOutput(const QString& state, const QStringList& outputs);
@@ -120,9 +96,10 @@ private:
     static constexpr int kSchemaVersion = 1;
 
     void rebuildTransitionTable();
-    ValidationResult checkInvariant(const QStringList& candidate, FieldType field) const;
-    ValidationResult validateNameList(const QStringList& names) const;
-    ValidationResult validateCellContent(int row, int col, const QString& text) const;
+    Result checkInvariant(const QStringList& candidate, FieldType field) const;
+    Result validateName(const QString& name) const;
+    Result validateNameList(const QStringList& names) const;
+    Result validateCellContent(int row, int col, const QString& text) const;
 };
 
 #endif // AUTOMATONDATA_H

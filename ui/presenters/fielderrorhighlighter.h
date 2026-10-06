@@ -2,7 +2,7 @@
 #define FIELDERRORHIGHLIGHTER_H
 
 #include "ierrorpresenter.h"
-#include "core/validationresult.h"
+#include "core/Result.h"
 
 #include <QObject>
 #include <QStatusBar>
@@ -15,8 +15,8 @@ class FieldErrorHighlighter : public IErrorPresenter
 public:
     explicit  FieldErrorHighlighter(QLineEdit* field, QStatusBar* statusBar = nullptr, QObject* parent = nullptr);
 
-    void show(const ValidationResult& result);
-    void clear(const ValidationResult& result);
+    void show(const Result& result);
+    void clear(const Result& result);
 
 private:
     QPointer<QLineEdit> m_field;
