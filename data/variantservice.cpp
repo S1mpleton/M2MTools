@@ -5,250 +5,301 @@
 #include "core/automatondata.h"
 
 VariantService::VariantService(Database* db, VariantRepository* repo, QObject* parent)
-    : m_db(db)
+    : QObject(parent)
     , m_repo(repo)
-    , QObject(parent)
+    , m_db(db)
 {}
 
 
-ServiceResult VariantService::saveVariant(const AutomatonData& data) {
+Result VariantService::saveVariant(const AutomatonData& data) {
     const QString conversion = variantTypeToString(data.getType());
 
-    // 1. Проверяем, существует ли уже такой вариант
-    auto existing = m_repo->findVariant(data.getVariantNumber());
+    Result findResult = m_repo->findVariant(data.getVariantNumber());
+    if (!findResult.ok()) return findResult;
 
     Transaction tx(m_db);   // BEGIN
 
-    int variantId = -1;
-    if (existing) {
-        variantId = existing->id;
-        // Чистим содержимое — проще, чем делать diff
-        auto clearResult = m_repo->removeVariant(variantId);
-        if (!clearResult) return ServiceResult::failure("Хуйня с удалением варианта");
-    } else {
-        QString error;
-        variantId = m_repo->insertVariant(data.getVariantNumber(), conversion, &error);
-        if (variantId < 0)
-            return ServiceResult::failure(
-                QStringLiteral("Не удалось создать вариант: %1").arg(error));
+    if (findResult.hasPayload()) {
+        return Result::error(
+            QString("The option with the number '%1' already exists.")
+            .arg(data.getVariantNumber()));
     }
 
-    // 2. Сохраняем States, Inputs, Outputs
+    Result insertResult = m_repo->insertVariant(data.getVariantNumber(), conversion);
+    if (!insertResult.ok()) return insertResult;
+
+    int variantId = insertResult.payloadAs<int>();
+
+    // Save States, Inputs, Outputs
     QHash<QString, int> stateIds;
     QHash<QString, int> inputIds;
     QHash<QString, int> outputIds;
 
-    QString error;
+    Result r = insertStates(variantId, data.getStateNames(),
+        data.getInitialState(), stateIds);
+    if (!r.ok()) return r;
 
-    for (const QString& name : data.getStateNames()) {
-        const bool isInit = (name == data.getInitialState());
-        const int id = m_repo->insertState(variantId, name, isInit, &error);
-        if (id < 0) return ServiceResult::failure(error);
-        stateIds[name] = id;
+    r = insertInputs(variantId, data.getInputSignalNames(), inputIds);
+    if (!r.ok()) return r;
+
+    r = insertOutputs(variantId, data.getOutputSignalNames(), outputIds);
+    if (!r.ok()) return r;
+
+    // 3. save transitions and outputs
+    Result contentResult = (data.getType() == VariantType::MooreToMealy)
+       ? saveMoore(data, variantId, stateIds, inputIds, outputIds)
+       : saveMealy(data, variantId, stateIds, inputIds, outputIds);
+    if (!contentResult.ok()) return contentResult;
+
+    // 4. COMMIT
+    if (!tx.commit()) {
+        return Result::error(
+            QString("Failed to commit transaction"),
+            ResultCategory::Database);
     }
 
-    for (const QString& name : data.getInputSignalNames()) {
-        const int id = m_repo->insertInput(variantId, name, &error);
-        if (id < 0) return ServiceResult::failure(error);
-        inputIds[name] = id;
-    }
+    return Result::success(
+        QString("Variant №%1 saved successfully").arg(data.getVariantNumber()));
 
-    for (const QString& name : data.getOutputSignalNames()) {
-        const int id = m_repo->insertOutput(variantId, name, &error);
-        if (id < 0) return ServiceResult::failure(error);
-        outputIds[name] = id;
-    }
-
-    // 3. Transitions + outputs (зависит от типа)
-    ServiceResult contentResult = (data.getType() == VariantType::MooreToMealy)
-        ? saveMoore(data, variantId, stateIds, inputIds, outputIds)
-        : saveMealy(data, variantId, stateIds, inputIds, outputIds);
-
-    if (!contentResult.ok) return contentResult;
-
-    // 4. Commit
-    if (!tx.commit(&error))
-        return ServiceResult::failure(
-            QStringLiteral("COMMIT не удался: %1").arg(error));
-
-    return ServiceResult::success();
 }
 
-ServiceResult VariantService::saveMoore(
+Result VariantService::removeVariant(int variantNumber) {
+    Result existing = m_repo->findVariant(variantNumber);
+    VariantRow variant = existing.payloadAs<VariantRow>();
+
+    Transaction tx(m_db);
+
+    if (existing.hasPayload()) {
+        Result clearResult = m_repo->removeVariant(variant.id);
+        if (!clearResult.ok()) return clearResult;
+    }
+
+    if (!tx.commit()) {
+        return Result::error(
+            QString("Failed to commit remove variant"),
+            ResultCategory::Database);
+    }
+
+    return Result::success(
+        QString("Variant №%1 deleted successfully").arg(variant.number));
+}
+
+Result VariantService::loadVariant(int variantNumber) {
+    Result findResult = m_repo->findVariant(variantNumber);
+    if (!findResult.ok()) return findResult;
+
+    if (!findResult.hasPayload()) {
+        return Result::warning(
+            QString("Variant №%1 not found").arg(variantNumber),
+            ResultCategory::Service);
+    }
+
+    const VariantRow variant = findResult.payloadAs<VariantRow>();
+
+    return (variantTypeStringToType(variant.conversion) == VariantType::MooreToMealy)
+       ? loadMoore(variant.id, variantNumber)
+       : loadMealy(variant.id, variantNumber);
+}
+
+Result VariantService::isExist(int variantNumber) {
+    Result findResult = m_repo->findVariant(variantNumber);
+    if (!findResult.ok()) {
+        return findResult;
+    }
+
+    const bool exists = findResult.hasPayload();
+    return Result::success().withPayload(exists);
+}
+
+
+
+Result VariantService::insertStates(int variantId,
+    const QStringList& names,
+    const QString& initialState,
+    QHash<QString, int>& stateIds) {
+    for (const QString& name : names) {
+        const bool isInit = (name == initialState);
+        Result r = m_repo->insertState(variantId, name, isInit);
+        if (!r.ok()) return r;
+        stateIds[name] = r.payloadAs<int>();
+    }
+    return Result::success();
+}
+
+Result VariantService::insertInputs(int variantId,
+    const QStringList& names,
+    QHash<QString, int>& inputIds) {
+    for (const QString& name : names) {
+        Result r = m_repo->insertInput(variantId, name);
+        if (!r.ok()) return r;
+        inputIds[name] = r.payloadAs<int>();
+    }
+    return Result::success();
+}
+
+Result VariantService::insertOutputs(int variantId,
+    const QStringList& names,
+    QHash<QString, int>& outputIds) {
+    for (const QString& name : names) {
+        Result r = m_repo->insertOutput(variantId, name);
+        if (!r.ok()) return r;
+        outputIds[name] = r.payloadAs<int>();
+    }
+    return Result::success();
+}
+
+Result VariantService::saveMoore(
     const AutomatonData& data, int variantId,
     const QHash<QString, int>& stateIds,
     const QHash<QString, int>& inputIds,
     const QHash<QString, int>& outputIds) {
-    QString error;
+    const QStringList& stateNames = data.getStateNames();
+    const QStringList& inputNames = data.getInputSignalNames();
+    const auto& table = data.getTransitionTable();
 
-    // Переходы: from_state, input → to_state
-    for (int inputIdx = 0; inputIdx < data.getInputSignalNames().size(); ++inputIdx) {
-        const QString& inputName = data.getInputSignalNames()[inputIdx];
+    // 1. transition
+    for (int i = 0; i < inputNames.size(); ++i) {
+        const QString& inputName = inputNames[i];
 
-        for (int stateIdx = 0; stateIdx < data.getStateNames().size(); ++stateIdx) {
-            const QString& fromStateName = data.getStateNames()[stateIdx];
-            const CellData& cell = data.getTransitionTable()[inputIdx][stateIdx];
+        for (int j = 0; j < stateNames.size(); ++j) {
+            const QString& fromName = stateNames[j];
+            const CellData& cell = table[i][j];
 
             std::optional<int> toStateId;
             if (!cell.nextState.isEmpty() && cell.nextState != "—") {
-                toStateId = m_repo->findVariant(variantId)->id;  // заглушка
-                // на самом деле — ищем state id по имени (см. ниже)
+                if (!stateIds.contains(cell.nextState)) {
+                    return Result::error(
+                               QStringLiteral("Transition points to unknown state '%1'")
+                                   .arg(cell.nextState),
+                               ResultCategory::Validation)
+                        .withOffender(cell.nextState);
+                }
+                toStateId = stateIds.value(cell.nextState);
             }
 
-            const int transitionId = m_repo->insertTransition(
+            Result r = m_repo->insertTransition(
                 variantId,
-                stateIds[fromStateName],
+                stateIds.value(fromName),
                 toStateId,
-                inputIds[inputName],
-                &error);
-            if (transitionId < 0) return ServiceResult::failure(error);
+                inputIds.value(inputName));
+            if (!r.ok()) return r;
         }
     }
 
-    // Выходы состояний: state → outputs
-    for (const QString& stateName : data.getStateNames()) {
+    // 2. output states
+    for (const QString& stateName : stateNames) {
         const QStringList outputs = data.getMooreOutputs().value(stateName);
+
         for (const QString& outName : outputs) {
-            if (!m_repo->insertMooreOutput(stateIds[stateName],
-                                           outputIds[outName], &error))
-                return ServiceResult::failure(error);
+            if (!outputIds.contains(outName)) {
+                return Result::error(
+                           QStringLiteral("Unknown output signal '%1'").arg(outName),
+                           ResultCategory::Validation)
+                    .withOffender(outName);
+            }
+
+            Result r = m_repo->insertMooreOutput(
+                stateIds.value(stateName),
+                outputIds.value(outName));
+            if (!r.ok()) return r;
         }
     }
 
-    return ServiceResult::success();
+    return Result::success();
 }
 
-ServiceResult VariantService::saveMealy(
+Result VariantService::saveMealy(
         const AutomatonData& data,
         int variantId,
         const QHash<QString, int>& stateIds,
         const QHash<QString, int>& inputIds,
         const QHash<QString, int>& outputIds
     ) {
-    QString error;
+    const QStringList& stateNames = data.getStateNames();
+    const QStringList& inputNames = data.getInputSignalNames();
+    const auto& table = data.getTransitionTable();
 
-    for (int inputIdx = 0; inputIdx < data.getInputSignalNames().size(); ++inputIdx) {
-        const QString& inputName = data.getInputSignalNames()[inputIdx];
+    for (int i = 0; i < inputNames.size(); ++i) {
+        const QString& inputName = inputNames[i];
 
-        for (int stateIdx = 0; stateIdx < data.getStateNames().size(); ++stateIdx) {
-            const QString& fromStateName = data.getStateNames()[stateIdx];
-            const CellData& cell = data.getTransitionTable()[inputIdx][stateIdx];
+        for (int j = 0; j < stateNames.size(); ++j) {
+            const QString& fromName = stateNames[j];
+            const CellData& cell = table[i][j];
 
             std::optional<int> toStateId;
             if (!cell.nextState.isEmpty() && cell.nextState != "—") {
-                toStateId = stateIds.value(cell.nextState, -1);
-                if (*toStateId < 0)
-                    return ServiceResult::failure(
-                        QStringLiteral("Переход ведёт в несуществующее состояние: %1")
-                            .arg(cell.nextState));
+                if (!stateIds.contains(cell.nextState)) {
+                    return Result::error(
+                               QStringLiteral("Transition points to unknown state '%1'")
+                                   .arg(cell.nextState),
+                               ResultCategory::Validation)
+                        .withOffender(cell.nextState);
+                }
+                toStateId = stateIds.value(cell.nextState);
             }
 
-            const int transitionId = m_repo->insertTransition(
+            Result transResult = m_repo->insertTransition(
                 variantId,
-                stateIds[fromStateName],
+                stateIds.value(fromName),
                 toStateId,
-                inputIds[inputName],
-                &error);
-            if (transitionId < 0) return ServiceResult::failure(error);
+                inputIds.value(inputName));
+            if (!transResult.ok()) return transResult;
 
-            // Выходы перехода
+            const int transitionId = transResult.payloadAs<int>();
+
+            // Outputs transition
             for (const QString& outName : cell.outputSignals) {
-                if (!m_repo->insertMealyOutput(transitionId, outputIds[outName], &error))
-                    return ServiceResult::failure(error);
+                if (!outputIds.contains(outName)) {
+                    return Result::error(
+                               QStringLiteral("Unknown output signal '%1'").arg(outName),
+                               ResultCategory::Validation)
+                        .withOffender(outName);
+                }
+
+                Result r = m_repo->insertMealyOutput(
+                    transitionId,
+                    outputIds.value(outName));
+                if (!r.ok()) return r;
             }
         }
     }
 
-    return ServiceResult::success();
+    return Result::success();
 }
 
 
-std::optional<AutomatonData> VariantService::loadVariant(int variantNumber, ServiceResult* result) {
-    std::optional<VariantRow> variant = m_repo->findVariant(variantNumber);
+Result VariantService::loadMoore(int variantId, int variantNumber) {
+    Result findResult = m_repo->findVariant(variantNumber);
+    if (!findResult.ok()) return findResult;
 
-    if (!variant) {
-        if (result) *result = ServiceResult::failure("Вариант не найден");
-        return std::nullopt;
-    }
+    // 1. Lists
+    Result statesResult  = m_repo->findStates(variantId);
+    if (!statesResult.ok()) return statesResult;
 
-    // Загружаем общие данные
-    AutomatonData data;
-    data.setVariantType(variantTypeStringToType(variant->conversion));
-    data.setVariantNumber(variantNumber);
+    Result inputsResult  = m_repo->findInputs(variantId);
+    if (!inputsResult.ok()) return inputsResult;
 
-    auto states  = m_repo->findStates(variant->id);
-    auto inputs  = m_repo->findInputs(variant->id);
-    auto outputs = m_repo->findOutputs(variant->id);
+    Result outputsResult = m_repo->findOutputs(variantId);
+    if (!outputsResult.ok()) return outputsResult;
 
-    QStringList stateNames, inputNames, outputNames;
-    QHash<int, QString> stateNameById;
-    QHash<int, QString> inputNameById;
-    QHash<int, QString> outputNameById;
-    QString initialState;
-
-    for (const auto& s : states) {
-        stateNames << s.name;
-        stateNameById[s.id] = s.name;
-        if (s.isInit) initialState = s.name;
-    }
-    for (const auto& i : inputs)  { inputNames << i.name; inputNameById[i.id]   = i.name; }
-    for (const auto& o : outputs) { outputNames << o.name; outputNameById[o.id] = o.name; }
-
-    data.setStateNames(stateNames);
-    data.setInputSignalNames(inputNames);
-    data.setOutputSignalNames(outputNames);
-    data.setInitialState(initialState);
-
-    // Загружаем переходы и выходы
-    if (variantTypeStringToType(variant->conversion) == VariantType::MooreToMealy) {
-        auto loaded = loadMoore(variant->id, result);
-        if (!loaded) return std::nullopt;
-        return loaded;
-    } else {
-        return loadMealy(variant->id, result);
-    }
-}
-
-
-std::optional<AutomatonData> VariantService::loadMoore(
-    int variantId, ServiceResult* result) {
-
-    // --- 1. Общие данные варианта ---
-    // Нам нужен номер и тип. Прочитаем Variants.
-    // Но variantId у нас уже есть — используем отдельный поиск по id.
-    QSqlQuery vq = m_db->query(
-        QStringLiteral("SELECT number, conversion FROM Variants WHERE id = :id"),
-        { {":id", variantId} });
-
-    if (!vq.next()) {
-        if (result) *result = ServiceResult::failure(
-                QStringLiteral("Вариант с id = %1 не найден").arg(variantId));
-        return std::nullopt;
-    }
-
-    AutomatonData data;
-    data.setVariantType(VariantType::MooreToMealy);
-    data.setVariantNumber(vq.value(0).toInt());
-
-    // --- 2. States / Inputs / Outputs ---
-    auto states  = m_repo->findStates(variantId);
-    auto inputs  = m_repo->findInputs(variantId);
-    auto outputs = m_repo->findOutputs(variantId);
+    const QList<StateRow> states = statesResult.payloadAs<QList<StateRow>>();
+    const QList<InputRow> inputs = inputsResult.payloadAs<QList<InputRow>>();
+    const QList<OutputRow> outputs = outputsResult.payloadAs<QList<OutputRow>>();
 
     if (states.isEmpty() || inputs.isEmpty()) {
-        if (result) *result = ServiceResult::failure(
-                "У варианта нет состояний или входных сигналов");
-        return std::nullopt;
+        return Result::error(
+            QStringLiteral("Variant №%1 has no states or inputs")
+                .arg(variantNumber),
+            ResultCategory::Service);
     }
 
-    // Строим словари id → name
-    QHash<int, QString> stateNameById;
-    QHash<int, QString> inputNameById;
-    QHash<int, QString> outputNameById;
+    // 2. Create automaton data
+    AutomatonData data;
+    data.setVariantType(VariantType::MooreToMealy);
+    data.setVariantNumber(variantNumber);
 
-    QStringList stateNames;
-    QStringList inputNames;
-    QStringList outputNames;
+    QStringList stateNames, inputNames, outputNames;
+    QHash<int, QString> stateNameById, inputNameById, outputNameById;
     QString initialState;
 
     for (const auto& s : states) {
@@ -265,53 +316,60 @@ std::optional<AutomatonData> VariantService::loadMoore(
         outputNameById[o.id] = o.name;
     }
 
-    // Записываем в модель — сеттеры сами пересоберут таблицы
-    data.setStateNames(stateNames);
-    data.setInputSignalNames(inputNames);
-    data.setOutputSignalNames(outputNames);
-    if (!initialState.isEmpty())
-        data.setInitialState(initialState);
+    Result r = data.setStateNames(stateNames);
+    if (!r.ok()) return r;
 
-    // --- 3. Transition table ---
-    auto transitions = m_repo->findTransitions(variantId);
+    r = data.setInputSignalNames(inputNames);
+    if (!r.ok()) return r;
 
-    // Строим карту (inputName → index) и (stateName → index)
-    QHash<QString, int> inputIndex;
-    QHash<QString, int> stateIndex;
-    for (int i = 0; i < inputNames.size();  ++i) inputIndex[inputNames[i]]   = i;
-    for (int i = 0; i < stateNames.size(); ++i) stateIndex[stateNames[i]] = i;
+    r = data.setOutputSignalNames(outputNames);
+    if (!r.ok()) return r;
+
+    if (!initialState.isEmpty()) {
+        r = data.setInitialState(initialState);
+        if (!r.ok()) return r;
+    }
+
+    // 3. transitions
+    Result transResult = m_repo->findTransitions(variantId);
+    if (!transResult.ok()) return transResult;
+
+    const QList<TransitionRow> transitions =
+        transResult.payloadAs<QList<TransitionRow>>();
 
     for (const auto& t : transitions) {
         const QString fromName  = stateNameById.value(t.fromStateId);
         const QString inputName = inputNameById.value(t.inputSignalId);
 
-        if (fromName.isEmpty() || inputName.isEmpty())
-            continue;  // битая строка — пропускаем
-
-        const int inputIdx = inputIndex.value(inputName, -1);
-        const int stateIdx = stateIndex.value(fromName, -1);
-        if (inputIdx < 0 || stateIdx < 0) continue;
+        if (fromName.isEmpty() || inputName.isEmpty()) {
+            return Result::error(
+                QStringLiteral("Broken transition id=%1: state or input missing")
+                    .arg(t.id),
+                ResultCategory::Database);
+        }
 
         QString nextStateName;
         if (t.toStateId.has_value())
             nextStateName = stateNameById.value(*t.toStateId);
 
-        // Пустая строка = "—" (нет перехода)
-        const QString text = nextStateName.isEmpty()
-                                 ? QStringLiteral("—")
-                                 : nextStateName;
+        const QString cellText = nextStateName.isEmpty()
+            ? QStringLiteral("—")
+            : nextStateName;
 
-        // Сеттер ячейки сам проверит и запишет
-        data.setTransitionCell(
-            inputIdx + 2,     // rowOffset для Мура = 2
-            stateIdx + 1,     // col = stateIdx + 1
-            text);
+        Result cellResult = data.setTransitionCellByName(inputName,
+            fromName,
+            cellText);
+        if (!cellResult.ok()) return cellResult;
     }
 
-    // --- 4. Moore outputs ---
-    auto mooreOutputs = m_repo->findMooreOutputs(variantId);
+    // 4. Outputs state (Moore)
+    Result mooreResult = m_repo->findMooreOutputs(variantId);
+    if (!mooreResult.ok()) return mooreResult;
 
-    // Группируем: state_id → список output_id
+    const QList<MooreStateOutputRow> mooreOutputs =
+        mooreResult.payloadAs<QList<MooreStateOutputRow>>();
+
+    // state_id → список output_id
     QHash<int, QList<int>> outputsByState;
     for (const auto& row : mooreOutputs)
         outputsByState[row.stateId].append(row.outputId);
@@ -328,53 +386,44 @@ std::optional<AutomatonData> VariantService::loadMoore(
                 outputNamesForState.append(outName);
         }
 
-        // Строка 0 — выходы Мура
-        const int stateIdx = stateIndex.value(stateName, -1);
-        if (stateIdx < 0) continue;
-
-        data.setMooreOutputCell(stateIdx + 1,
-                                outputNamesForState.join(", "));
+        Result outResult = data.setMooreOutputCellByName(
+            stateName,
+            outputNamesForState.join(", "));
+        if (!outResult.ok()) return outResult;
     }
 
-    if (result) *result = ServiceResult::success();
-    return data;
+    return Result::success(
+               QStringLiteral("Variant №%1 loaded").arg(variantNumber))
+        .withPayload(data);
 }
 
+Result VariantService::loadMealy(int variantId, int variantNumber) {
+    Result statesResult  = m_repo->findStates(variantId);
+    if (!statesResult.ok()) return statesResult;
 
-std::optional<AutomatonData> VariantService::loadMealy(
-    int variantId, ServiceResult* result) {
+    Result inputsResult  = m_repo->findInputs(variantId);
+    if (!inputsResult.ok()) return inputsResult;
 
-    // --- 1. Общие данные ---
-    QSqlQuery vq = m_db->query(
-        QStringLiteral("SELECT number FROM Variants WHERE id = :id"),
-        { {":id", variantId} });
+    Result outputsResult = m_repo->findOutputs(variantId);
+    if (!outputsResult.ok()) return outputsResult;
 
-    if (!vq.next()) {
-        if (result) *result = ServiceResult::failure(
-                QStringLiteral("Вариант с id = %1 не найден").arg(variantId));
-        return std::nullopt;
+    const auto states  = statesResult.payloadAs<QList<StateRow>>();
+    const auto inputs  = inputsResult.payloadAs<QList<InputRow>>();
+    const auto outputs = outputsResult.payloadAs<QList<OutputRow>>();
+
+    if (states.isEmpty() || inputs.isEmpty()) {
+        return Result::error(
+            QStringLiteral("Variant №%1 has no states or inputs")
+                .arg(variantNumber),
+            ResultCategory::Service);
     }
 
     AutomatonData data;
     data.setVariantType(VariantType::MealyToMoore);
-    data.setVariantNumber(vq.value(0).toInt());
-
-    // --- 2. States / Inputs / Outputs ---
-    auto states  = m_repo->findStates(variantId);
-    auto inputs  = m_repo->findInputs(variantId);
-    auto outputs = m_repo->findOutputs(variantId);
-
-    if (states.isEmpty() || inputs.isEmpty()) {
-        if (result) *result = ServiceResult::failure(
-                "У варианта нет состояний или входных сигналов");
-        return std::nullopt;
-    }
-
-    QHash<int, QString> stateNameById;
-    QHash<int, QString> inputNameById;
-    QHash<int, QString> outputNameById;
+    data.setVariantNumber(variantNumber);
 
     QStringList stateNames, inputNames, outputNames;
+    QHash<int, QString> stateNameById, inputNameById, outputNameById;
     QString initialState;
 
     for (const auto& s : states) {
@@ -382,50 +431,72 @@ std::optional<AutomatonData> VariantService::loadMealy(
         stateNameById[s.id] = s.name;
         if (s.isInit) initialState = s.name;
     }
-    for (const auto& i : inputs)  { inputNames  << i.name; inputNameById[i.id]   = i.name; }
-    for (const auto& o : outputs) { outputNames << o.name; outputNameById[o.id] = o.name; }
+    for (const auto& i : inputs) {
+        inputNames << i.name;
+        inputNameById[i.id] = i.name;
+    }
+    for (const auto& o : outputs) {
+        outputNames << o.name;
+        outputNameById[o.id] = o.name;
+    }
 
-    data.setStateNames(stateNames);
-    data.setInputSignalNames(inputNames);
-    data.setOutputSignalNames(outputNames);
-    if (!initialState.isEmpty())
-        data.setInitialState(initialState);
+    Result r = data.setStateNames(stateNames);
+    if (!r.ok()) return r;
+    r = data.setInputSignalNames(inputNames);
+    if (!r.ok()) return r;
+    r = data.setOutputSignalNames(outputNames);
+    if (!r.ok()) return r;
+    if (!initialState.isEmpty()) {
+        r = data.setInitialState(initialState);
+        if (!r.ok()) return r;
+    }
 
-    // --- 3. Transitions + Mealy outputs ---
-    auto transitions = m_repo->findTransitions(variantId);
+    Result transResult = m_repo->findTransitions(variantId);
+    if (!transResult.ok()) return transResult;
+    const auto transitions = transResult.payloadAs<QList<TransitionRow>>();
+
+    Result mealyResult = m_repo->findMealyOutputsByVariant(variantId);
+    if (!mealyResult.ok()) return mealyResult;
+    const auto outputsByTransition =
+        mealyResult.payloadAs<QHash<int, QList<int>>>();
 
     for (const auto& t : transitions) {
         const QString fromName  = stateNameById.value(t.fromStateId);
         const QString inputName = inputNameById.value(t.inputSignalId);
 
-        if (fromName.isEmpty() || inputName.isEmpty()) continue;
+        if (fromName.isEmpty() || inputName.isEmpty()) {
+            return Result::error(
+                QStringLiteral("Broken transition id=%1").arg(t.id),
+                ResultCategory::Database);
+        }
 
-        // Целевое состояние
         QString nextStateName;
         if (t.toStateId.has_value())
             nextStateName = stateNameById.value(*t.toStateId);
         if (nextStateName.isEmpty())
             nextStateName = QStringLiteral("—");
 
-        // Выходы этого перехода
-        auto mealyOutputs = m_repo->findMealyOutputs(t.id);
-        QStringList outputNamesForTransition;
-        for (const auto& row : mealyOutputs) {
-            const QString outName = outputNameById.value(row.outputId);
+        QStringList outputsForTransition;
+        const QList<int> outputIds = outputsByTransition.value(t.id);
+        for (int outputId : outputIds) {
+            const QString outName = outputNameById.value(outputId);
             if (!outName.isEmpty())
-                outputNamesForTransition.append(outName);
+                outputsForTransition.append(outName);
         }
 
-        // Собираем текст ячейки: "state / out1, out2"
-        const QString outputsText = outputNamesForTransition.isEmpty()
+        const QString outputsText = outputsForTransition.isEmpty()
                                         ? QStringLiteral("—")
-                                        : outputNamesForTransition.join(", ");
+                                        : outputsForTransition.join(", ");
         const QString cellText = QStringLiteral("%1 / %2")
                                      .arg(nextStateName, outputsText);
 
-        data.setTransitionCellByName(inputName, fromName, cellText);
+        Result cellResult = data.setTransitionCellByName(inputName,
+                                                         fromName,
+                                                         cellText);
+        if (!cellResult.ok()) return cellResult;
     }
 
-    if (result) *result = ServiceResult::success();
-    return data;
+    return Result::success(
+               QStringLiteral("Variant №%1 loaded").arg(variantNumber))
+        .withPayload(data);
 }

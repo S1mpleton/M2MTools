@@ -7,25 +7,19 @@
 
 #include <QString>
 
-struct ServiceResult {
-    bool ok = true;
-    QString message;
-
-    static ServiceResult success() { return {}; }
-    static ServiceResult failure(const QString& msg) { return { false, msg }; }
-};
 
 class VariantService : public QObject {
     Q_OBJECT
 public:
     VariantService(Database* db, VariantRepository* repo, QObject* parent = nullptr);
 
-    ServiceResult saveVariant(const AutomatonData& data);
+    Result saveVariant(const AutomatonData& data);
 
+    Result loadVariant(int variantNumber);
 
-    std::optional<AutomatonData> loadVariant(int variantNumber, ServiceResult* result = nullptr);
+    Result removeVariant(int variantNumber);
 
-    ServiceResult removeVariant(int variantNumber, VariantType type);
+    Result isExist(int variantNumber);
 
     QList<int> availableVariantNumbers(VariantType type);
 
@@ -33,7 +27,7 @@ private:
     Database* m_db;
     VariantRepository* m_repo;
 
-    ServiceResult saveMoore(
+    Result saveMoore(
         const AutomatonData& data,
         int variantId,
         const QHash<QString, int>& stateIds,
@@ -41,7 +35,7 @@ private:
         const QHash<QString, int>& outputIds
     );
 
-    ServiceResult saveMealy(
+    Result saveMealy(
         const AutomatonData& data,
         int variantId,
         const QHash<QString, int>& stateIds,
@@ -49,10 +43,23 @@ private:
         const QHash<QString, int>& outputIds
     );
 
-    std::optional<AutomatonData> loadMoore(int variantId, ServiceResult* result);
-    std::optional<AutomatonData> loadMealy(int variantId, ServiceResult* result);
+    Result loadMoore(int variantId, int variantNumber);
+    Result loadMealy(int variantId, int variantNumber);
 
-    // ServiceResult clearVariantContent(int variantId);
+    Result insertStates(int variantId,
+        const QStringList& names,
+        const QString& initialState,
+        QHash<QString, int>& stateIds);
+
+    Result insertInputs(int variantId,
+        const QStringList& names,
+        QHash<QString, int>& inputIds);
+
+    Result insertOutputs(int variantId,
+         const QStringList& names,
+         QHash<QString, int>& outputIds);
+
+    // Result clearVariantContent(int variantId);
 };
 
 #endif // VARIANTSERVICE_H

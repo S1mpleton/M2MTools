@@ -5,6 +5,8 @@
 #include <QString>
 #include <QDateTime>
 
+// Q_DECLARE_METATYPE(bool)
+
 enum class ResultCategory {
     General,
     Validation,
@@ -64,7 +66,20 @@ public:
 
     QDateTime timestamp() const { return m_timestamp; }
 
-    // --- Модификаторы (chainable) ---
+    QVariant payload() const { return m_payload; }
+    bool hasPayload() const { return m_payload.isValid(); }
+
+    template<typename T>
+    T payloadAs() const {
+        return m_payload.value<T>();
+    }
+
+    // --- chainable ---
+    template<typename T>
+    Result& withPayload(const T value) {
+        m_payload = QVariant::fromValue(value);
+        return *this;
+    }
 
     Result& withOffender(const QString& offender) {
         m_offender = offender;
@@ -93,6 +108,8 @@ private:
         , m_message(message)
         , m_timestamp(QDateTime::currentDateTime())
     {}
+
+    QVariant m_payload;
 
     ResultSeverity m_severity;
     ResultCategory m_category;

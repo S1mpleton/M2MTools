@@ -1,6 +1,7 @@
 #ifndef VARIANTREPOSITORY_H
 #define VARIANTREPOSITORY_H
 
+#include "core/result.h"
 #include "data/database.h"
 
 #include <QString>
@@ -48,6 +49,9 @@ struct MooreStateOutputRow {
     int outputId = -1;
 };
 
+namespace {
+    Result makeDatabaseError(const QSqlQuery& q, const QString& context);
+}
 
 class VariantRepository : public QObject {
     Q_OBJECT
@@ -55,35 +59,37 @@ public:
     explicit VariantRepository(Database* db, QObject* parent = nullptr);
 
     // --- Variants ---
-    std::optional<VariantRow> findVariant(int number) const;
+    Result findVariant(int number) const;
 
-    QList<VariantRow> findAllVariants() const;
+    Result findAllVariants() const;
 
-    int insertVariant(int number, const QString& conversion, QString* error = nullptr);
+    Result insertVariant(int number, const QString& conversion);
 
-    bool removeVariant(int variantId, QString* error = nullptr);
+    Result removeVariant(int variantId);
 
     // --- States / Inputs / Outputs ---
-    QList<StateRow>  findStates(int variantId) const;
-    QList<InputRow>  findInputs(int variantId) const;
-    QList<OutputRow> findOutputs(int variantId) const;
+    Result  findStates(int variantId) const;
+    Result  findInputs(int variantId) const;
+    Result findOutputs(int variantId) const;
 
-    int insertState(int variantId, const QString& name, bool isInit, QString* error = nullptr);
-    int insertInput(int variantId, const QString& name, QString* error = nullptr);
-    int insertOutput(int variantId, const QString& name, QString* error = nullptr);
+    Result insertState(int variantId, const QString& name, bool isInit);
+    Result insertInput(int variantId, const QString& name);
+    Result insertOutput(int variantId, const QString& name);
 
     // --- Transitions ---
-    QList<TransitionRow> findTransitions(int variantId) const;
-    QList<MealyTransitionOutputRow> findMealyOutputs(int transitionId) const;
-    QList<MooreStateOutputRow> findMooreOutputs(int variantId) const;
+    Result findTransitions(int variantId) const;
+    Result findMealyOutputs(int transitionId) const;
+    Result findMooreOutputs(int variantId) const;
 
-    int insertTransition(
-        int variantId, int fromStateId, std::optional<int> toStateId,
-        int inputSignalId, QString* error = nullptr
+    Result insertTransition(
+        int variantId, int fromStateId,
+        std::optional<int> toStateId, int inputSignalId
     );
 
-    bool insertMealyOutput(int transitionId, int outputId, QString* error = nullptr);
-    bool insertMooreOutput(int stateId, int outputId, QString* error = nullptr);
+    Result insertMealyOutput(int transitionId, int outputId);
+    Result insertMooreOutput(int stateId, int outputId);
+
+    Result findMealyOutputsByVariant(int variantId) const;
 
 private:
     Database* m_db;

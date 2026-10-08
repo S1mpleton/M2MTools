@@ -29,6 +29,11 @@ enum class CellKind {
     Transition          // transition cell (Moore or Mealy)
 };
 
+enum class ValidationLevel {
+    Soft,
+    Strict
+};
+
 FieldType fieldTypeStringToType(QString fieldTypeString);
 QString fieldTypeToString(FieldType fieldType);
 QString fieldTypeDisplayName(FieldType fieldType);
@@ -78,6 +83,12 @@ public:
     void setTransition(int inputIndex, int stateIndex, const CellData& cell);
     void setMooreOutput(const QString& state, const QStringList& outputs);
 
+    // Validate automat
+    Result validate() const;
+
+    using StateUsageChecker = std::function<Result(const AutomatonData&)>;
+    void setStateUsageChecker(StateUsageChecker checker);
+
     // Other
     CellKind cellKind(int row, int col) const;
 
@@ -92,6 +103,7 @@ private:
 
     QMap<QString, QStringList> m_mooreOutputs; // only Moore
     QVector<QVector<CellData>> m_transitionTable;
+    StateUsageChecker m_stateUsageChecker;
 
     static constexpr int kSchemaVersion = 1;
 
@@ -100,6 +112,17 @@ private:
     Result validateName(const QString& name) const;
     Result validateNameList(const QStringList& names) const;
     Result validateCellContent(int row, int col, const QString& text) const;
+
+    // Validate automat
+    Result validateStateUsage() const;    // default sweat
+    Result validateInputUsage() const;
+    Result validateOutputUsage() const;
+
+    Result validateStateUsageStrict() const;
+    Result validateStateUsageLenient() const;
+\
 };
+
+Q_DECLARE_METATYPE(AutomatonData)
 
 #endif // AUTOMATONDATA_H

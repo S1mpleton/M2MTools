@@ -3,6 +3,7 @@
 #include "infrastructure/logger.h"
 
 #include <QSet>
+#include <QQueue>
 #include <QRegularExpression>
 #include <QJsonArray>
 
@@ -72,7 +73,11 @@ QString variantTypeDisplayName(VariantType variantType) {
 }
 
 
-AutomatonData::AutomatonData() {}
+AutomatonData::AutomatonData() {
+    setStateUsageChecker([](const AutomatonData& d) {
+        return d.validateStateUsageLenient();
+    });
+}
 
 CellKind AutomatonData::cellKind(int row, int col) const  {
     const int stateCount = m_stateNames.size();
@@ -253,20 +258,29 @@ Result AutomatonData::setMooreOutputCellByName(const QString& stateName, const Q
 
 Result AutomatonData::setTransitionCell(int row, int col, const QString& text) {
     // Boundaries
-    Result resultError = Result::error("")
-        .withDetails(QString("row: %1, col: %2, cell data: %3").arg(row, col).arg(text));
-
     const int rowOffset = (m_type == VariantType::MooreToMealy) ? 2 : 1;
     const int inputIndex = row - rowOffset;
     const int stateIndex = col - 1;
 
-    if (inputIndex < 0 || inputIndex >= m_inputSignalNames.size())
-        resultError.updateMessage(QString("Invalid row index"));
-        return resultError;
+    if (inputIndex < 0 || inputIndex >= m_inputSignalNames.size()) {
+        return Result::error(QStringLiteral("Invalid row index: %1").arg(row), ResultCategory::Validation)
+            .withDetails(
+                QStringLiteral("inputIndex=%1, inputs=%2, rowOffset=%3")
+                .arg(inputIndex)
+                .arg(m_inputSignalNames.size())
+                .arg(rowOffset)
+            );
+    }
 
-    if (stateIndex < 0 || stateIndex >= m_stateNames.size())
-        resultError.updateMessage(QString("Invalid column index"));
-        return resultError;
+    if (stateIndex < 0 || stateIndex >= m_stateNames.size()) {
+        return Result::error(QStringLiteral("Invalid column index: %1").arg(col), ResultCategory::Validation)
+            .withDetails(
+                QStringLiteral("stateIndex=%1, states=%2")
+                .arg(stateIndex)
+                .arg(m_stateNames.size())
+            );
+
+    }
 
     // Validation
     const Result check = validateCellContent(row, col, text);
@@ -281,23 +295,32 @@ Result AutomatonData::setTransitionCell(int row, int col, const QString& text) {
         cell.nextState = trimmed;
     } else {
         const int slashPos = trimmed.indexOf('/');
-        if (slashPos < 0)
-            resultError.updateMessage(QString("Internal error: format not verified"));
-            return resultError;
+        if (slashPos < 0) {
+            return Result::error(
+                QStringLiteral("Internal error: '/' not found in Mealy cell"), ResultCategory::Validation)
+                .withDetails(QStringLiteral("text='%1'").arg(text));
+        }
 
         const QString statePart  = trimmed.left(slashPos).trimmed();
         const QString outputPart = trimmed.mid(slashPos + 1).trimmed();
 
-        if (statePart != "—" && statePart != "-")
+        if (statePart != "—" && statePart != "-") {
             cell.nextState = statePart;
+        }
 
-        if (outputPart != "—" && outputPart != "-")
+        if (outputPart != "—" && outputPart != "-") {
             cell.outputSignals = NameListParser::parse(outputPart);
+        }
     }
 
     m_transitionTable[inputIndex][stateIndex] = cell;
-    return Result::success("Changes applied.")
-        .withDetails(QString("row: %1, col: %2, cell data: %3").arg(row, col).arg(text));
+    return Result::success(QStringLiteral("Transition cell updated"))
+        .withDetails(
+            QStringLiteral("row=%1, col=%2, data='%3'")
+            .arg(row)
+            .arg(col)
+            .arg(text)
+        );
 }
 
 Result AutomatonData::setTransitionCellByName(const QString& inputName, const QString& stateName, const QString& text) {
@@ -309,7 +332,7 @@ Result AutomatonData::setTransitionCellByName(const QString& inputName, const QS
 
     const int stateIdx = m_stateNames.indexOf(stateName);
     if (stateIdx < 0)
-        return Result::error(QStringLiteral("Unknown condition: '%1'").arg(stateName));
+        return Result::error(QString("Unknown condition: '%1'").arg(stateName));
 
     // 2. We calculate the coordinates in the UI table.
     const int rowOffset = (m_type == VariantType::MooreToMealy) ? 2 : 1;
@@ -376,7 +399,8 @@ Result AutomatonData::checkInvariant(const QStringList& candidate, FieldType fie
             if (others[i]->contains(name)) {
                 return Result::error(
                     QString("The name '%1' is already in use among '%2' list.")
-                        .arg(name, otherNames[i]));
+                    .arg(name, otherNames[i])
+                );
             }
         }
     }
@@ -468,7 +492,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
             return Result::error("Expected format: state / output")
                 .withDetails(QString("row: %1, col: %2").arg(row, col));
 
-        const QString statePart  = trimmed.left(slashPos).trimmed();
+        const QString statePart = trimmed.left(slashPos).trimmed();
         const QString outputPart = trimmed.mid(slashPos + 1).trimmed();
 
         // Left side
@@ -477,7 +501,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
             if (!nameValid.ok()) return nameValid;
 
             if (!m_stateNames.contains(statePart))
-                return Result::error(QString("Unknown state: %1").arg(trimmed));
+                return Result::error(QString("Unknown state: %1").arg(statePart));
         }
 
         // Right side
@@ -503,3 +527,195 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
             .withDetails(QString("row: %1, col: %2, kind: ").arg(row, col));
     }
 }
+
+// validate valid automat
+Result AutomatonData::validate() const {
+    // 1. No void lists
+    if (m_stateNames.isEmpty()) {
+        return Result::error(
+            QStringLiteral("Automaton has no states"),
+            ResultCategory::Validation);
+    }
+    if (m_inputSignalNames.isEmpty()) {
+        return Result::error(
+            QStringLiteral("Automaton has no input signals"),
+            ResultCategory::Validation);
+    }
+    if (m_outputSignalNames.isEmpty()) {
+        return Result::error(
+            QStringLiteral("Automaton has no output signals"),
+            ResultCategory::Validation);
+    }
+
+    // 2. Consistency of dimensions
+    if (m_transitionTable.size() != m_inputSignalNames.size()) {
+        return Result::error(
+            QStringLiteral("Internal error: transition table has %1 rows, "
+                           "but there are %2 input signals")
+                .arg(m_transitionTable.size())
+                .arg(m_inputSignalNames.size()),
+            ResultCategory::Validation);
+    }
+    for (int i = 0; i < m_transitionTable.size(); ++i) {
+        if (m_transitionTable[i].size() != m_stateNames.size()) {
+            return Result::error(
+                QStringLiteral("Internal error: row %1 has %2 columns, "
+                               "but there are %3 states")
+                    .arg(i)
+                    .arg(m_transitionTable[i].size())
+                    .arg(m_stateNames.size()),
+                ResultCategory::Validation);
+        }
+    }
+
+    // 3. Usage validate
+    if (Result r = validateStateUsage();  !r.ok()) return r;
+    if (Result r = validateInputUsage();  !r.ok()) return r;
+    if (Result r = validateOutputUsage(); !r.ok()) return r;
+
+    return Result::success();
+}
+
+void AutomatonData::setStateUsageChecker(StateUsageChecker checker) {
+    m_stateUsageChecker = std::move(checker);
+}
+
+Result AutomatonData::validateStateUsage() const {
+    if (m_stateUsageChecker) {
+        return m_stateUsageChecker(*this);
+    }
+
+    return Result::error(QString("The check has not been established."));
+}
+
+Result AutomatonData::validateInputUsage() const {
+    for (int i = 0; i < m_inputSignalNames.size(); ++i) {
+        bool anyTransition = false;
+        for (int j = 0; j < m_transitionTable[i].size(); ++j) {
+            if (!m_transitionTable[i][j].isEmpty()) {
+                anyTransition = true;
+                break;
+            }
+        }
+
+        if (!anyTransition) {
+            return Result::error(
+                       QStringLiteral("Input signal '%1' is not used "
+                                      "in any transition")
+                           .arg(m_inputSignalNames[i]),
+                       ResultCategory::Validation)
+                .withOffender(m_inputSignalNames[i]);
+        }
+    }
+    return Result::success();
+}
+
+Result AutomatonData::validateOutputUsage() const {
+    QSet<QString> usedOutputs;
+
+    if (m_type == VariantType::MooreToMealy) {
+        for (auto it = m_mooreOutputs.constBegin();
+             it != m_mooreOutputs.constEnd(); ++it) {
+            for (const QString& out : it.value()) {
+                usedOutputs.insert(out);
+            }
+        }
+    } else {
+        for (const auto& row : m_transitionTable) {
+            for (const CellData& cell : row) {
+                for (const QString& out : cell.outputSignals) {
+                    usedOutputs.insert(out);
+                }
+            }
+        }
+    }
+
+    for (const QString& out : m_outputSignalNames) {
+        if (!usedOutputs.contains(out)) {
+            return Result::error(
+                       QStringLiteral("Output signal '%1' is not used").arg(out),
+                       ResultCategory::Validation)
+                .withOffender(out);
+        }
+    }
+    return Result::success();
+}
+
+Result AutomatonData::validateStateUsageStrict() const {
+    // 1. We check that the initial state is set.
+    if (m_initialState.isEmpty()) {
+        return Result::error(
+            QStringLiteral("Initial state is not set, "
+                           "cannot check reachability"),
+            ResultCategory::Validation);
+    }
+
+    // 2. BFS from the initial state
+    QSet<QString> reachable;
+    QQueue<QString> queue;
+    queue.enqueue(m_initialState);
+
+    while (!queue.isEmpty()) {
+        const QString state = queue.dequeue();
+        if (reachable.contains(state)) continue;
+        reachable.insert(state);
+
+        const int stateIdx = m_stateNames.indexOf(state);
+        if (stateIdx < 0) continue;   // защита от битых данных
+
+        for (int i = 0; i < m_inputSignalNames.size(); ++i) {
+            const CellData& cell = m_transitionTable[i][stateIdx];
+            if (!cell.nextState.isEmpty() && cell.nextState != "—")
+                queue.enqueue(cell.nextState);
+        }
+    }
+
+    // 3. All states must be achievable.
+    for (const QString& state : m_stateNames) {
+        if (!reachable.contains(state)) {
+            return Result::error(
+                       QStringLiteral("State '%1' is not reachable "
+                                      "from initial state '%2'")
+                           .arg(state, m_initialState),
+                       ResultCategory::Validation)
+                .withOffender(state);
+        }
+    }
+
+    return Result::success();
+}
+
+Result AutomatonData::validateStateUsageLenient() const {
+    QSet<QString> usedStates;
+
+    if (!m_initialState.isEmpty())
+        usedStates.insert(m_initialState);
+
+    for (int i = 0; i < m_transitionTable.size(); ++i) {
+        for (int j = 0; j < m_transitionTable[i].size(); ++j) {
+            const CellData& cell = m_transitionTable[i][j];
+
+            if (j < m_stateNames.size()) {
+                usedStates.insert(m_stateNames[j]);
+            }
+
+            if (!cell.nextState.isEmpty() && cell.nextState != "—") {
+                usedStates.insert(cell.nextState);
+            }
+        }
+    }
+
+    for (const QString& state : m_stateNames) {
+        if (!usedStates.contains(state)) {
+            return Result::error(
+                       QStringLiteral("State '%1' is not used in any transition")
+                           .arg(state),
+                       ResultCategory::Validation)
+                .withOffender(state);
+        }
+    }
+
+    return Result::success();
+}
+
+

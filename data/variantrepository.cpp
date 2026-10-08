@@ -1,90 +1,111 @@
 #include "variantrepository.h"
+#include "data/sqlrequests.h"
 #include "data/database.h"
 
+#include "core/result.h"
 
 namespace {
     QSqlQuery runSelect(Database* db, const QString& sql, const QVariantMap& params = {}) {
         return db->query(sql, params);
     }
+
+    Result makeDatabaseError(const QSqlQuery& q, const QString& context) {
+        return Result::error(context, ResultCategory::Database)
+        .withDetails(q.lastError().text())
+            .withCode(q.lastError().nativeErrorCode().toInt());
+    }
 }
 
 VariantRepository::VariantRepository(Database* db, QObject* parent)
-    : m_db(db)
-    , QObject(parent)
+    : QObject(parent)
+    , m_db(db)
 {}
 
-std::optional<VariantRow> VariantRepository::findVariant(int number) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT id, number, conversion "
-                                           "FROM Variants "
-                                           "WHERE number = :num"),
-                            { {":num", number} });
+Result VariantRepository::findVariant(int number) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_VARIANT_BY_NUMBER_AND_TYPE,
+        { {":num", number} });
 
-    if (!q.isActive() || !q.next())
-        return std::nullopt;
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search variant (number=%1)").arg(number));
+    }
+
+    if (!q.next()) {
+        return Result::warning(
+            QStringLiteral("Variant '%1' not found").arg(number));
+    }
 
     VariantRow row;
-    row.id         = q.value(0).toInt();
-    row.number     = q.value(1).toInt();
+    row.id = q.value(0).toInt();
+    row.number = q.value(1).toInt();
     row.conversion = q.value(2).toString();
-    return row;
+
+    return Result::success(
+        QString("Variant '%1' found").arg(number))
+        .withPayload(row);
 }
 
-QList<VariantRow> VariantRepository::findAllVariants() const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT id, number, conversion "
-                                           "FROM Variants "
-                                           "ORDER BY conversion, number"));
+Result VariantRepository::findAllVariants() const {
+    QSqlQuery q = m_db->query(SQLRequests::SELECT_ALL_VARIANTS);
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search all variants"));
+    }
 
     QList<VariantRow> result;
     while (q.next()) {
         VariantRow row;
-        row.id         = q.value(0).toInt();
-        row.number     = q.value(1).toInt();
+        row.id = q.value(0).toInt();
+        row.number = q.value(1).toInt();
         row.conversion = q.value(2).toString();
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-int VariantRepository::insertVariant(int number,
-                                     const QString& conversion,
-                                     QString* error) {
+Result VariantRepository::insertVariant(int number, const QString& conversion) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO Variants (number, conversion) "
-        "VALUES (:num, :conv)"));
-    q.bindValue(":num", number);
+    q.prepare(SQLRequests::INSERT_VARIANT);
+    q.bindValue(":num",  number);
     q.bindValue(":conv", conversion);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return -1;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to insert variant (number=%1)").arg(number));
     }
-    return q.lastInsertId().toInt();
+
+    return Result::success(
+        QStringLiteral("Variant '%1' inserted").arg(number))
+        .withPayload(q.lastInsertId().toInt());
 }
 
-bool VariantRepository::removeVariant(int variantId, QString* error) {
+Result VariantRepository::removeVariant(int variantId) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral("DELETE FROM Variants WHERE id = :id"));
+    q.prepare(SQLRequests::DELETE_VARIANT);
     q.bindValue(":id", variantId);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return false;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to remove variant (id=%1)").arg(variantId));
     }
-    return true;
+
+    return Result::success(
+        QStringLiteral("Variant (id=%1) removed").arg(variantId));
 }
 
+// States / Inputs / Outputs: read
+Result VariantRepository::findStates(int variantId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_STATES_BY_VARIANT,
+        { {":vid", variantId} });
 
-// --- Read States / Inputs / Outputs ---
-QList<StateRow> VariantRepository::findStates(int variantId) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT id, variant_id, name, is_init "
-                                           "FROM States "
-                                           "WHERE variant_id = :vid "
-                                           "ORDER BY id"),
-                            { {":vid", variantId} });
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search states (variant=%1)").arg(variantId));
+    }
 
     QList<StateRow> result;
     while (q.next()) {
@@ -95,16 +116,19 @@ QList<StateRow> VariantRepository::findStates(int variantId) const {
         row.isInit    = q.value(3).toInt() != 0;
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-QList<InputRow> VariantRepository::findInputs(int variantId) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT id, variant_id, name "
-                                           "FROM Inputs "
-                                           "WHERE variant_id = :vid "
-                                           "ORDER BY id"),
-                            { {":vid", variantId} });
+Result VariantRepository::findInputs(int variantId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_INPUTS_BY_VARIANT,
+        { {":vid", variantId} });
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search inputs (variant=%1)").arg(variantId));
+    }
 
     QList<InputRow> result;
     while (q.next()) {
@@ -114,16 +138,19 @@ QList<InputRow> VariantRepository::findInputs(int variantId) const {
         row.name      = q.value(2).toString();
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-QList<OutputRow> VariantRepository::findOutputs(int variantId) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT id, variant_id, name "
-                                           "FROM Outputs "
-                                           "WHERE variant_id = :vid "
-                                           "ORDER BY id"),
-                            { {":vid", variantId} });
+Result VariantRepository::findOutputs(int variantId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_OUTPUTS_BY_VARIANT,
+        { {":vid", variantId} });
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search outputs (variant=%1)").arg(variantId));
+    }
 
     QList<OutputRow> result;
     while (q.next()) {
@@ -133,75 +160,71 @@ QList<OutputRow> VariantRepository::findOutputs(int variantId) const {
         row.name      = q.value(2).toString();
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-
-
-// --- Write States / Inputs / Outputs ---
-
-int VariantRepository::insertState(int variantId,
-                                   const QString& name,
-                                   bool isInit,
-                                   QString* error) {
+// States / Inputs / Outputs: write
+Result VariantRepository::insertState(int variantId, const QString& name, bool isInit) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO States (variant_id, name, is_init) "
-        "VALUES (:vid, :name, :init)"));
+    q.prepare(SQLRequests::INSERT_STATE);
     q.bindValue(":vid",  variantId);
     q.bindValue(":name", name);
     q.bindValue(":init", isInit ? 1 : 0);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return -1;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to insert state '%1'").arg(name))
+            .withOffender(name);
     }
-    return q.lastInsertId().toInt();
+
+    return Result::success()
+        .withPayload(q.lastInsertId().toInt());
 }
 
-int VariantRepository::insertInput(int variantId,
-                                   const QString& name,
-                                   QString* error) {
+Result VariantRepository::insertInput(int variantId, const QString& name) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO Inputs (variant_id, name) "
-        "VALUES (:vid, :name)"));
+    q.prepare(SQLRequests::INSERT_INPUT);
     q.bindValue(":vid",  variantId);
     q.bindValue(":name", name);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return -1;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to insert input '%1'").arg(name))
+            .withOffender(name);
     }
-    return q.lastInsertId().toInt();
+
+    return Result::success()
+        .withPayload(q.lastInsertId().toInt());
 }
 
-int VariantRepository::insertOutput(int variantId,
-                                    const QString& name,
-                                    QString* error) {
+Result VariantRepository::insertOutput(int variantId, const QString& name) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO Outputs (variant_id, name) "
-        "VALUES (:vid, :name)"));
+    q.prepare(SQLRequests::INSERT_OUTPUT);
     q.bindValue(":vid",  variantId);
     q.bindValue(":name", name);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return -1;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to insert output '%1'").arg(name))
+            .withOffender(name);
     }
-    return q.lastInsertId().toInt();
+
+    return Result::success()
+        .withPayload(q.lastInsertId().toInt());
 }
 
-// --- Read ---
-QList<TransitionRow> VariantRepository::findTransitions(int variantId) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT id, variant_id, from_state_id, "
-                                           "       to_state_id, input_signal_id "
-                                           "FROM Transitions "
-                                           "WHERE variant_id = :vid "
-                                           "ORDER BY id"),
-                            { {":vid", variantId} });
+// Transitions: read
+Result VariantRepository::findTransitions(int variantId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_TRANSITIONS_BY_VARIANT,
+        { {":vid", variantId} });
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search transitions (variant=%1)")
+            .arg(variantId));
+    }
 
     QList<TransitionRow> result;
     while (q.next()) {
@@ -218,17 +241,20 @@ QList<TransitionRow> VariantRepository::findTransitions(int variantId) const {
 
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-QList<MealyTransitionOutputRow> VariantRepository::findMealyOutputs(
-    int transitionId) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral("SELECT transition_id, output_id "
-                                           "FROM MealyTransitionOutputs "
-                                           "WHERE transition_id = :tid "
-                                           "ORDER BY output_id"),
-                            { {":tid", transitionId} });
+Result VariantRepository::findMealyOutputs(int transitionId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_MEALY_OUTPUTS_BY_TRANSITION,
+        { {":tid", transitionId} });
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search Mealy outputs (transition=%1)")
+            .arg(transitionId));
+    }
 
     QList<MealyTransitionOutputRow> result;
     while (q.next()) {
@@ -237,19 +263,20 @@ QList<MealyTransitionOutputRow> VariantRepository::findMealyOutputs(
         row.outputId     = q.value(1).toInt();
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-QList<MooreStateOutputRow> VariantRepository::findMooreOutputs(
-    int variantId) const {
-    QSqlQuery q = runSelect(m_db,
-                            QStringLiteral(
-                                "SELECT mso.state_id, mso.output_id "
-                                "FROM MooreStateOutputs mso "
-                                "JOIN States s ON s.id = mso.state_id "
-                                "WHERE s.variant_id = :vid "
-                                "ORDER BY mso.state_id, mso.output_id"),
-                            { {":vid", variantId} });
+Result VariantRepository::findMooreOutputs(int variantId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_MOORE_OUTPUTS_BY_VARIANT,
+        { {":vid", variantId} });
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+        QStringLiteral("Failed to search Moore outputs (variant=%1)")
+        .arg(variantId));
+    }
 
     QList<MooreStateOutputRow> result;
     while (q.next()) {
@@ -258,20 +285,17 @@ QList<MooreStateOutputRow> VariantRepository::findMooreOutputs(
         row.outputId = q.value(1).toInt();
         result.append(row);
     }
-    return result;
+
+    return Result::success().withPayload(result);
 }
 
-// --- Write ---
-int VariantRepository::insertTransition(int variantId,
-                                        int fromStateId,
-                                        std::optional<int> toStateId,
-                                        int inputSignalId,
-                                        QString* error) {
+// Transitions: write
+Result VariantRepository::insertTransition(int variantId,
+       int fromStateId,
+       std::optional<int> toStateId,
+       int inputSignalId) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO Transitions "
-        "    (variant_id, from_state_id, to_state_id, input_signal_id) "
-        "VALUES (:vid, :from, :to, :input)"));
+    q.prepare(SQLRequests::INSERT_TRANSITION);
     q.bindValue(":vid",   variantId);
     q.bindValue(":from",  fromStateId);
     q.bindValue(":input", inputSignalId);
@@ -282,42 +306,62 @@ int VariantRepository::insertTransition(int variantId,
         q.bindValue(":to", QVariant(QMetaType(QMetaType::Int)));
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return -1;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to insert transition "
+                "(variant=%1, from=%2, input=%3)")
+            .arg(variantId).arg(fromStateId).arg(inputSignalId));
     }
-    return q.lastInsertId().toInt();
+
+    return Result::success()
+        .withPayload(q.lastInsertId().toInt());
 }
 
-bool VariantRepository::insertMealyOutput(int transitionId,
-                                          int outputId,
-                                          QString* error) {
+Result VariantRepository::insertMealyOutput(int transitionId, int outputId) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO MealyTransitionOutputs (transition_id, output_id) "
-        "VALUES (:tid, :oid)"));
+    q.prepare(SQLRequests::INSERT_MEALY_OUTPUT);
     q.bindValue(":tid", transitionId);
     q.bindValue(":oid", outputId);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return false;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to link transition %1 with output %2")
+            .arg(transitionId).arg(outputId));
     }
-    return true;
+
+    return Result::success();
 }
 
-bool VariantRepository::insertMooreOutput(int stateId,
-                                          int outputId,
-                                          QString* error) {
+Result VariantRepository::insertMooreOutput(int stateId, int outputId) {
     QSqlQuery q(m_db->handle());
-    q.prepare(QStringLiteral(
-        "INSERT INTO MooreStateOutputs (state_id, output_id) "
-        "VALUES (:sid, :oid)"));
+    q.prepare(SQLRequests::INSERT_MOORE_OUTPUT);
     q.bindValue(":sid", stateId);
     q.bindValue(":oid", outputId);
 
     if (!q.exec()) {
-        if (error) *error = q.lastError().text();
-        return false;
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to link state %1 with output %2")
+            .arg(stateId).arg(outputId));
     }
-    return true;
+
+    return Result::success();
+}
+
+Result VariantRepository::findMealyOutputsByVariant(int variantId) const {
+    QSqlQuery q = m_db->query(
+        SQLRequests::SELECT_MEALY_OUTPUTS_BY_VARIANT,
+        { {":vid", variantId} });
+
+    if (!q.isActive()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to search Mealy outputs (variant=%1)")
+                .arg(variantId));
+    }
+
+    QHash<int, QList<int>> result;
+    while (q.next()) {
+        const int transitionId = q.value(0).toInt();
+        const int outputId = q.value(1).toInt();
+        result[transitionId].append(outputId);
+    }
+    return Result::success().withPayload(result);
 }

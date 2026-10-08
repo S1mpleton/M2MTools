@@ -78,7 +78,6 @@ QString resultSeverityDisplayName(ResultSeverity resultSeverity) {
 
 
 
-
 void Result::updateMessage(const QString& message){
     m_message = message;
 }

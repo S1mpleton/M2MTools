@@ -84,33 +84,67 @@ void MainWindow::setupConnections() {
 }
 
 void MainWindow::onLoadVariantPushButton() {
-    auto result = m_variantService->loadVariant(1);
+    // auto result = m_variantService->loadVariant(1);
 }
 
 void MainWindow::onSavePushButtonClicked(){
-    qDebug() << "CLICKED Save button";
+    auto showCriticalMessage = [](QWidget* parent, const Result& result) {
+        QString message = QString("Failed to save the variant: %1").arg(result.message());
+        if (!result.details().isEmpty()) {
+            message.append(QString("\nDetails: %2").arg(result.details()));
+        }
 
-    if (m_data.getStateNames().isEmpty()) {
-        QMessageBox::warning(this, "Сохранение", "Не заданы состояния автомата.");
+        QMessageBox::critical(
+            parent,
+            QString("Saving"),
+            message
+        );
+    };
+
+    Result validData = m_data.validate();
+    if (!validData.ok()) {
+        showCriticalMessage(this, validData);
         return;
     }
-    if (m_data.getInputSignalNames().isEmpty()) {
-        QMessageBox::warning(this, "Сохранение", "Не заданы входные сигналы.");
+
+    Result existResult = m_variantService->isExist(m_data.getVariantNumber());
+    if (!existResult.ok()) {
+        showCriticalMessage(this, existResult);
+        return;
+    }
+    qDebug() << "isExist.hasPayload() " << existResult.hasPayload();
+    qDebug() << "isExist.payloadAs<bool>() " << existResult.payloadAs<bool>();
+
+    const bool exists = existResult.payloadAs<bool>();
+    if (exists) {
+        const QMessageBox::StandardButton answer = QMessageBox::question(
+            this,
+            QString("The variant №%1 is exists.").arg(m_data.getVariantNumber()),
+            QString("Do you want remove variant №%1?").arg(m_data.getVariantNumber()),
+            QMessageBox::Ok | QMessageBox::Cancel,
+            QMessageBox::Cancel
+        );
+
+        if (answer == QMessageBox::Ok) {
+            Result remuveResult = m_variantService->removeVariant(m_data.getVariantNumber());
+            if (!remuveResult.ok()) {
+                showCriticalMessage(this, remuveResult);
+                return;
+            }
+
+        } else {
+            return;
+        }
+    }
+
+    Result resultSaveVariant = m_variantService->saveVariant(m_data);
+    if (!resultSaveVariant.ok()) {
+        showCriticalMessage(this, resultSaveVariant);
         return;
     }
 
-    const ServiceResult result = m_variantService->saveVariant(m_data);
-
-    // 4. Реагируем на результат
-    if (result.ok) {
-        ui->statusbar->showMessage(
-            tr("Вариант №%1 сохранён").arg(m_data.getVariantNumber()), 3000);
-    } else {
-        QMessageBox::critical(this, tr("Ошибка сохранения"),
-                              tr("Не удалось сохранить вариант:\n%1").arg(result.message));
-    }
-
-
+    ui->statusbar->showMessage(
+        QString("Option №%1 has been saved.").arg(m_data.getVariantNumber()), 3000);
 }
 
 void MainWindow::onVariantTypeChanged(int index) {
@@ -148,7 +182,6 @@ void MainWindow::onStateNamesChanged(const QString& text) {
     refreshTable();
 }
 
-
 // INPUT signals
 void MainWindow::onInputNamesChanged(const QString& text) {
     if (m_updatingUi) return;
@@ -166,7 +199,6 @@ void MainWindow::onInputNamesChanged(const QString& text) {
     m_inputNamesPresenter->clear(result);
     refreshTable();
 }
-
 
 // OUTPUT signals
 void MainWindow::onOutputNamesChanged(const QString& text) {
