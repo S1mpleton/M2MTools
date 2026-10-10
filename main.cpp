@@ -2,6 +2,7 @@
 #include "data/schemamanager.h"
 #include "ui/mainwindow.h"
 
+
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
@@ -11,15 +12,15 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    QTranslator translator;
-    const QStringList uiLanguages = QLocale::system().uiLanguages();
-    for (const QString &locale : uiLanguages) {
-        const QString baseName = "M2MTools_" + QLocale(locale).name();
-        if (translator.load(":/i18n/" + baseName)) {
-            a.installTranslator(&translator);
-            break;
-        }
-    }
+    // QTranslator translator;
+    // const QStringList uiLanguages = QLocale::system().uiLanguages();
+    // for (const QString &locale : uiLanguages) {
+    //     const QString baseName = "M2MTools_" + QLocale(locale).name();
+    //     if (translator.load(":/i18n/" + baseName)) {
+    //         a.installTranslator(&translator);
+    //         break;
+    //     }
+    // }
 
     Database* db = Database::open("variants.db", &a);
     if (!db) {

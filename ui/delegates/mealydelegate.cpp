@@ -75,17 +75,10 @@ QWidget* MealyDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem
 }
 
 void MealyDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const {
-    qDebug() << "=== setEditorData ===";
-    qDebug() << "  raw:" << index.data(Qt::EditRole).toString();
-
     QString text = index.data(Qt::EditRole).toString();
     QString statePart, outputPart;
 
     int slashPos = text.indexOf('/');
-
-    qDebug() << "text =" << text;
-    qDebug() << "text.toUtf8().toHex() =" << text.toUtf8().toHex();
-    qDebug() << "slashPos =" << slashPos;
 
     if (slashPos >= 0) {
         statePart  = text.left(slashPos).trimmed();
@@ -99,14 +92,12 @@ void MealyDelegate::setEditorData(QWidget* editor, const QModelIndex& index) con
 
     auto* stateEdit  = container->findChild<QLineEdit*>("stateEdit");
     auto* outputEdit = container->findChild<QLineEdit*>("outputEdit");
-    qDebug() << "stateEdit =" << stateEdit;
-    qDebug() << "outputEdit =" << outputEdit;
+
     if (stateEdit)  stateEdit->setText(statePart);
     if (outputEdit) outputEdit->setText(outputPart);
 }
 
 void MealyDelegate::setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const {
-    qDebug() << "=== setModelData ===";
     auto* container = qobject_cast<QWidget*>(editor);
     if (!container) return;
 

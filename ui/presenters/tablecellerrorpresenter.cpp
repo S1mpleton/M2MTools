@@ -1,5 +1,7 @@
 #include "tablecellerrorpresenter.h"
 
+#include "ui/translateresult.h"
+
 namespace {
     const QColor kErrorBackground(204, 34, 34);
     const QColor kNormalBackground("");
@@ -30,10 +32,10 @@ void TableCellErrorPresenter::setCoordinates(int row, int col) {
 void TableCellErrorPresenter::show(const Result& result) {
     if (auto* it = item()) {
         it->setBackground(QBrush(kErrorBackground));
-        it->setToolTip(result.message());
+        it->setToolTip(translateResult(result));
     }
     if (m_statusBar)
-        m_statusBar->showMessage(result.message());
+        m_statusBar->showMessage(translateResult(result));
 }
 
 void TableCellErrorPresenter::clear(const Result& result) {
@@ -42,5 +44,5 @@ void TableCellErrorPresenter::clear(const Result& result) {
         it->setToolTip("");
     }
     if (m_statusBar)
-        m_statusBar->showMessage(result.message(), 2500);
+        m_statusBar->showMessage(translateResult(result), 2500);
 }

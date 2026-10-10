@@ -58,18 +58,30 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         core/result.h
         infrastructure/logger.h infrastructure/logger.cpp
         core/result.cpp
+        infrastructure/translationmanager.h infrastructure/translationmanager.cpp
+        core/errorcode.h
+        ui/translateresult.h ui/translateresult.cpp
+        core/errorcode.cpp
+        data/sqlerrormapper.h data/sqlerrormapper.cpp
     )
 
-target_include_directories(M2MTools PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
+    target_include_directories(M2MTools PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET M2MTools APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
 # For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
 
-    qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
+
+    qt_add_translations(M2MTools
+        TS_FILES M2MTools_ru_RU.ts
+    )
+    qt_add_lupdate(M2MTools)
+
+
+#    qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 else()
     if(ANDROID)
         add_library(M2MTools SHARED

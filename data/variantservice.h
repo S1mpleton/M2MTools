@@ -56,8 +56,8 @@ private:
         QHash<QString, int>& inputIds);
 
     Result insertOutputs(int variantId,
-         const QStringList& names,
-         QHash<QString, int>& outputIds);
+        const QStringList& names,
+        QHash<QString, int>& outputIds);
 
     // Result clearVariantContent(int variantId);
 };

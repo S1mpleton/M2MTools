@@ -1,11 +1,11 @@
 #ifndef RESULT_H
 #define RESULT_H
 
+#include "core/errorcode.h"
+
 #include <QObject>
 #include <QString>
 #include <QDateTime>
-
-// Q_DECLARE_METATYPE(bool)
 
 enum class ResultCategory {
     General,
@@ -14,6 +14,7 @@ enum class ResultCategory {
     Service,
     Ui,
     Hash,
+    Translation,
     Unknown,
 };
 
@@ -34,7 +35,7 @@ QString resultSeverityDisplayName(ResultSeverity resultSeverity);
 class Result
 {
 public:
-    static Result success(const QString& message = {}) {
+    static Result success(const QString& message = "Ok") {
         return Result(ResultSeverity::Success, ResultCategory::General, message);
     }
 
@@ -62,7 +63,7 @@ public:
 
     QString offender() const { return m_offender; }
 
-    int code() const { return m_code; }
+    ErrorCode code() const { return m_code; }
 
     QDateTime timestamp() const { return m_timestamp; }
 
@@ -91,7 +92,7 @@ public:
         return *this;
     }
 
-    Result& withCode(int code) {
+    Result& withCode(ErrorCode code) {
         m_code = code;
         return *this;
     }
@@ -116,9 +117,9 @@ private:
     QString m_message;
     QString m_details;
     QString m_offender;
-    int m_code = 200;
     QDateTime m_timestamp;
 
+    ErrorCode m_code = ErrorCode::None;
 };
 
 #endif // RESULT_H

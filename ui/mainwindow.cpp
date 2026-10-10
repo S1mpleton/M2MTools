@@ -8,9 +8,9 @@
 #include "infrastructure/logger.h"
 
 #include "ui/presenters/errorpresenterfactory.h"
-
 #include "ui/delegates/mealydelegate.h"
 #include "ui/delegates/mooredelegate.h"
+#include "ui/translateresult.h"
 
 #include "core/namelistparser.h"
 
@@ -18,15 +18,24 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QMessageBox>
+#include <QAction>
 
 
 
 MainWindow::MainWindow(VariantService* service, QWidget *parent)
     : QMainWindow(parent)
     , m_variantService(service)
+    , m_translator(new TranslationManager(this))
     , ui(new Ui::MainWindow)   
 {
     ui->setupUi(this);
+
+    m_translator->loadSystemLocale();
+    m_translator->currentLocale() == "en" ?
+        ui->actionSetLangEn->setChecked(true) :
+        ui->actionSetLangRu->setChecked(true);
+
+    setWindowTitle("MTMTools");
 
     CompositeValidator *composite = new CompositeValidator(this);
     composite->addValidator(new EditValidator());
@@ -48,6 +57,14 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(this);
+    }
+    QMainWindow::changeEvent(event);
+}
+
 void MainWindow::setupPresenters() {
     m_stateNamesPresenter = ErrorPresenterFactory::forLineEdit(
         ui->stateNamesLineEdit, ui->statusbar, this);
@@ -63,6 +80,12 @@ void MainWindow::setupPresenters() {
 }
 
 void MainWindow::setupConnections() {
+    // header tool
+    connect(ui->actionSetLangRu, &QAction::triggered,
+            this, &MainWindow::onSetLangRuTriggered);
+    connect(ui->actionSetLangEn, &QAction::triggered,
+            this, &MainWindow::onSetLangEnTriggered);
+
     connect(ui->variantTypeComboBox, &QComboBox::currentIndexChanged,
             this, &MainWindow::onVariantTypeChanged);
     connect(ui->numberVariantSpinBox, &QSpinBox::valueChanged,
@@ -83,20 +106,40 @@ void MainWindow::setupConnections() {
             this,  &MainWindow::onLoadVariantPushButton);
 }
 
+// Language
+void MainWindow::onSetLangRuTriggered(bool isActive) {
+    m_translator->setLocale("ru_RU");
+
+    ui->actionSetLangEn->setChecked(false);
+    ui->actionSetLangRu->setChecked(true);
+
+}
+
+void MainWindow::onSetLangEnTriggered(bool isActive) {
+    m_translator->setLocale("en");
+
+    ui->actionSetLangRu->setChecked(false);
+    ui->actionSetLangEn->setChecked(true);
+}
+
+
+// Database
 void MainWindow::onLoadVariantPushButton() {
-    // auto result = m_variantService->loadVariant(1);
+
 }
 
 void MainWindow::onSavePushButtonClicked(){
     auto showCriticalMessage = [](QWidget* parent, const Result& result) {
-        QString message = QString("Failed to save the variant: %1").arg(result.message());
+        QString message = QString(MainWindow::tr("Error: %1")
+                                    .arg(translateResult(result)));
+
         if (!result.details().isEmpty()) {
-            message.append(QString("\nDetails: %2").arg(result.details()));
+            message.append(tr("\nDetails: %2").arg(result.details()));
         }
 
         QMessageBox::critical(
             parent,
-            QString("Saving"),
+            tr("Saving"),
             message
         );
     };
@@ -112,15 +155,13 @@ void MainWindow::onSavePushButtonClicked(){
         showCriticalMessage(this, existResult);
         return;
     }
-    qDebug() << "isExist.hasPayload() " << existResult.hasPayload();
-    qDebug() << "isExist.payloadAs<bool>() " << existResult.payloadAs<bool>();
 
     const bool exists = existResult.payloadAs<bool>();
     if (exists) {
         const QMessageBox::StandardButton answer = QMessageBox::question(
             this,
-            QString("The variant №%1 is exists.").arg(m_data.getVariantNumber()),
-            QString("Do you want remove variant №%1?").arg(m_data.getVariantNumber()),
+            tr("The variant №%1 is exists.").arg(m_data.getVariantNumber()),
+            tr("Do you want remove variant №%1?").arg(m_data.getVariantNumber()),
             QMessageBox::Ok | QMessageBox::Cancel,
             QMessageBox::Cancel
         );
@@ -144,9 +185,10 @@ void MainWindow::onSavePushButtonClicked(){
     }
 
     ui->statusbar->showMessage(
-        QString("Option №%1 has been saved.").arg(m_data.getVariantNumber()), 3000);
+        tr("Variant №%1 has been saved.").arg(m_data.getVariantNumber()), 3000);
 }
 
+// Variant
 void MainWindow::onVariantTypeChanged(int index) {
     if (!index){
         m_data.setVariantType(VariantType::MealyToMoore);
@@ -241,6 +283,7 @@ void MainWindow::onTableCellChanged(int row, int col) {
     }
 }
 
+// Ui
 void MainWindow::refreshTable() {
     m_updatingTable = true;
     m_updatingUi = true;

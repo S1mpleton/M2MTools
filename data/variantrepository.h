@@ -50,6 +50,7 @@ struct MooreStateOutputRow {
 };
 
 namespace {
+    QSqlQuery runSelect(Database* db, const QString& sql, const QVariantMap& params = {});
     Result makeDatabaseError(const QSqlQuery& q, const QString& context);
 }
 

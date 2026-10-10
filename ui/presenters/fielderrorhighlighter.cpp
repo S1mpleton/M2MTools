@@ -1,5 +1,7 @@
 #include "fielderrorhighlighter.h"
 
+#include "ui/translateresult.h"
+
 namespace {
     constexpr auto kErrorStyle   = "background: #CC2222; color: white;";
     constexpr auto kErrorIconId  = "errorIcon";
@@ -25,7 +27,7 @@ void FieldErrorHighlighter::show(const Result& result) {
     }
 
     if (m_statusBar)
-        m_statusBar->showMessage(result.message());
+        m_statusBar->showMessage(translateResult(result));
 }
 
 void FieldErrorHighlighter::clear(const Result& result) {
@@ -40,5 +42,5 @@ void FieldErrorHighlighter::clear(const Result& result) {
     }
 
     if (m_statusBar)
-        m_statusBar->showMessage(result.message(), 2500);
+        m_statusBar->showMessage(translateResult(result), 2500);
 }

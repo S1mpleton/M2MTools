@@ -1,18 +1,20 @@
 #include "variantrepository.h"
+#include "data/sqlerrormapper.h"
 #include "data/sqlrequests.h"
 #include "data/database.h"
 
 #include "core/result.h"
 
 namespace {
-    QSqlQuery runSelect(Database* db, const QString& sql, const QVariantMap& params = {}) {
+    QSqlQuery runSelect(Database* db, const QString& sql, const QVariantMap& params) {
         return db->query(sql, params);
     }
 
     Result makeDatabaseError(const QSqlQuery& q, const QString& context) {
+        const QSqlError sqlError = q.lastError();
         return Result::error(context, ResultCategory::Database)
-        .withDetails(q.lastError().text())
-            .withCode(q.lastError().nativeErrorCode().toInt());
+            .withDetails(sqlError.text())
+            .withCode(mapSqlErrorToCode(sqlError));
     }
 }
 
@@ -27,8 +29,7 @@ Result VariantRepository::findVariant(int number) const {
         { {":num", number} });
 
     if (!q.isActive()) {
-        return makeDatabaseError(q,
-            QStringLiteral("Failed to search variant (number=%1)").arg(number));
+        return makeDatabaseError(q, QStringLiteral("Failed to search variant (number=%1)").arg(number));
     }
 
     if (!q.next()) {
@@ -110,10 +111,10 @@ Result VariantRepository::findStates(int variantId) const {
     QList<StateRow> result;
     while (q.next()) {
         StateRow row;
-        row.id        = q.value(0).toInt();
+        row.id = q.value(0).toInt();
         row.variantId = q.value(1).toInt();
-        row.name      = q.value(2).toString();
-        row.isInit    = q.value(3).toInt() != 0;
+        row.name = q.value(2).toString();
+        row.isInit = q.value(3).toInt() != 0;
         result.append(row);
     }
 
@@ -133,9 +134,9 @@ Result VariantRepository::findInputs(int variantId) const {
     QList<InputRow> result;
     while (q.next()) {
         InputRow row;
-        row.id        = q.value(0).toInt();
+        row.id = q.value(0).toInt();
         row.variantId = q.value(1).toInt();
-        row.name      = q.value(2).toString();
+        row.name = q.value(2).toString();
         result.append(row);
     }
 
@@ -155,9 +156,9 @@ Result VariantRepository::findOutputs(int variantId) const {
     QList<OutputRow> result;
     while (q.next()) {
         OutputRow row;
-        row.id        = q.value(0).toInt();
+        row.id = q.value(0).toInt();
         row.variantId = q.value(1).toInt();
-        row.name      = q.value(2).toString();
+        row.name = q.value(2).toString();
         result.append(row);
     }
 
@@ -168,7 +169,7 @@ Result VariantRepository::findOutputs(int variantId) const {
 Result VariantRepository::insertState(int variantId, const QString& name, bool isInit) {
     QSqlQuery q(m_db->handle());
     q.prepare(SQLRequests::INSERT_STATE);
-    q.bindValue(":vid",  variantId);
+    q.bindValue(":vid", variantId);
     q.bindValue(":name", name);
     q.bindValue(":init", isInit ? 1 : 0);
 
@@ -185,7 +186,7 @@ Result VariantRepository::insertState(int variantId, const QString& name, bool i
 Result VariantRepository::insertInput(int variantId, const QString& name) {
     QSqlQuery q(m_db->handle());
     q.prepare(SQLRequests::INSERT_INPUT);
-    q.bindValue(":vid",  variantId);
+    q.bindValue(":vid", variantId);
     q.bindValue(":name", name);
 
     if (!q.exec()) {
@@ -201,7 +202,7 @@ Result VariantRepository::insertInput(int variantId, const QString& name) {
 Result VariantRepository::insertOutput(int variantId, const QString& name) {
     QSqlQuery q(m_db->handle());
     q.prepare(SQLRequests::INSERT_OUTPUT);
-    q.bindValue(":vid",  variantId);
+    q.bindValue(":vid", variantId);
     q.bindValue(":name", name);
 
     if (!q.exec()) {
@@ -229,9 +230,9 @@ Result VariantRepository::findTransitions(int variantId) const {
     QList<TransitionRow> result;
     while (q.next()) {
         TransitionRow row;
-        row.id            = q.value(0).toInt();
-        row.variantId     = q.value(1).toInt();
-        row.fromStateId   = q.value(2).toInt();
+        row.id = q.value(0).toInt();
+        row.variantId = q.value(1).toInt();
+        row.fromStateId = q.value(2).toInt();
         row.inputSignalId = q.value(4).toInt();
 
         // to_state_id can be NULL
@@ -260,7 +261,7 @@ Result VariantRepository::findMealyOutputs(int transitionId) const {
     while (q.next()) {
         MealyTransitionOutputRow row;
         row.transitionId = q.value(0).toInt();
-        row.outputId     = q.value(1).toInt();
+        row.outputId = q.value(1).toInt();
         result.append(row);
     }
 
@@ -281,7 +282,7 @@ Result VariantRepository::findMooreOutputs(int variantId) const {
     QList<MooreStateOutputRow> result;
     while (q.next()) {
         MooreStateOutputRow row;
-        row.stateId  = q.value(0).toInt();
+        row.stateId = q.value(0).toInt();
         row.outputId = q.value(1).toInt();
         result.append(row);
     }
@@ -296,8 +297,8 @@ Result VariantRepository::insertTransition(int variantId,
        int inputSignalId) {
     QSqlQuery q(m_db->handle());
     q.prepare(SQLRequests::INSERT_TRANSITION);
-    q.bindValue(":vid",   variantId);
-    q.bindValue(":from",  fromStateId);
+    q.bindValue(":vid", variantId);
+    q.bindValue(":from", fromStateId);
     q.bindValue(":input", inputSignalId);
 
     if (toStateId.has_value())

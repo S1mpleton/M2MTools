@@ -109,11 +109,27 @@ void Logger::writeNow(const Result& result) {
     m_history.append(result);
     emit newResult(result);
 
-    QString severityString = resultSeverityToString(result.severity());
-    QString categoryString = resultCategoryToString(result.category());
+    if (result.isSuccess()) return;
 
-    qDebug().noquote()
-        << QStringLiteral("[%1] [%2] %3 %4")
-               .arg(severityString, categoryString, result.message(), result.details());
+    const char* level =
+        result.isError()   ? "ERROR" :
+        result.isWarning() ? "WARN " : "INFO ";
+
+    QString line = QStringLiteral("[%1] [%2] %3")
+                       .arg(QString::fromLatin1(level))
+                       .arg(static_cast<int>(result.category()))
+                       .arg(result.message());
+
+    if (result.code() != ErrorCode::None) {
+        line += QStringLiteral(" | code=%1").arg(errorCodeToString(result.code()));
+    }
+    if (!result.offender().isEmpty()) {
+        line += QStringLiteral(" | offender=%1").arg(result.offender());
+    }
+    if (!result.details().isEmpty()) {
+        line += QStringLiteral(" | details=%1").arg(result.details());
+    }
+
+    qDebug().noquote() << line;
 }
 

@@ -21,8 +21,11 @@ Result VariantService::saveVariant(const AutomatonData& data) {
 
     if (findResult.hasPayload()) {
         return Result::error(
-            QString("The option with the number '%1' already exists.")
-            .arg(data.getVariantNumber()));
+                   QStringLiteral("Variant №%1 already exists").arg(data.getVariantNumber()),
+                   ResultCategory::Service)
+            .withCode(ErrorCode::VariantAlreadyExists)
+            .withOffender(QString::number(data.getVariantNumber()))
+            .withDetails(findResult.details());
     }
 
     Result insertResult = m_repo->insertVariant(data.getVariantNumber(), conversion);
@@ -76,8 +79,9 @@ Result VariantService::removeVariant(int variantNumber) {
 
     if (!tx.commit()) {
         return Result::error(
-            QString("Failed to commit remove variant"),
-            ResultCategory::Database);
+                QString("Failed to commit remove variant"),
+                ResultCategory::Database)
+            .withCode(ErrorCode::DatabaseCommitFailed);
     }
 
     return Result::success(
@@ -114,9 +118,9 @@ Result VariantService::isExist(int variantNumber) {
 
 
 Result VariantService::insertStates(int variantId,
-    const QStringList& names,
-    const QString& initialState,
-    QHash<QString, int>& stateIds) {
+                                    const QStringList& names,
+                                    const QString& initialState,
+                                    QHash<QString, int>& stateIds) {
     for (const QString& name : names) {
         const bool isInit = (name == initialState);
         Result r = m_repo->insertState(variantId, name, isInit);
@@ -126,9 +130,7 @@ Result VariantService::insertStates(int variantId,
     return Result::success();
 }
 
-Result VariantService::insertInputs(int variantId,
-    const QStringList& names,
-    QHash<QString, int>& inputIds) {
+Result VariantService::insertInputs(int variantId, const QStringList& names, QHash<QString, int>& inputIds) {
     for (const QString& name : names) {
         Result r = m_repo->insertInput(variantId, name);
         if (!r.ok()) return r;
@@ -169,9 +171,10 @@ Result VariantService::saveMoore(
             if (!cell.nextState.isEmpty() && cell.nextState != "—") {
                 if (!stateIds.contains(cell.nextState)) {
                     return Result::error(
-                               QStringLiteral("Transition points to unknown state '%1'")
+                                QStringLiteral("Transition points to unknown state '%1'")
                                    .arg(cell.nextState),
-                               ResultCategory::Validation)
+                                ResultCategory::Validation)
+                        .withCode(ErrorCode::VariantUnknownState)
                         .withOffender(cell.nextState);
                 }
                 toStateId = stateIds.value(cell.nextState);
@@ -195,6 +198,7 @@ Result VariantService::saveMoore(
                 return Result::error(
                            QStringLiteral("Unknown output signal '%1'").arg(outName),
                            ResultCategory::Validation)
+                    .withCode(ErrorCode::VariantUnknownOutput)
                     .withOffender(outName);
             }
 
@@ -233,6 +237,7 @@ Result VariantService::saveMealy(
                                QStringLiteral("Transition points to unknown state '%1'")
                                    .arg(cell.nextState),
                                ResultCategory::Validation)
+                        .withCode(ErrorCode::VariantUnknownState)
                         .withOffender(cell.nextState);
                 }
                 toStateId = stateIds.value(cell.nextState);
@@ -253,6 +258,7 @@ Result VariantService::saveMealy(
                     return Result::error(
                                QStringLiteral("Unknown output signal '%1'").arg(outName),
                                ResultCategory::Validation)
+                        .withCode(ErrorCode::VariantUnknownOutput)
                         .withOffender(outName);
                 }
 

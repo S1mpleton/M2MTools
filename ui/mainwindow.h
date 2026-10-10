@@ -3,10 +3,12 @@
 
 #include "core/automatondata.h"
 #include "data/variantservice.h"
+#include "infrastructure/translationmanager.h"
 #include "ui/presenters/tablecellerrorpresenter.h"
 
 #include <QLineEdit>
 #include <QMainWindow>
+#include <QTranslator>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -17,12 +19,15 @@ QT_END_NAMESPACE
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
     explicit MainWindow(VariantService* service, QWidget *parent = nullptr);
     ~MainWindow() override;
 
 private slots:
+    // header tool
+    void onSetLangRuTriggered(bool isActive);
+    void onSetLangEnTriggered(bool isActive);
+
     void onVariantTypeChanged(int index);
     void onVariantNumberChanged(int number);
 
@@ -54,9 +59,14 @@ private:
 
     TableCellErrorPresenter* m_cellPresenter = nullptr;
 
+    TranslationManager* m_translator = nullptr;
+
     void setupPresenters();
     void setupConnections();
     void refreshTable();
+
+protected:
+    void changeEvent(QEvent *event) override;
 
 };
 #endif // MAINWINDOW_H

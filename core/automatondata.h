@@ -34,6 +34,19 @@ enum class ValidationLevel {
     Strict
 };
 
+enum class AutomatErrorCode {
+    None = 0,
+
+    // Validation
+    EmptyStateList,
+    EmptyInputList,
+    EmptyOutputList,
+    UnusedState,
+    UnusedInput,
+    UnusedOutput,
+    // ...
+};
+
 FieldType fieldTypeStringToType(QString fieldTypeString);
 QString fieldTypeToString(FieldType fieldType);
 QString fieldTypeDisplayName(FieldType fieldType);
@@ -66,8 +79,8 @@ public:
     const QVector<QVector<CellData>>& getTransitionTable() const { return m_transitionTable; }
 
     // Settors
-    void setVariantNumber(int n);
-    void setVariantType(VariantType t);
+    Result setVariantNumber(int n);
+    Result setVariantType(VariantType t);
 
     Result setInitialState(const QString& name);
     Result setStateNames(const QStringList& names);
