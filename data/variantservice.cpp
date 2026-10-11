@@ -115,6 +115,9 @@ Result VariantService::isExist(int variantNumber) {
     return Result::success().withPayload(exists);
 }
 
+Result VariantService::findAllVariants() const {
+    return m_repo->findAllVariants();
+}
 
 
 Result VariantService::insertStates(int variantId,

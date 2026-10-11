@@ -37,6 +37,7 @@ void Logger::log(const Result& result) {
         self.scheduleWrite(result);
     else
         self.writeNow(result);
+
 }
 
 void Logger::setDebounceInterval(int ms) {
@@ -109,7 +110,7 @@ void Logger::writeNow(const Result& result) {
     m_history.append(result);
     emit newResult(result);
 
-    if (result.isSuccess()) return;
+    // if (result.isSuccess()) return;
 
     const char* level =
         result.isError()   ? "ERROR" :

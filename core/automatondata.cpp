@@ -8,6 +8,18 @@
 #include <QJsonArray>
 #include <QCoreApplication>
 
+
+// ValidateLevel
+QString validationLevelToString(ValidationLevel fieldType) {
+    switch (fieldType) {
+    case ValidationLevel::Soft: return QStringLiteral("Soft");
+    case ValidationLevel::Strict: return QStringLiteral("Strict");
+    }
+
+    Logger::error(QString("function 'validationLevelToString'. Do not defined field"));
+    return QStringLiteral("Soft");
+}
+
 // FieldType
 FieldType fieldTypeStringToType(QString fieldTypeString) {
     if (fieldTypeString == QString("State")) return FieldType::State;
@@ -75,9 +87,8 @@ QString variantTypeDisplayName(VariantType variantType) {
 
 // AutomatonData
 AutomatonData::AutomatonData() {
-    setStateUsageChecker([](const AutomatonData& d) {
-        return d.validateStateUsageLenient();
-    });
+    setStateUsageChecker(ValidationLevel::Soft);
+
 }
 
 CellKind AutomatonData::cellKind(int row, int col) const  {
@@ -653,8 +664,24 @@ Result AutomatonData::validate() const {
     return Result::success();
 }
 
-void AutomatonData::setStateUsageChecker(StateUsageChecker checker) {
-    m_stateUsageChecker = std::move(checker);
+Result AutomatonData::setStateUsageChecker(ValidationLevel level) {
+    if (level == ValidationLevel::Soft){
+        m_stateUsageChecker = std::move([](const AutomatonData& d) {
+            return d.validateStateUsageSoft();
+        });
+
+    } else if (level == ValidationLevel::Strict) {
+        m_stateUsageChecker = std::move([](const AutomatonData& d) {
+            return d.validateStateUsageStrict();
+        });
+    } else {
+        return Result::error("Invalid usage checker", ResultCategory::Validation)
+            .withCode(ErrorCode::ADUnknownChecker);
+    }
+
+    m_validationLevel = level;
+    return Result::success(QStringLiteral("Level checker has been update."))
+        .withDetails(QStringLiteral("New level: %1").arg(validationLevelToString(level)));
 }
 
 Result AutomatonData::validateStateUsage() const {
@@ -776,7 +803,7 @@ Result AutomatonData::validateStateUsageStrict() const {
     return Result::success();
 }
 
-Result AutomatonData::validateStateUsageLenient() const {
+Result AutomatonData::validateStateUsageSoft() const {
     QSet<QString> usedStates;
 
     if (!m_initialState.isEmpty())

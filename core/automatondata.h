@@ -34,18 +34,7 @@ enum class ValidationLevel {
     Strict
 };
 
-enum class AutomatErrorCode {
-    None = 0,
-
-    // Validation
-    EmptyStateList,
-    EmptyInputList,
-    EmptyOutputList,
-    UnusedState,
-    UnusedInput,
-    UnusedOutput,
-    // ...
-};
+QString validationLevelToString(ValidationLevel fieldType);
 
 FieldType fieldTypeStringToType(QString fieldTypeString);
 QString fieldTypeToString(FieldType fieldType);
@@ -61,9 +50,13 @@ struct CellData {
     bool isEmpty() const { return nextState.isEmpty() && outputSignals.isEmpty(); }
 };
 
+
 class AutomatonData
 {
+
 public:
+    using StateUsageChecker = std::function<Result(const AutomatonData&)>;
+
     AutomatonData();
 
     // Gettors
@@ -77,6 +70,8 @@ public:
 
     const QMap<QString, QStringList>& getMooreOutputs() const { return m_mooreOutputs; }
     const QVector<QVector<CellData>>& getTransitionTable() const { return m_transitionTable; }
+
+    const ValidationLevel& getValidationLevel() const { return m_validationLevel; }
 
     // Settors
     Result setVariantNumber(int n);
@@ -99,8 +94,7 @@ public:
     // Validate automat
     Result validate() const;
 
-    using StateUsageChecker = std::function<Result(const AutomatonData&)>;
-    void setStateUsageChecker(StateUsageChecker checker);
+    Result setStateUsageChecker(ValidationLevel level);
 
     // Other
     CellKind cellKind(int row, int col) const;
@@ -116,9 +110,9 @@ private:
 
     QMap<QString, QStringList> m_mooreOutputs; // only Moore
     QVector<QVector<CellData>> m_transitionTable;
-    StateUsageChecker m_stateUsageChecker;
 
-    static constexpr int kSchemaVersion = 1;
+    StateUsageChecker m_stateUsageChecker;
+    ValidationLevel m_validationLevel;
 
     void rebuildTransitionTable();
     Result checkInvariant(const QStringList& candidate, FieldType field) const;
@@ -132,7 +126,7 @@ private:
     Result validateOutputUsage() const;
 
     Result validateStateUsageStrict() const;
-    Result validateStateUsageLenient() const;
+    Result validateStateUsageSoft() const;
 \
 };
 

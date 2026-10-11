@@ -10,7 +10,8 @@
 #include "ui/presenters/errorpresenterfactory.h"
 #include "ui/delegates/mealydelegate.h"
 #include "ui/delegates/mooredelegate.h"
-#include "ui/translateresult.h"
+#include "ui/variantslist.h"
+#include "ui/dialogs/resultmessenger.h"
 
 #include "core/namelistparser.h"
 
@@ -19,23 +20,20 @@
 #include <QRegularExpression>
 #include <QMessageBox>
 #include <QAction>
-
-
+#include <QActionGroup>
 
 MainWindow::MainWindow(VariantService* service, QWidget *parent)
     : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
     , m_variantService(service)
     , m_translator(new TranslationManager(this))
-    , ui(new Ui::MainWindow)   
 {
     ui->setupUi(this);
+    // setWindowTitle("M2MTools");
 
     m_translator->loadSystemLocale();
-    m_translator->currentLocale() == "en" ?
-        ui->actionSetLangEn->setChecked(true) :
-        ui->actionSetLangRu->setChecked(true);
 
-    setWindowTitle("MTMTools");
+    m_logWindow = new LogWindow(this);
 
     CompositeValidator *composite = new CompositeValidator(this);
     composite->addValidator(new EditValidator());
@@ -47,6 +45,8 @@ MainWindow::MainWindow(VariantService* service, QWidget *parent)
 
     ui->transitionTableWidget->setItemDelegate(new MealyDelegate(&m_data, this));
 
+    setupLanguageGroup();
+    setupTypeСheckGroup();
     setupPresenters();
     setupConnections();
     refreshTable();
@@ -57,8 +57,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::changeEvent(QEvent *event)
-{
+void MainWindow::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         ui->retranslateUi(this);
     }
@@ -80,12 +79,18 @@ void MainWindow::setupPresenters() {
 }
 
 void MainWindow::setupConnections() {
-    // header tool
-    connect(ui->actionSetLangRu, &QAction::triggered,
-            this, &MainWindow::onSetLangRuTriggered);
-    connect(ui->actionSetLangEn, &QAction::triggered,
-            this, &MainWindow::onSetLangEnTriggered);
+    // header signals
+    connect(ui->actionShowLogger, &QAction::triggered,
+            this, &MainWindow::onShowLogClicked);
+    connect(ui->actionLoadVariant, &QAction::triggered,
+            this, &MainWindow::onLoadVariantPushButton);
+    connect(ui->actionSaveVariant, &QAction::triggered,
+            this, &MainWindow::onSavePushButtonClicked);
 
+    connect(ui->actionExit, &QAction::triggered,
+            this, &MainWindow::onExitAction);
+
+    // Body signals
     connect(ui->variantTypeComboBox, &QComboBox::currentIndexChanged,
             this, &MainWindow::onVariantTypeChanged);
     connect(ui->numberVariantSpinBox, &QSpinBox::valueChanged,
@@ -103,73 +108,135 @@ void MainWindow::setupConnections() {
     connect(ui->savePushButton, &QPushButton::clicked,
             this, &MainWindow::onSavePushButtonClicked);
     connect(ui->loadVariantPushButton, &QPushButton::clicked,
-            this,  &MainWindow::onLoadVariantPushButton);
-}
+            this, &MainWindow::onLoadVariantPushButton);
 
-// Language
-void MainWindow::onSetLangRuTriggered(bool isActive) {
-    m_translator->setLocale("ru_RU");
-
-    ui->actionSetLangEn->setChecked(false);
-    ui->actionSetLangRu->setChecked(true);
+    // connect(m_translator, &TranslationManager::languageChanged,
+    //         m_logWindow, &LogWindow::onLanguageUpdate);
 
 }
 
-void MainWindow::onSetLangEnTriggered(bool isActive) {
-    m_translator->setLocale("en");
 
-    ui->actionSetLangRu->setChecked(false);
-    ui->actionSetLangEn->setChecked(true);
+void MainWindow::setupLanguageGroup() {
+    auto* group = new QActionGroup(this);
+    group->setObjectName("languageGroup");
+    group->setExclusive(true);
+
+    group->addAction(ui->actionSetLangEn);
+    group->addAction(ui->actionSetLangRu);
+
+    connect(group, &QActionGroup::triggered,
+            this, &MainWindow::onLanguageSelected);
+
+    const QString current = m_translator->currentLocale();
+    ui->actionSetLangEn->setChecked(current == "en");
+    ui->actionSetLangRu->setChecked(current != "en");
+}
+
+void MainWindow::setupTypeСheckGroup() {
+    auto* group = new QActionGroup(this);
+    group->setObjectName("typeCheckGroup");
+    group->setExclusive(true);
+
+    group->addAction(ui->actionTypeSoft);
+    group->addAction(ui->actionTypeStrict);
+
+    connect(group, &QActionGroup::triggered,
+            this, &MainWindow::onTypeCheckSelected);
+
+    const ValidationLevel level = m_data.getValidationLevel();
+    ui->actionTypeSoft->setChecked(level == ValidationLevel::Soft);
+    ui->actionTypeStrict->setChecked(level == ValidationLevel::Strict);
+}
+
+void MainWindow::onLanguageSelected(QAction* action) {
+    QString locale;
+    if (action == ui->actionSetLangEn) locale = QStringLiteral("en");
+    else if (action == ui->actionSetLangRu) locale = QStringLiteral("ru_RU");
+
+    Result r = m_translator->setLocale(locale);
+    if (!r.ok()) {
+        ResultMessenger::show(this, r);
+    }
+
+    refreshTable();
+}
+
+void MainWindow::onTypeCheckSelected(QAction* action) {
+    Result r = Result::success();
+
+    if (action == ui->actionTypeSoft) r = m_data.setStateUsageChecker(ValidationLevel::Soft);
+    else if (action == ui->actionTypeStrict) r = m_data.setStateUsageChecker(ValidationLevel::Strict);
+
+    if (!r.ok()) {
+        ResultMessenger::show(this, r);
+    }
+
+}
+
+// Logger
+void MainWindow::onShowLogClicked() {
+    m_logWindow->show();
+    m_logWindow->raise();
+    m_logWindow->activateWindow();
 }
 
 
 // Database
 void MainWindow::onLoadVariantPushButton() {
+    VariantsList dialog(m_variantService, this);
+    if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
+        const int number = dialog.selectedVariantNumber();
+
+        Result r = m_variantService->loadVariant(number);
+        Logger::log(r);
+
+        if (!r.ok()) {
+            ResultMessenger::show(this, r);
+            return;
+        }
+        if (!r.hasPayload()) {
+            ResultMessenger::showWarning(this,  tr("Variant №%1 not found").arg(number));
+            return;
+        }
+
+        m_data = r.payloadAs<AutomatonData>();
+
+        refreshTable();
+        refreshData();
+
+        ui->statusbar->showMessage(tr("Variant №%1 loaded").arg(number), 3000);
+    }
 
 }
 
 void MainWindow::onSavePushButtonClicked(){
-    auto showCriticalMessage = [](QWidget* parent, const Result& result) {
-        QString message = QString(MainWindow::tr("Error: %1")
-                                    .arg(translateResult(result)));
-
-        if (!result.details().isEmpty()) {
-            message.append(tr("\nDetails: %2").arg(result.details()));
-        }
-
-        QMessageBox::critical(
-            parent,
-            tr("Saving"),
-            message
-        );
-    };
-
     Result validData = m_data.validate();
+    Logger::log(validData);
     if (!validData.ok()) {
-        showCriticalMessage(this, validData);
+        ResultMessenger::show(this, validData);
         return;
     }
 
     Result existResult = m_variantService->isExist(m_data.getVariantNumber());
+    Logger::log(existResult);
     if (!existResult.ok()) {
-        showCriticalMessage(this, existResult);
+        ResultMessenger::show(this, existResult);
         return;
     }
 
     const bool exists = existResult.payloadAs<bool>();
     if (exists) {
-        const QMessageBox::StandardButton answer = QMessageBox::question(
+        bool isDelete = ResultMessenger::askConfirm(
             this,
-            tr("The variant №%1 is exists.").arg(m_data.getVariantNumber()),
             tr("Do you want remove variant №%1?").arg(m_data.getVariantNumber()),
-            QMessageBox::Ok | QMessageBox::Cancel,
-            QMessageBox::Cancel
-        );
+            tr("The variant №%1 is exists.").arg(m_data.getVariantNumber()));
 
-        if (answer == QMessageBox::Ok) {
+
+        if (isDelete) {
             Result remuveResult = m_variantService->removeVariant(m_data.getVariantNumber());
+            Logger::log(remuveResult);
             if (!remuveResult.ok()) {
-                showCriticalMessage(this, remuveResult);
+                ResultMessenger::show(this, remuveResult);
                 return;
             }
 
@@ -179,14 +246,21 @@ void MainWindow::onSavePushButtonClicked(){
     }
 
     Result resultSaveVariant = m_variantService->saveVariant(m_data);
+    Logger::log(resultSaveVariant);
     if (!resultSaveVariant.ok()) {
-        showCriticalMessage(this, resultSaveVariant);
+        ResultMessenger::show(this, resultSaveVariant);
         return;
     }
 
     ui->statusbar->showMessage(
         tr("Variant №%1 has been saved.").arg(m_data.getVariantNumber()), 3000);
 }
+
+// Other
+void MainWindow::onExitAction() {
+    QApplication::quit();
+}
+
 
 // Variant
 void MainWindow::onVariantTypeChanged(int index) {
@@ -326,15 +400,15 @@ void MainWindow::refreshTable() {
 
     // --- 3. Corner cells ---
     if (m_data.getType() == VariantType::MooreToMealy) {
-        auto* corner1 = new QTableWidgetItem("Output signal");
+        auto* corner1 = new QTableWidgetItem(tr("Output signal"));
         corner1->setFlags(corner1->flags() & ~Qt::ItemIsEditable);
         t->setItem(0, 0, corner1);
 
-        auto* corner2 = new QTableWidgetItem("State");
+        auto* corner2 = new QTableWidgetItem(tr("State"));
         corner2->setFlags(corner2->flags() & ~Qt::ItemIsEditable);
         t->setItem(1, 0, corner2);
     } else {
-        auto* corner = new QTableWidgetItem("State");
+        auto* corner = new QTableWidgetItem(tr("State"));
         corner->setFlags(corner->flags() & ~Qt::ItemIsEditable);
         t->setItem(0, 0, corner);
     }
@@ -373,6 +447,15 @@ void MainWindow::refreshTable() {
     m_updatingUi = false;
 }
 
+void MainWindow::refreshData() {
+    if (m_data.getType() == VariantType::MealyToMoore){
+        ui->variantTypeComboBox->setCurrentIndex(0);
+    } else {
+        ui->variantTypeComboBox->setCurrentIndex(1);
+    }
+
+    ui->numberVariantSpinBox->setValue(m_data.getVariantNumber());
+}
 
 
 

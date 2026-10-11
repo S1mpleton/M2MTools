@@ -4,6 +4,8 @@
 #include "core/automatondata.h"
 #include "data/variantservice.h"
 #include "infrastructure/translationmanager.h"
+
+#include "ui/logwindow.h"
 #include "ui/presenters/tablecellerrorpresenter.h"
 
 #include <QLineEdit>
@@ -24,26 +26,29 @@ public:
     ~MainWindow() override;
 
 private slots:
-    // header tool
-    void onSetLangRuTriggered(bool isActive);
-    void onSetLangEnTriggered(bool isActive);
+    // header slots
+    void onLanguageSelected(QAction* action);
+    void onTypeCheckSelected(QAction* action);
 
+    void onShowLogClicked();
+    void onExitAction();
+
+    // basic slots
     void onVariantTypeChanged(int index);
     void onVariantNumberChanged(int number);
 
     void onStateNamesChanged(const QString& text);
-    // void onStateNamesEditingFinished();
 
     void onInputNamesChanged(const QString& text);
-    // void onInputNamesEditingFinished();
 
     void onOutputNamesChanged(const QString& text);
-    // void onOutputNamesEditingFinished();
 
     void onTableCellChanged(int row, int col);
 
     void onLoadVariantPushButton();
     void onSavePushButtonClicked();
+
+
 
 private:
     Ui::MainWindow *ui;
@@ -51,6 +56,8 @@ private:
 
     bool m_updatingTable = false;
     bool m_updatingUi = false;
+
+    LogWindow* m_logWindow = nullptr;
 
     VariantService* m_variantService = nullptr;
     IErrorPresenter* m_stateNamesPresenter = nullptr;
@@ -63,7 +70,11 @@ private:
 
     void setupPresenters();
     void setupConnections();
+    void setupLanguageGroup();
+    void setupTypeСheckGroup();
+
     void refreshTable();
+    void refreshData();
 
 protected:
     void changeEvent(QEvent *event) override;

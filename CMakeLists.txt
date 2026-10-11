@@ -63,6 +63,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ui/translateresult.h ui/translateresult.cpp
         core/errorcode.cpp
         data/sqlerrormapper.h data/sqlerrormapper.cpp
+        ui/variantslist.h ui/variantslist.cpp ui/variantslist.ui
+        ui/dialogs/resultmessenger.h ui/dialogs/resultmessenger.cpp
+        ui/logwindow.h ui/logwindow.cpp ui/logwindow.ui
     )
 
     target_include_directories(M2MTools PRIVATE

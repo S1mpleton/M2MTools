@@ -72,7 +72,6 @@ void TranslationManager::loadSystemLocale() {
     const QString systemLocale = QLocale::system().name();
 
     if (m_availableLocales.contains(systemLocale)) {
-
         setLocale(systemLocale);
     } else {
         setLocale("en");

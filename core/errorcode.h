@@ -45,6 +45,7 @@ enum class ErrorCode {
 
     // Automat
     ADUnreachableState,
+    ADUnknownChecker,
 
     // Other
     ADDisableChecker,

@@ -21,6 +21,8 @@ public:
 
     Result isExist(int variantNumber);
 
+    Result findAllVariants() const;
+
     QList<int> availableVariantNumbers(VariantType type);
 
 private:

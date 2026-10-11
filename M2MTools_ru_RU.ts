@@ -130,178 +130,315 @@
 <context>
     <name>FieldTypeDisplay</name>
     <message>
-        <location filename="core/automatondata.cpp" line="36"/>
+        <location filename="core/automatondata.cpp" line="48"/>
         <source>State</source>
         <translation type="unfinished">состояний</translation>
     </message>
     <message>
-        <location filename="core/automatondata.cpp" line="37"/>
+        <location filename="core/automatondata.cpp" line="49"/>
         <source>Input</source>
         <translation type="unfinished">входных сигналов</translation>
     </message>
     <message>
-        <location filename="core/automatondata.cpp" line="38"/>
+        <location filename="core/automatondata.cpp" line="50"/>
         <source>Output</source>
         <translation type="unfinished">выходных сигналов</translation>
     </message>
 </context>
 <context>
-    <name>MainWindow</name>
+    <name>LogWindow</name>
     <message>
-        <location filename="ui/mainwindow.ui" line="14"/>
-        <source>MainWindow</source>
+        <location filename="ui/logwindow.ui" line="14"/>
+        <source>Dialog</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="21"/>
+        <location filename="ui/logwindow.cpp" line="24"/>
+        <location filename="ui/logwindow.cpp" line="207"/>
+        <source>Application Log</source>
+        <translation type="unfinished">Журнал событий</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="209"/>
+        <source>Info</source>
+        <translation type="unfinished">Информ.</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="210"/>
+        <source>Warnings</source>
+        <translation type="unfinished">Предупр.</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="211"/>
+        <source>Errors</source>
+        <translation type="unfinished">Ошибки</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="213"/>
+        <source>Auto-scroll</source>
+        <translation type="unfinished">Авто-прокрутка</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="215"/>
+        <source>Copy Selected</source>
+        <translation type="unfinished">Коп. выделенное</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="216"/>
+        <source>Clear View</source>
+        <translation type="unfinished">Очистить</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="217"/>
+        <source>Save to File...</source>
+        <translation type="unfinished">Сохр. в файл</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="174"/>
+        <source>Save Log</source>
+        <translation type="unfinished">Сохранение журнала</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="175"/>
+        <source>Text files (*.txt);;All files (*)</source>
+        <translation type="unfinished">Текстовый файл (*.txt);;Все файлы (*)</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="obsolete">Ошибка</translation>
+    </message>
+    <message>
+        <location filename="ui/logwindow.cpp" line="181"/>
+        <source>Cannot save file: %1</source>
+        <translation type="unfinished">Не получилось сохранить файл: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <location filename="ui/mainwindow.ui" line="73"/>
         <source>Names</source>
         <translation type="unfinished">Списки имен</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="27"/>
+        <location filename="ui/mainwindow.ui" line="82"/>
         <source>State names</source>
         <translation type="unfinished">Состояния</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="34"/>
+        <location filename="ui/mainwindow.ui" line="92"/>
         <source>Output signal names</source>
         <translation type="unfinished">Выходные сигналы</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="41"/>
+        <location filename="ui/mainwindow.ui" line="99"/>
         <source>Input signal names</source>
         <translation type="unfinished">Входные сигналы</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="60"/>
+        <location filename="ui/mainwindow.ui" line="112"/>
         <source>Logic</source>
         <translation type="unfinished">Логика автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="66"/>
+        <location filename="ui/mainwindow.ui" line="121"/>
         <source>Transition table</source>
         <translation type="unfinished">Таблица переходов</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="81"/>
+        <location filename="ui/mainwindow.ui" line="133"/>
         <source>Save</source>
         <translation type="unfinished">Сохранить автомат</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="88"/>
-        <location filename="ui/mainwindow.ui" line="207"/>
+        <location filename="ui/mainwindow.ui" line="236"/>
         <source>Load variant</source>
         <translation type="unfinished">Загрузить автомат</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="97"/>
+        <location filename="ui/mainwindow.ui" line="29"/>
         <source>Variant data</source>
         <translation type="unfinished">Данные варианта</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="104"/>
+        <location filename="ui/mainwindow.ui" line="17"/>
+        <source>M2MTools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.ui" line="36"/>
         <source>Mealy to Moore</source>
         <translation type="unfinished">Мили в Мура</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="109"/>
+        <location filename="ui/mainwindow.ui" line="41"/>
         <source>Moore to Mealy</source>
         <translation type="unfinished">Мура в Мили</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="124"/>
+        <location filename="ui/mainwindow.ui" line="56"/>
         <source>Variant type</source>
         <translation type="unfinished">Тип автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="131"/>
+        <location filename="ui/mainwindow.ui" line="63"/>
         <source>Number variant</source>
         <translation type="unfinished">Номер</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="151"/>
+        <location filename="ui/mainwindow.ui" line="140"/>
+        <source>Variants list</source>
+        <translation type="unfinished">Список вариантов</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.ui" line="161"/>
         <source>Menu</source>
         <translation type="unfinished">Меню</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="160"/>
+        <location filename="ui/mainwindow.ui" line="174"/>
         <source>Settings</source>
         <translation type="unfinished">Настройки</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="164"/>
+        <location filename="ui/mainwindow.ui" line="181"/>
         <source>Type of check</source>
         <translation type="unfinished">Тип проверки</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="177"/>
+        <location filename="ui/mainwindow.ui" line="197"/>
         <source>Language</source>
         <translation type="unfinished">Язык</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="197"/>
+        <location filename="ui/mainwindow.ui" line="220"/>
         <source>Exit</source>
-        <translation type="unfinished">Выхот</translation>
+        <translation type="unfinished">Выход</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="202"/>
+        <location filename="ui/mainwindow.ui" line="228"/>
         <source>Save variant</source>
         <translation type="unfinished">Сохранить автомат</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="215"/>
+        <location filename="ui/mainwindow.ui" line="244"/>
         <source>English</source>
         <translation type="unfinished">Английский</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="226"/>
+        <location filename="ui/mainwindow.ui" line="258"/>
         <source>Russian</source>
         <translation type="unfinished">Русский</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="234"/>
-        <source>Lenient</source>
+        <location filename="ui/mainwindow.ui" line="269"/>
+        <source>Soft</source>
         <translation type="unfinished">Мягкий</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="239"/>
+        <source>Lenient</source>
+        <translation type="obsolete">Мягкий</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.ui" line="277"/>
         <source>Strict</source>
         <translation type="unfinished">Строгий</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.ui" line="285"/>
+        <source>Show logger</source>
+        <translation type="unfinished">Показать журнал событий</translation>
     </message>
     <message>
         <source>Failed to save the variant: %1</source>
         <translation type="obsolete">Ошибка при сохранении варианта: %1</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="155"/>
         <source>Error: %1</source>
-        <translation type="unfinished">Ошибка: %1</translation>
+        <translation type="obsolete">Ошибка: %1</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="159"/>
         <source>
 Details: %2</source>
-        <translation type="unfinished">Детали: %2</translation>
+        <translation type="obsolete">Детали: %2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="164"/>
         <source>Saving</source>
-        <translation type="unfinished">Сохранение</translation>
+        <translation type="obsolete">Сохранение</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="185"/>
+        <location filename="ui/mainwindow.cpp" line="198"/>
+        <source>Variant №%1 not found</source>
+        <translation type="unfinished">Вариант №%1 не найден</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="207"/>
+        <source>Variant №%1 loaded</source>
+        <translation type="unfinished">Вариант №%1 загружен</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="232"/>
         <source>The variant №%1 is exists.</source>
         <translation type="unfinished">Вариант №%1 существует.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="186"/>
+        <location filename="ui/mainwindow.cpp" line="231"/>
         <source>Do you want remove variant №%1?</source>
         <translation type="unfinished">Хотите удалить вариант №%1?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="210"/>
+        <location filename="ui/mainwindow.cpp" line="256"/>
         <source>Variant №%1 has been saved.</source>
         <translation type="unfinished">Вариант №%1 сохранен.</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="403"/>
+        <source>Output signal</source>
+        <translation type="unfinished">Вых. сигналы</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="407"/>
+        <location filename="ui/mainwindow.cpp" line="411"/>
+        <source>State</source>
+        <translation type="unfinished">Состояния</translation>
+    </message>
+</context>
+<context>
+    <name>ResultMessenger</name>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="14"/>
+        <source>Success</source>
+        <translation type="unfinished">Успех</translation>
+    </message>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="15"/>
+        <source>Warning</source>
+        <translation type="unfinished">Предупреждение</translation>
+    </message>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="16"/>
+        <source>Error</source>
+        <translation type="unfinished">Ошибка</translation>
+    </message>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="18"/>
+        <source>Message</source>
+        <translation type="unfinished">Сообщение</translation>
+    </message>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="25"/>
+        <source>Related: %1</source>
+        <translation type="unfinished">Связано с: %1</translation>
+    </message>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="29"/>
+        <source>Details: %1</source>
+        <translation type="unfinished">Детали: %1</translation>
+    </message>
+    <message>
+        <location filename="ui/dialogs/resultmessenger.cpp" line="63"/>
+        <source>Confirm</source>
+        <translation type="unfinished">Подтвердите действие</translation>
     </message>
 </context>
 <context>
@@ -335,6 +472,55 @@ Details: %2</source>
         <location filename="ui/translateresult.cpp" line="160"/>
         <source>Variant has no content (empty states or inputs).</source>
         <translation type="unfinished">Вариант не имеет некоторого наполнения.</translation>
+    </message>
+</context>
+<context>
+    <name>VariantsList</name>
+    <message>
+        <location filename="ui/variantslist.ui" line="14"/>
+        <source>Dialog</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.ui" line="20"/>
+        <source>All variants</source>
+        <translation type="unfinished">Все варианты</translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.cpp" line="16"/>
+        <source>Select variant</source>
+        <oldsource>All Variants</oldsource>
+        <translation type="unfinished">Выбор варианта</translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.cpp" line="42"/>
+        <source>Number</source>
+        <translation type="unfinished">Номер</translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.cpp" line="42"/>
+        <source>Type</source>
+        <translation type="unfinished">Тип</translation>
+    </message>
+    <message>
+        <source>Error: %1</source>
+        <translation type="obsolete">Ошибка: %1</translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.cpp" line="119"/>
+        <source>Do you want delete varinat №%1?</source>
+        <oldsource>Do you want delete varinat №%1</oldsource>
+        <translation type="unfinished">Вы хотите удалить вариант №%1?</translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.ui" line="34"/>
+        <source>Load</source>
+        <translation type="unfinished">Загрузить</translation>
+    </message>
+    <message>
+        <location filename="ui/variantslist.ui" line="44"/>
+        <source>Delete</source>
+        <translation type="unfinished">Удалить</translation>
     </message>
 </context>
 </TS>
