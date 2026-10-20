@@ -30,7 +30,6 @@ public:
 
 private slots:
     void onLanguageSelected(QAction* action);
-    void onTypeCheckSelected(QAction* action);
     void onShowLogClicked();
     void onExitAction();
 
@@ -62,6 +61,7 @@ private:
     bool m_updatingReaction = false;
     bool m_updatingUi = false;
     bool m_numberWasEdited = false;
+    bool m_initialStateWasEdited = false;
 
     LogWindow* m_logWindow = nullptr;
     VariantService* m_variantService = nullptr;
@@ -87,7 +87,6 @@ private:
     void setupPresenters();
     void setupConnections();
     void setupLanguageGroup();
-    void setupTypeCheckGroup();
 
     void refreshTable();
     void refreshData();
@@ -101,7 +100,7 @@ private:
     void applyReactionIssues(const QVector<ReactionIssue>& issues);
 
     bool validateBeforeSave();
-    bool validateTransitionCompleteness();
+    void presentAutomatonValidation(const Result& result);
     bool loadImageFromPath(const QString& path);
     void showInlineMessage(const QString& text, bool error = true);
     void clearInlineMessage();

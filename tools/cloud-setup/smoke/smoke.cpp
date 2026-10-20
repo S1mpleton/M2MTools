@@ -5,6 +5,7 @@
 #include "data/variantservice.h"
 #include "ui/mainwindow.h"
 #include "ui/variantslist.h"
+#include <QAction>
 #include <QApplication>
 #include <QLineEdit>
 #include <QComboBox>
@@ -97,6 +98,50 @@ int main(int argc, char** argv) {
             }, reactionBase);
         require(conflictReport.hasErrors(), "conflicting reaction is rejected");
         std::cout << "PASS reaction/table bidirectional model and conflict detection\n";
+
+        AutomatonData closedAutomaton;
+        requireOk(closedAutomaton.setStateNames({"a0", "a1"}));
+        require(closedAutomaton.getInitialState() == "a0",
+                "first state becomes the default initial state");
+        requireOk(closedAutomaton.setInitialState("a1"));
+        requireOk(closedAutomaton.setStateNames({"a0", "a1", "a2"}));
+        require(closedAutomaton.getInitialState() == "a1",
+                "explicit initial state survives list changes");
+        requireOk(closedAutomaton.setStateNames({"a0", "a1"}));
+        requireOk(closedAutomaton.setInputSignalNames({"x0", "x1"}));
+        requireOk(closedAutomaton.setOutputSignalNames({"y0"}));
+        requireOk(closedAutomaton.setTransitionCellByName(
+            "x0", "a0", "a0 / y0"));
+        requireOk(closedAutomaton.setTransitionCellByName(
+            "x1", "a1", "a1 / y0"));
+        requireOk(closedAutomaton.validate());
+        const QVector<ReactionStep> initialFirst =
+            ReactionSynchronizer::buildReaction(closedAutomaton);
+        require(!initialFirst.isEmpty() && initialFirst.first().currentState == "a1",
+                "reaction starts with the selected initial state");
+
+        AutomatonData missingIncoming = closedAutomaton;
+        requireOk(missingIncoming.setTransitionCellByName("x1", "a1", ""));
+        require(missingIncoming.validate().code()
+                    == ErrorCode::ADStateWithoutIncomingTransition,
+                "state without an incoming edge is rejected");
+
+        AutomatonData missingOutgoing;
+        requireOk(missingOutgoing.setStateNames({"a0", "a1", "a2"}));
+        requireOk(missingOutgoing.setInputSignalNames({"x0", "x1"}));
+        requireOk(missingOutgoing.setOutputSignalNames({"y0"}));
+        requireOk(missingOutgoing.setTransitionCellByName(
+            "x0", "a0", "a1 / y0"));
+        requireOk(missingOutgoing.setTransitionCellByName(
+            "x1", "a0", "a2 / y0"));
+        requireOk(missingOutgoing.setTransitionCellByName(
+            "x0", "a1", "a1 / y0"));
+        requireOk(missingOutgoing.setTransitionCellByName(
+            "x1", "a1", "a0 / y0"));
+        require(missingOutgoing.validate().code()
+                    == ErrorCode::ADStateWithoutOutgoingTransition,
+                "state without an outgoing edge is rejected");
+        std::cout << "PASS closed-automaton validation and initial-state ordering\n";
 
         for (const auto type : {VariantType::MealyToMoore, VariantType::MooreToMealy}) {
             const int number = type == VariantType::MealyToMoore ? 101 : 102;
@@ -227,15 +272,22 @@ int main(int argc, char** argv) {
                 auto* table = window.findChild<QTableWidget*>("transitionTableWidget");
                 auto* outputs = window.findChild<QLineEdit*>("OutputSignalNamesLineEdit");
                 auto* editMode = window.findChild<QComboBox*>("editModeComboBox");
+                auto* initialState =
+                    window.findChild<QComboBox*>("initialStateComboBox");
                 auto* reactionTable = window.findChild<QTableWidget*>("reactionTableWidget");
                 auto* diagram = window.findChild<QLabel*>("diagramDropZone");
                 auto* exportArchive =
                     window.findChild<QPushButton*>("exportArchiveButton");
                 auto* importArchive =
                     window.findChild<QPushButton*>("importArchiveButton");
-                require(names && inputs && outputs && table && editMode &&
+                require(names && inputs && outputs && table && editMode && initialState &&
                         reactionTable && diagram && exportArchive && importArchive,
                         "modern main window controls");
+                require(editMode->currentIndex() == 1,
+                        "reaction editor is selected on startup");
+                require(!window.findChild<QAction*>("actionTypeSoft") &&
+                        !window.findChild<QAction*>("actionTypeStrict"),
+                        "legacy soft and strict checks are removed");
                 require(!window.findChild<QScrollArea*>(),
                         "main workflow does not require a scroll area");
                 require(window.styleSheet().isEmpty() &&
@@ -243,6 +295,11 @@ int main(int argc, char** argv) {
                         "normal controls use the platform palette");
                 require(window.minimumHeight() <= 620,
                         "main window supports a compact desktop size");
+                require(reactionTable->item(0, 0),
+                        "empty reaction exposes its first state cell");
+                reactionTable->item(0, 0)->setText("q0");
+                require(initialState->currentText() == "q0",
+                        "first state entered in a reaction becomes initial");
                 names->setText("s0, s1");
                 inputs->setText("x0");
                 outputs->setText("y0");
@@ -251,6 +308,9 @@ int main(int argc, char** argv) {
                 editMode->setCurrentIndex(1);
                 require(reactionTable->columnCount() == 2,
                         "reaction has one column per state/input pair");
+                require(initialState->currentText() == "s0" &&
+                        reactionTable->item(0, 0)->text() == "s0",
+                        "first entered state initializes the reaction");
                 require(reactionTable->item(2, 0) && reactionTable->item(3, 0),
                         "reaction cells exist");
                 reactionTable->item(2, 0)->setText("s1");
@@ -262,6 +322,12 @@ int main(int argc, char** argv) {
                 table->item(1, 1)->setText("s0 / y0");
                 require(reactionTable->item(2, 0)->text() == "s0",
                         "transition edit updates reaction");
+                initialState->setCurrentText("s1");
+                require(reactionTable->item(0, 0)->text() == "s1",
+                        "changing initial state reorders the reaction");
+                reactionTable->item(0, 0)->setText("s0");
+                require(reactionTable->item(0, 0)->text() == "s1",
+                        "reaction cannot start outside the selected initial state");
                 for (QPushButton* button : {exportArchive, importArchive}) {
                     const QRect buttonRect(
                         button->mapTo(window.centralWidget(), QPoint(0, 0)),

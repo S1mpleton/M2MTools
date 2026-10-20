@@ -35,9 +35,16 @@ QString translateResult(const Result& r) {
                         "Internal error: transition table size "
                         "does not match the number of input signals.");
 
-    case EC::ADUnusedState:
-        return QCoreApplication::translate("AutomatonData",
-                        "State '%1' is not used in any transition.")
+    case EC::ADStateWithoutIncomingTransition:
+        return QStringLiteral(
+            "Состояние «%1» не имеет входящего перехода. "
+            "Добавьте переход в это состояние.")
+            .arg(r.offender());
+
+    case EC::ADStateWithoutOutgoingTransition:
+        return QStringLiteral(
+            "Состояние «%1» не имеет исходящего перехода. "
+            "Добавьте переход из этого состояния.")
             .arg(r.offender());
 
     case EC::ADUnusedInput:

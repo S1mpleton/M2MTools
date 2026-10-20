@@ -84,7 +84,6 @@ ReactionSyncReport ReactionSynchronizer::buildAutomaton(
     ReactionSyncReport report;
     report.data.setVariantNumber(base.getVariantNumber());
     report.data.setVariantType(base.getType());
-    report.data.setStateUsageChecker(base.getValidationLevel());
     if (base.hasDiagramImage())
         report.data.setDiagramImage(base.getDiagramImage(), base.getDiagramFileName());
 
@@ -222,14 +221,17 @@ ReactionSyncReport ReactionSynchronizer::buildAutomaton(
 
 QVector<ReactionStep> ReactionSynchronizer::buildReaction(const AutomatonData& data) {
     QVector<ReactionStep> result;
-    const QStringList& states = data.getStateNames();
+    QStringList states = data.getStateNames();
+    const QString initialState = data.getInitialState();
+    if (states.removeOne(initialState)) states.prepend(initialState);
     const QStringList& inputs = data.getInputSignalNames();
     const auto& table = data.getTransitionTable();
 
-    for (int stateIndex = 0; stateIndex < states.size(); ++stateIndex) {
+    for (const QString& state : states) {
+        const int stateIndex = data.getStateNames().indexOf(state);
         for (int inputIndex = 0; inputIndex < inputs.size(); ++inputIndex) {
             ReactionStep step;
-            step.currentState = states[stateIndex];
+            step.currentState = state;
             step.inputSignal = inputs[inputIndex];
 
             if (inputIndex < table.size() && stateIndex < table[inputIndex].size()) {
@@ -244,7 +246,10 @@ QVector<ReactionStep> ReactionSynchronizer::buildReaction(const AutomatonData& d
         }
     }
 
-    if (result.isEmpty())
-        result.append(ReactionStep{});
+    if (result.isEmpty()) {
+        ReactionStep firstStep;
+        firstStep.currentState = initialState;
+        result.append(firstStep);
+    }
     return result;
 }

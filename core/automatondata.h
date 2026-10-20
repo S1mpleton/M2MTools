@@ -6,9 +6,7 @@
 #include <QObject>
 #include <QMap>
 #include <QList>
-#include <QHash>
 #include <QString>
-#include <QJsonObject>
 #include <QByteArray>
 
 enum class FieldType {
@@ -30,13 +28,6 @@ enum class CellKind {
     Transition          // transition cell (Moore or Mealy)
 };
 
-enum class ValidationLevel {
-    Soft,
-    Strict
-};
-
-QString validationLevelToString(ValidationLevel fieldType);
-
 FieldType fieldTypeStringToType(QString fieldTypeString);
 QString fieldTypeToString(FieldType fieldType);
 QString fieldTypeDisplayName(FieldType fieldType);
@@ -56,8 +47,6 @@ class AutomatonData
 {
 
 public:
-    using StateUsageChecker = std::function<Result(const AutomatonData&)>;
-
     AutomatonData();
 
     // Gettors
@@ -75,8 +64,6 @@ public:
     const QByteArray& getDiagramImage() const { return m_diagramImage; }
     const QString& getDiagramFileName() const { return m_diagramFileName; }
     bool hasDiagramImage() const { return !m_diagramImage.isEmpty(); }
-
-    const ValidationLevel& getValidationLevel() const { return m_validationLevel; }
 
     // Settors
     Result setVariantNumber(int n);
@@ -102,8 +89,6 @@ public:
     // Validate automat
     Result validate() const;
 
-    Result setStateUsageChecker(ValidationLevel level);
-
     // Other
     CellKind cellKind(int row, int col) const;
 
@@ -122,9 +107,6 @@ private:
     QByteArray m_diagramImage;
     QString m_diagramFileName;
 
-    StateUsageChecker m_stateUsageChecker;
-    ValidationLevel m_validationLevel;
-
     void rebuildTransitionTable();
     Result checkInvariant(const QStringList& candidate, FieldType field) const;
     Result validateName(const QString& name) const;
@@ -132,13 +114,9 @@ private:
     Result validateCellContent(int row, int col, const QString& text) const;
 
     // Validate automat
-    Result validateStateUsage() const;    // default sweat
+    Result validateClosedStateTransitions() const;
     Result validateInputUsage() const;
     Result validateOutputUsage() const;
-
-    Result validateStateUsageStrict() const;
-    Result validateStateUsageSoft() const;
-\
 };
 
 Q_DECLARE_METATYPE(AutomatonData)

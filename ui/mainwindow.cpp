@@ -64,7 +64,6 @@ MainWindow::MainWindow(VariantService* service, QWidget *parent)
     setupModernUi();
     ui->transitionTableWidget->setItemDelegate(new MealyDelegate(&m_data, this));
     setupLanguageGroup();
-    setupTypeCheckGroup();
     setupPresenters();
     setupConnections();
 
@@ -226,6 +225,9 @@ void MainWindow::setupModernUi() {
         QStringLiteral("exportArchiveButton"));
     ui->horizontalLayout->addWidget(m_importArchiveButton);
     ui->horizontalLayout->addWidget(m_exportArchiveButton);
+
+    m_editModeComboBox->setCurrentIndex(1);
+    m_editorStack->setCurrentIndex(1);
 }
 
 void MainWindow::setupPresenters() {
@@ -304,20 +306,6 @@ void MainWindow::setupLanguageGroup() {
     ui->actionSetLangRu->setChecked(current != QStringLiteral("en"));
 }
 
-void MainWindow::setupTypeCheckGroup() {
-    auto* group = new QActionGroup(this);
-    group->setObjectName(QStringLiteral("typeCheckGroup"));
-    group->setExclusive(true);
-    group->addAction(ui->actionTypeSoft);
-    group->addAction(ui->actionTypeStrict);
-    connect(group, &QActionGroup::triggered,
-            this, &MainWindow::onTypeCheckSelected);
-    ui->actionTypeSoft->setChecked(
-        m_data.getValidationLevel() == ValidationLevel::Soft);
-    ui->actionTypeStrict->setChecked(
-        m_data.getValidationLevel() == ValidationLevel::Strict);
-}
-
 void MainWindow::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange)
         ui->retranslateUi(this);
@@ -330,13 +318,6 @@ void MainWindow::onLanguageSelected(QAction* action) {
     Result result = m_translator->setLocale(locale);
     if (!result.ok()) ResultMessenger::show(this, result);
     refreshTable();
-}
-
-void MainWindow::onTypeCheckSelected(QAction* action) {
-    Result result = m_data.setStateUsageChecker(
-        action == ui->actionTypeStrict
-            ? ValidationLevel::Strict : ValidationLevel::Soft);
-    if (!result.ok()) ResultMessenger::show(this, result);
 }
 
 void MainWindow::onShowLogClicked() {
@@ -368,7 +349,13 @@ void MainWindow::onVariantNumberChanged(int number) {
 void MainWindow::onInitialStateChanged(const QString& state) {
     if (m_updatingUi || state.isEmpty()) return;
     const Result result = m_data.setInitialState(state);
-    if (!result.ok()) showInlineMessage(translateResult(result));
+    if (!result.ok()) {
+        showInlineMessage(translateResult(result));
+        return;
+    }
+    m_initialStateWasEdited = true;
+    syncReactionFromData();
+    clearInlineMessage();
 }
 
 void MainWindow::onStateNamesChanged(const QString& text) {
@@ -443,6 +430,19 @@ void MainWindow::onEditModeChanged(int index) {
 
 void MainWindow::onReactionCellChanged(int row, int column) {
     if (m_updatingReaction || m_updatingUi) return;
+    if (row == 0 && column == 0 && m_initialStateWasEdited) {
+        QTableWidgetItem* firstState = m_reactionTable->item(0, 0);
+        if (firstState && firstState->text().trimmed()
+                != m_data.getInitialState()) {
+            const QSignalBlocker blocker(m_reactionTable);
+            firstState->setText(m_data.getInitialState());
+            showInlineMessage(QStringLiteral(
+                "Первый такт должен начинаться с выбранного "
+                "начального состояния «%1».")
+                .arg(m_data.getInitialState()));
+            return;
+        }
+    }
     if (row == 2 && column + 1 < m_reactionTable->columnCount()) {
         QTableWidgetItem* nextCurrent = m_reactionTable->item(0, column + 1);
         const QTableWidgetItem* nextState = m_reactionTable->item(2, column);
@@ -451,8 +451,15 @@ void MainWindow::onReactionCellChanged(int row, int column) {
             nextCurrent->setText(nextState->text().trimmed());
         }
     }
-    const ReactionSyncReport report = syncDataFromReaction();
+    ReactionSyncReport report = syncDataFromReaction();
     if (report.hasErrors()) return;
+
+    if (row == 0 && column == 0 && !m_initialStateWasEdited) {
+        const QTableWidgetItem* firstState = m_reactionTable->item(0, 0);
+        const QString state = firstState ? firstState->text().trimmed() : QString();
+        if (!state.isEmpty() && report.data.getStateNames().contains(state))
+            report.data.setInitialState(state);
+    }
 
     m_data = report.data;
     refreshData();
@@ -506,6 +513,7 @@ void MainWindow::onLoadVariantPushButton() {
         m_data = AutomatonData();
         m_data.setVariantType(type);
         m_data.setVariantNumber(m_variantService->firstAvailableVariantNumber());
+        m_initialStateWasEdited = false;
         refreshData();
         refreshTable();
         syncReactionFromData();
@@ -539,6 +547,7 @@ void MainWindow::onLoadVariantPushButton() {
     }
     m_data = result.payloadAs<AutomatonData>();
     m_numberWasEdited = false;
+    m_initialStateWasEdited = true;
     refreshData();
     refreshTable();
     syncReactionFromData();
@@ -605,6 +614,7 @@ void MainWindow::onNewVariantClicked() {
     m_data.setVariantType(type);
     m_data.setVariantNumber(number);
     m_numberWasEdited = false;
+    m_initialStateWasEdited = false;
     ui->numberVariantSpinBox->setStyleSheet(QString());
     refreshData();
     refreshTable();
@@ -977,44 +987,45 @@ bool MainWindow::validateBeforeSave() {
             QStringLiteral("Добавьте изображение задания для варианта."));
         return false;
     }
-    if (!validateTransitionCompleteness()) return false;
-
     const Result result = m_data.validate();
     Logger::log(result);
     if (!result.ok()) {
-        showInlineMessage(
-            translateResult(result) + (result.offender().isEmpty()
-                ? QString() : QStringLiteral(": ") + result.offender()));
+        presentAutomatonValidation(result);
         ResultMessenger::show(this, result);
         return false;
     }
     return true;
 }
 
-bool MainWindow::validateTransitionCompleteness() {
-    const int rowOffset =
-        m_data.getType() == VariantType::MooreToMealy ? 2 : 1;
-    const auto& table = m_data.getTransitionTable();
-    for (int input = 0; input < table.size(); ++input) {
-        for (int state = 0;
-             state < table[input].size(); ++state) {
-            if (!table[input][state].nextState.isEmpty()) continue;
-            if (auto* item = ui->transitionTableWidget->item(
-                    input + rowOffset, state + 1)) {
-                item->setBackground(kErrorBackground);
-                item->setForeground(kErrorForeground);
-                item->setToolTip(
-                    QStringLiteral("Укажите следующее состояние"));
-            }
-            m_editorStack->setCurrentIndex(0);
-            m_editModeComboBox->setCurrentIndex(0);
-            showInlineMessage(QStringLiteral(
-                "Таблица переходов заполнена не полностью: "
-                "укажите следующее состояние для каждой пары A × X."));
-            return false;
+void MainWindow::presentAutomatonValidation(const Result& result) {
+    const QString message = translateResult(result);
+    showInlineMessage(message);
+
+    if (result.code() != ErrorCode::ADStateWithoutIncomingTransition
+        && result.code() != ErrorCode::ADStateWithoutOutgoingTransition) {
+        return;
+    }
+
+    const int stateIndex = m_data.getStateNames().indexOf(result.offender());
+    const int headerRow =
+        m_data.getType() == VariantType::MooreToMealy ? 1 : 0;
+    if (stateIndex >= 0) {
+        if (auto* item = ui->transitionTableWidget->item(
+                headerRow, stateIndex + 1)) {
+            item->setBackground(kErrorBackground);
+            item->setForeground(kErrorForeground);
+            item->setToolTip(message);
         }
     }
-    return true;
+
+    const QSignalBlocker blocker(m_reactionTable);
+    for (int column = 0; column < m_reactionTable->columnCount(); ++column) {
+        QTableWidgetItem* item = m_reactionTable->item(0, column);
+        if (!item || item->text().trimmed() != result.offender()) continue;
+        item->setBackground(kErrorBackground);
+        item->setForeground(kErrorForeground);
+        item->setToolTip(message);
+    }
 }
 
 bool MainWindow::loadImageFromPath(const QString& path) {

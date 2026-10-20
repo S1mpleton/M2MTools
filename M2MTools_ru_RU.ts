@@ -301,11 +301,6 @@
         <translation type="unfinished">Настройки</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="181"/>
-        <source>Type of check</source>
-        <translation type="unfinished">Тип проверки</translation>
-    </message>
-    <message>
         <location filename="ui/mainwindow.ui" line="197"/>
         <source>Language</source>
         <translation type="unfinished">Язык</translation>
@@ -329,20 +324,6 @@
         <location filename="ui/mainwindow.ui" line="258"/>
         <source>Russian</source>
         <translation type="unfinished">Русский</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.ui" line="269"/>
-        <source>Soft</source>
-        <translation type="unfinished">Мягкий</translation>
-    </message>
-    <message>
-        <source>Lenient</source>
-        <translation type="obsolete">Мягкий</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.ui" line="277"/>
-        <source>Strict</source>
-        <translation type="unfinished">Строгий</translation>
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="285"/>

@@ -10,7 +10,10 @@ QString errorCodeToString(ErrorCode code) {
     case ErrorCode::ADEmptyInputList: return QStringLiteral("EmptyInputList");
     case ErrorCode::ADEmptyOutputList: return QStringLiteral("EmptyOutputList");
     case ErrorCode::ADTransitionTableSizeMismatch: return QStringLiteral("TransitionTableSizeMismatch");
-    case ErrorCode::ADUnusedState: return QStringLiteral("UnusedState");
+    case ErrorCode::ADStateWithoutIncomingTransition:
+        return QStringLiteral("StateWithoutIncomingTransition");
+    case ErrorCode::ADStateWithoutOutgoingTransition:
+        return QStringLiteral("StateWithoutOutgoingTransition");
     case ErrorCode::ADUnusedInput: return QStringLiteral("UnusedInput");
     case ErrorCode::ADUnusedOutput: return QStringLiteral("UnusedOutput");
 

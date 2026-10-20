@@ -36,20 +36,13 @@ enum class ErrorCode {
 
     ADUnusedOutput,
     ADUnusedInput,
-    ADUnusedState,
+    ADStateWithoutIncomingTransition,
+    ADStateWithoutOutgoingTransition,
 
     ADInvalidCellKind,
 
     // Tabel
     ADTransitionTableSizeMismatch,
-
-    // Automat
-    ADUnreachableState,
-    ADUnknownChecker,
-
-    // Other
-    ADDisableChecker,
-
 
     // -- Database --
 

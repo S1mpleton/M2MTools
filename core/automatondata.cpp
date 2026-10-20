@@ -3,22 +3,9 @@
 #include "infrastructure/logger.h"
 
 #include <QSet>
-#include <QQueue>
 #include <QRegularExpression>
-#include <QJsonArray>
 #include <QCoreApplication>
-
-
-// ValidateLevel
-QString validationLevelToString(ValidationLevel fieldType) {
-    switch (fieldType) {
-    case ValidationLevel::Soft: return QStringLiteral("Soft");
-    case ValidationLevel::Strict: return QStringLiteral("Strict");
-    }
-
-    Logger::error(QString("function 'validationLevelToString'. Do not defined field"));
-    return QStringLiteral("Soft");
-}
+#include <utility>
 
 // FieldType
 FieldType fieldTypeStringToType(QString fieldTypeString) {
@@ -86,10 +73,7 @@ QString variantTypeDisplayName(VariantType variantType) {
 }
 
 // AutomatonData
-AutomatonData::AutomatonData() {
-    setStateUsageChecker(ValidationLevel::Soft);
-
-}
+AutomatonData::AutomatonData() = default;
 
 void AutomatonData::setDiagramImage(const QByteArray& data, const QString& fileName) {
     m_diagramImage = data;
@@ -188,7 +172,10 @@ Result AutomatonData::setStateNames(const QStringList& names) {
             ++it;
     }
 
-    setInitialState(m_stateNames.isEmpty() ? QString("") : m_stateNames.first()); // hotfix
+    if (!m_stateNames.contains(m_initialState)) {
+        m_initialState = m_stateNames.isEmpty()
+            ? QString() : m_stateNames.first();
+    }
 
     return Result::success();
 }
@@ -666,43 +653,66 @@ Result AutomatonData::validate() const {
         }
     }
 
-    // 3. Usage validate
-    if (Result r = validateStateUsage(); !r.ok()) return r;
+    // 3. Every state of a closed automaton has an incoming and outgoing edge.
+    if (Result r = validateClosedStateTransitions(); !r.ok()) return r;
     if (Result r = validateInputUsage(); !r.ok()) return r;
     if (Result r = validateOutputUsage(); !r.ok()) return r;
 
     return Result::success();
 }
 
-Result AutomatonData::setStateUsageChecker(ValidationLevel level) {
-    if (level == ValidationLevel::Soft){
-        m_stateUsageChecker = std::move([](const AutomatonData& d) {
-            return d.validateStateUsageSoft();
-        });
-
-    } else if (level == ValidationLevel::Strict) {
-        m_stateUsageChecker = std::move([](const AutomatonData& d) {
-            return d.validateStateUsageStrict();
-        });
-    } else {
-        return Result::error("Invalid usage checker", ResultCategory::Validation)
-            .withCode(ErrorCode::ADUnknownChecker);
+Result AutomatonData::validateClosedStateTransitions() const {
+    if (m_initialState.isEmpty()) {
+        return Result::error(
+                   QStringLiteral("Начальное состояние не задано."),
+                   ResultCategory::Validation)
+            .withCode(ErrorCode::ADInitialStateNotSet);
+    }
+    if (!m_stateNames.contains(m_initialState)) {
+        return Result::error(
+                    QStringLiteral("Начальное состояние «%1» отсутствует в списке.")
+                        .arg(m_initialState),
+                    ResultCategory::Validation)
+            .withCode(ErrorCode::ADInitialStateNotFound)
+            .withOffender(m_initialState);
     }
 
-    m_validationLevel = level;
-    return Result::success(QStringLiteral("Level checker has been update."))
-        .withDetails(QStringLiteral("New level: %1").arg(validationLevelToString(level)));
-}
+    QVector<bool> hasIncoming(m_stateNames.size(), false);
+    QVector<bool> hasOutgoing(m_stateNames.size(), false);
+    for (const auto& row : m_transitionTable) {
+        for (int stateIndex = 0; stateIndex < row.size(); ++stateIndex) {
+            const QString nextState = row[stateIndex].nextState.trimmed();
+            if (nextState.isEmpty() || nextState == QStringLiteral("—"))
+                continue;
 
-Result AutomatonData::validateStateUsage() const {
-    if (m_stateUsageChecker) {
-        return m_stateUsageChecker(*this);
+            hasOutgoing[stateIndex] = true;
+            const int nextIndex = m_stateNames.indexOf(nextState);
+            if (nextIndex >= 0) hasIncoming[nextIndex] = true;
+        }
     }
 
-    return Result::error(
-                QStringLiteral("The check has not been established."),
-                ResultCategory::Validation)
-        .withCode(ErrorCode::ADDisableChecker);
+    for (int stateIndex = 0; stateIndex < m_stateNames.size(); ++stateIndex) {
+        const QString& state = m_stateNames[stateIndex];
+        if (!hasIncoming[stateIndex]) {
+            return Result::error(
+                        QStringLiteral(
+                            "Состояние «%1» не имеет входящего перехода.")
+                            .arg(state),
+                        ResultCategory::Validation)
+                .withCode(ErrorCode::ADStateWithoutIncomingTransition)
+                .withOffender(state);
+        }
+        if (!hasOutgoing[stateIndex]) {
+            return Result::error(
+                        QStringLiteral(
+                            "Состояние «%1» не имеет исходящего перехода.")
+                            .arg(state),
+                        ResultCategory::Validation)
+                .withCode(ErrorCode::ADStateWithoutOutgoingTransition)
+                .withOffender(state);
+        }
+    }
+    return Result::success();
 }
 
 Result AutomatonData::validateInputUsage() const {
@@ -759,92 +769,4 @@ Result AutomatonData::validateOutputUsage() const {
     }
     return Result::success();
 }
-
-Result AutomatonData::validateStateUsageStrict() const {
-    // 1. We check that the initial state is set.
-    if (m_initialState.isEmpty()) {
-        return Result::error(
-                   QStringLiteral("Initial state is not set"),
-                   ResultCategory::Validation)
-            .withCode(ErrorCode::ADInitialStateNotSet);
-    }
-
-    if (!m_stateNames.contains(m_initialState)) {
-        return Result::error(
-                    QStringLiteral("Initial state '%1' is not in the state list")
-                        .arg(m_initialState),
-                    ResultCategory::Validation)
-            .withCode(ErrorCode::ADInitialStateNotFound)
-            .withOffender(m_initialState);
-    }
-
-    // 2. BFS from the initial state
-    QSet<QString> reachable;
-    QQueue<QString> queue;
-    queue.enqueue(m_initialState);
-
-    while (!queue.isEmpty()) {
-        const QString state = queue.dequeue();
-        if (reachable.contains(state)) continue;
-        reachable.insert(state);
-
-        const int stateIdx = m_stateNames.indexOf(state);
-        if (stateIdx < 0) continue;
-
-        for (int i = 0; i < m_inputSignalNames.size(); ++i) {
-            const CellData& cell = m_transitionTable[i][stateIdx];
-            if (!cell.nextState.isEmpty() && cell.nextState != "—")
-                queue.enqueue(cell.nextState);
-        }
-    }
-
-    // 3. All states must be achievable.
-    for (const QString& state : m_stateNames) {
-        if (!reachable.contains(state)) {
-            return Result::error(
-                        QStringLiteral("State '%1' is not reachable from '%2'")
-                            .arg(state, m_initialState),
-                        ResultCategory::Validation)
-                .withCode(ErrorCode::ADUnreachableState)
-                .withOffender(state);
-        }
-    }
-
-    return Result::success();
-}
-
-Result AutomatonData::validateStateUsageSoft() const {
-    QSet<QString> usedStates;
-
-    if (!m_initialState.isEmpty())
-        usedStates.insert(m_initialState);
-
-    for (int i = 0; i < m_transitionTable.size(); ++i) {
-        for (int j = 0; j < m_transitionTable[i].size(); ++j) {
-            const CellData& cell = m_transitionTable[i][j];
-
-            if (j < m_stateNames.size()) {
-                usedStates.insert(m_stateNames[j]);
-            }
-
-            if (!cell.nextState.isEmpty() && cell.nextState != "—") {
-                usedStates.insert(cell.nextState);
-            }
-        }
-    }
-
-    for (const QString& state : m_stateNames) {
-        if (!usedStates.contains(state)) {
-            return Result::error(
-                        QStringLiteral("State '%1' is not used in any transition")
-                            .arg(state),
-                        ResultCategory::Validation)
-                .withCode(ErrorCode::ADUnusedState)
-                .withOffender(state);
-        }
-    }
-
-    return Result::success();
-}
-
 

@@ -245,20 +245,6 @@ Result VariantService::exportArchive(
                     .arg(row.number),
                 ResultCategory::Validation);
         }
-        const auto& transitions = data.getTransitionTable();
-        for (int input = 0; input < transitions.size(); ++input) {
-            for (int state = 0; state < transitions[input].size(); ++state) {
-                if (!transitions[input][state].nextState.isEmpty()) continue;
-                return Result::error(
-                    QStringLiteral(
-                        "Вариант №%1 не заполнен: отсутствует переход "
-                        "для состояния «%2» и входа «%3».")
-                        .arg(row.number)
-                        .arg(data.getStateNames().value(state))
-                        .arg(data.getInputSignalNames().value(input)),
-                    ResultCategory::Validation);
-            }
-        }
         Result validation = data.validate();
         if (!validation.ok()) {
             return Result::error(

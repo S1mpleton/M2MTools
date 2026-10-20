@@ -172,13 +172,6 @@
     <property name="icon">
      <iconset theme="QIcon::ThemeIcon::DocumentProperties"/>
     </property>
-    <widget class="QMenu" name="menuType_of_check">
-     <property name="title">
-      <string>Type of check</string>
-     </property>
-     <addaction name="actionTypeSoft"/>
-     <addaction name="actionTypeStrict"/>
-    </widget>
     <widget class="QMenu" name="menuLanguage">
      <property name="enabled">
       <bool>true</bool>
@@ -202,7 +195,6 @@
      <addaction name="actionSetLangRu"/>
     </widget>
     <addaction name="menuLanguage"/>
-    <addaction name="menuType_of_check"/>
    </widget>
    <addaction name="menuMain"/>
    <addaction name="menuSettings"/>
@@ -255,22 +247,6 @@
    </property>
    <property name="priority">
     <enum>QAction::Priority::NormalPriority</enum>
-   </property>
-  </action>
-  <action name="actionTypeSoft">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Soft</string>
-   </property>
-  </action>
-  <action name="actionTypeStrict">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Strict</string>
    </property>
   </action>
   <action name="actionShowLogger">
