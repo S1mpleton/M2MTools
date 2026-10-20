@@ -14,16 +14,25 @@ public:
     VariantService(Database* db, VariantRepository* repo, QObject* parent = nullptr);
 
     Result saveVariant(const AutomatonData& data);
+    Result replaceVariant(const AutomatonData& data);
 
     Result loadVariant(int variantNumber);
 
     Result removeVariant(int variantNumber);
+
+    Result swapVariants(int firstNumber, int secondNumber);
+    Result compactVariantNumbers();
+
+    Result exportArchive(const QString& path, const QString& password);
+    Result importArchive(const QString& path, const QString& password);
 
     Result isExist(int variantNumber);
 
     Result findAllVariants() const;
 
     QList<int> availableVariantNumbers(VariantType type);
+
+    int firstAvailableVariantNumber() const;
 
 private:
     Database* m_db;
@@ -47,6 +56,8 @@ private:
 
     Result loadMoore(int variantId, int variantNumber);
     Result loadMealy(int variantId, int variantNumber);
+
+    Result insertVariantData(const AutomatonData& data);
 
     Result insertStates(int variantId,
         const QStringList& names,

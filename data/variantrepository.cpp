@@ -41,6 +41,8 @@ Result VariantRepository::findVariant(int number) const {
     row.id = q.value(0).toInt();
     row.number = q.value(1).toInt();
     row.conversion = q.value(2).toString();
+    row.imageData = q.value(3).toByteArray();
+    row.imageName = q.value(4).toString();
 
     return Result::success(
         QString("Variant '%1' found").arg(number))
@@ -61,17 +63,23 @@ Result VariantRepository::findAllVariants() const {
         row.id = q.value(0).toInt();
         row.number = q.value(1).toInt();
         row.conversion = q.value(2).toString();
+        row.imageData = q.value(3).toByteArray();
+        row.imageName = q.value(4).toString();
         result.append(row);
     }
 
     return Result::success().withPayload(result);
 }
 
-Result VariantRepository::insertVariant(int number, const QString& conversion) {
+Result VariantRepository::insertVariant(int number, const QString& conversion,
+                                        const QByteArray& imageData,
+                                        const QString& imageName) {
     QSqlQuery q(m_db->handle());
     q.prepare(SQLRequests::INSERT_VARIANT);
     q.bindValue(":num",  number);
     q.bindValue(":conv", conversion);
+    q.bindValue(":image_data", imageData);
+    q.bindValue(":image_name", imageName);
 
     if (!q.exec()) {
         return makeDatabaseError(q,
@@ -81,6 +89,19 @@ Result VariantRepository::insertVariant(int number, const QString& conversion) {
     return Result::success(
         QStringLiteral("Variant '%1' inserted").arg(number))
         .withPayload(q.lastInsertId().toInt());
+}
+
+Result VariantRepository::updateVariantNumber(int variantId, int number) {
+    QSqlQuery q(m_db->handle());
+    q.prepare(SQLRequests::UPDATE_VARIANT_NUMBER);
+    q.bindValue(":id", variantId);
+    q.bindValue(":num", number);
+    if (!q.exec()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to update variant id=%1 to number=%2")
+                .arg(variantId).arg(number));
+    }
+    return Result::success();
 }
 
 Result VariantRepository::removeVariant(int variantId) {

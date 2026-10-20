@@ -3,6 +3,10 @@
 #include "data/database.h"
 #include "data/transaction.h"
 #include "core/automatondata.h"
+#include "core/variantarchive.h"
+
+#include <QSet>
+#include <algorithm>
 
 VariantService::VariantService(Database* db, VariantRepository* repo, QObject* parent)
     : QObject(parent)
@@ -12,8 +16,6 @@ VariantService::VariantService(Database* db, VariantRepository* repo, QObject* p
 
 
 Result VariantService::saveVariant(const AutomatonData& data) {
-    const QString conversion = variantTypeToString(data.getType());
-
     Result findResult = m_repo->findVariant(data.getVariantNumber());
     if (!findResult.ok()) return findResult;
 
@@ -28,31 +30,8 @@ Result VariantService::saveVariant(const AutomatonData& data) {
             .withDetails(findResult.details());
     }
 
-    Result insertResult = m_repo->insertVariant(data.getVariantNumber(), conversion);
+    Result insertResult = insertVariantData(data);
     if (!insertResult.ok()) return insertResult;
-
-    int variantId = insertResult.payloadAs<int>();
-
-    // Save States, Inputs, Outputs
-    QHash<QString, int> stateIds;
-    QHash<QString, int> inputIds;
-    QHash<QString, int> outputIds;
-
-    Result r = insertStates(variantId, data.getStateNames(),
-        data.getInitialState(), stateIds);
-    if (!r.ok()) return r;
-
-    r = insertInputs(variantId, data.getInputSignalNames(), inputIds);
-    if (!r.ok()) return r;
-
-    r = insertOutputs(variantId, data.getOutputSignalNames(), outputIds);
-    if (!r.ok()) return r;
-
-    // 3. save transitions and outputs
-    Result contentResult = (data.getType() == VariantType::MooreToMealy)
-       ? saveMoore(data, variantId, stateIds, inputIds, outputIds)
-       : saveMealy(data, variantId, stateIds, inputIds, outputIds);
-    if (!contentResult.ok()) return contentResult;
 
     // 4. COMMIT
     if (!tx.commit()) {
@@ -66,8 +45,69 @@ Result VariantService::saveVariant(const AutomatonData& data) {
 
 }
 
+Result VariantService::replaceVariant(const AutomatonData& data) {
+    Result existing = m_repo->findVariant(data.getVariantNumber());
+    if (!existing.ok()) return existing;
+
+    Transaction transaction(m_db);
+    if (existing.hasPayload()) {
+        Result removeResult =
+            m_repo->removeVariant(existing.payloadAs<VariantRow>().id);
+        if (!removeResult.ok()) return removeResult;
+    }
+    Result insertResult = insertVariantData(data);
+    if (!insertResult.ok()) return insertResult;
+
+    QString error;
+    if (!transaction.commit(&error)) {
+        return Result::error(
+            QStringLiteral("Failed to commit variant replacement"),
+            ResultCategory::Database)
+            .withCode(ErrorCode::DatabaseCommitFailed)
+            .withDetails(error);
+    }
+    return Result::success(
+        QStringLiteral("Variant №%1 replaced successfully")
+            .arg(data.getVariantNumber()));
+}
+
+Result VariantService::insertVariantData(const AutomatonData& data) {
+    const QString conversion = variantTypeToString(data.getType());
+    Result insertResult = m_repo->insertVariant(
+        data.getVariantNumber(), conversion,
+        data.getDiagramImage(), data.getDiagramFileName());
+    if (!insertResult.ok()) return insertResult;
+
+    const int variantId = insertResult.payloadAs<int>();
+    QHash<QString, int> stateIds;
+    QHash<QString, int> inputIds;
+    QHash<QString, int> outputIds;
+
+    Result result = insertStates(
+        variantId, data.getStateNames(), data.getInitialState(), stateIds);
+    if (!result.ok()) return result;
+    result = insertInputs(
+        variantId, data.getInputSignalNames(), inputIds);
+    if (!result.ok()) return result;
+    result = insertOutputs(
+        variantId, data.getOutputSignalNames(), outputIds);
+    if (!result.ok()) return result;
+
+    return data.getType() == VariantType::MooreToMealy
+        ? saveMoore(data, variantId, stateIds, inputIds, outputIds)
+        : saveMealy(data, variantId, stateIds, inputIds, outputIds);
+}
+
 Result VariantService::removeVariant(int variantNumber) {
     Result existing = m_repo->findVariant(variantNumber);
+    if (!existing.ok()) return existing;
+    if (!existing.hasPayload()) {
+        return Result::warning(
+            QStringLiteral("Variant №%1 not found").arg(variantNumber),
+            ResultCategory::Service)
+            .withCode(ErrorCode::VariantNotFound)
+            .withOffender(QString::number(variantNumber));
+    }
     VariantRow variant = existing.payloadAs<VariantRow>();
 
     Transaction tx(m_db);
@@ -88,6 +128,184 @@ Result VariantService::removeVariant(int variantNumber) {
         QString("Variant №%1 deleted successfully").arg(variant.number));
 }
 
+Result VariantService::swapVariants(int firstNumber, int secondNumber) {
+    if (firstNumber <= 0 || secondNumber <= 0) {
+        return Result::error(QStringLiteral("Variant numbers must be positive"),
+                             ResultCategory::Validation);
+    }
+    if (firstNumber == secondNumber)
+        return Result::success(QStringLiteral("Variant numbers are equal"));
+
+    Result firstResult = m_repo->findVariant(firstNumber);
+    if (!firstResult.ok()) return firstResult;
+    Result secondResult = m_repo->findVariant(secondNumber);
+    if (!secondResult.ok()) return secondResult;
+    if (!firstResult.hasPayload() && !secondResult.hasPayload()) {
+        return Result::error(
+            QStringLiteral("Neither variant №%1 nor №%2 exists")
+                .arg(firstNumber).arg(secondNumber),
+            ResultCategory::Service)
+            .withCode(ErrorCode::VariantNotFound);
+    }
+
+    Transaction tx(m_db);
+    if (firstResult.hasPayload() && secondResult.hasPayload()) {
+        const VariantRow first = firstResult.payloadAs<VariantRow>();
+        const VariantRow second = secondResult.payloadAs<VariantRow>();
+
+        int temporaryNumber = -1;
+        while (m_repo->findVariant(temporaryNumber).hasPayload())
+            --temporaryNumber;
+
+        Result r = m_repo->updateVariantNumber(first.id, temporaryNumber);
+        if (!r.ok()) return r;
+        r = m_repo->updateVariantNumber(second.id, firstNumber);
+        if (!r.ok()) return r;
+        r = m_repo->updateVariantNumber(first.id, secondNumber);
+        if (!r.ok()) return r;
+    } else {
+        const VariantRow existing = firstResult.hasPayload()
+            ? firstResult.payloadAs<VariantRow>()
+            : secondResult.payloadAs<VariantRow>();
+        const int target = firstResult.hasPayload() ? secondNumber : firstNumber;
+        Result r = m_repo->updateVariantNumber(existing.id, target);
+        if (!r.ok()) return r;
+    }
+
+    QString error;
+    if (!tx.commit(&error)) {
+        return Result::error(QStringLiteral("Failed to commit variant swap"),
+                             ResultCategory::Database)
+            .withCode(ErrorCode::DatabaseCommitFailed)
+            .withDetails(error);
+    }
+    return Result::success(
+        QStringLiteral("Variants №%1 and №%2 swapped")
+            .arg(firstNumber).arg(secondNumber));
+}
+
+Result VariantService::compactVariantNumbers() {
+    Result allResult = m_repo->findAllVariants();
+    if (!allResult.ok()) return allResult;
+    QList<VariantRow> variants = allResult.payloadAs<QList<VariantRow>>();
+    std::sort(variants.begin(), variants.end(),
+              [](const VariantRow& left, const VariantRow& right) {
+                  return left.number < right.number;
+              });
+
+    bool needsCompaction = false;
+    for (int i = 0; i < variants.size(); ++i) {
+        if (variants[i].number != i + 1) {
+            needsCompaction = true;
+            break;
+        }
+    }
+    if (!needsCompaction)
+        return Result::success(QStringLiteral("Variant numbers are already compact"));
+
+    Transaction tx(m_db);
+    for (int i = 0; i < variants.size(); ++i) {
+        Result result = m_repo->updateVariantNumber(
+            variants[i].id, -1000000 - i);
+        if (!result.ok()) return result;
+    }
+    for (int i = 0; i < variants.size(); ++i) {
+        Result result = m_repo->updateVariantNumber(
+            variants[i].id, i + 1);
+        if (!result.ok()) return result;
+    }
+
+    QString error;
+    if (!tx.commit(&error)) {
+        return Result::error(
+            QStringLiteral("Failed to commit variant renumbering"),
+            ResultCategory::Database)
+            .withCode(ErrorCode::DatabaseCommitFailed)
+            .withDetails(error);
+    }
+    return Result::success(QStringLiteral("Variant numbers compacted"));
+}
+
+Result VariantService::exportArchive(
+    const QString& path, const QString& password) {
+    Result allResult = m_repo->findAllVariants();
+    if (!allResult.ok()) return allResult;
+
+    QList<AutomatonData> variants;
+    for (const VariantRow& row :
+         allResult.payloadAs<QList<VariantRow>>()) {
+        Result loadResult = loadVariant(row.number);
+        if (!loadResult.ok() || !loadResult.hasPayload())
+            return loadResult;
+        AutomatonData data = loadResult.payloadAs<AutomatonData>();
+        if (!data.hasDiagramImage()) {
+            return Result::error(
+                QStringLiteral(
+                    "Вариант №%1 не заполнен: отсутствует изображение.")
+                    .arg(row.number),
+                ResultCategory::Validation);
+        }
+        const auto& transitions = data.getTransitionTable();
+        for (int input = 0; input < transitions.size(); ++input) {
+            for (int state = 0; state < transitions[input].size(); ++state) {
+                if (!transitions[input][state].nextState.isEmpty()) continue;
+                return Result::error(
+                    QStringLiteral(
+                        "Вариант №%1 не заполнен: отсутствует переход "
+                        "для состояния «%2» и входа «%3».")
+                        .arg(row.number)
+                        .arg(data.getStateNames().value(state))
+                        .arg(data.getInputSignalNames().value(input)),
+                    ResultCategory::Validation);
+            }
+        }
+        Result validation = data.validate();
+        if (!validation.ok()) {
+            return Result::error(
+                QStringLiteral("Вариант №%1 не заполнен: %2")
+                    .arg(row.number).arg(validation.message()),
+                ResultCategory::Validation)
+                .withCode(validation.code())
+                .withOffender(validation.offender())
+                .withDetails(validation.details());
+        }
+        variants.append(data);
+    }
+    return VariantArchive::save(path, variants, password);
+}
+
+Result VariantService::importArchive(
+    const QString& path, const QString& password) {
+    QList<AutomatonData> variants;
+    Result loadResult =
+        VariantArchive::load(path, password, &variants);
+    if (!loadResult.ok()) return loadResult;
+
+    Transaction transaction(m_db);
+    Result allResult = m_repo->findAllVariants();
+    if (!allResult.ok()) return allResult;
+    for (const VariantRow& row :
+         allResult.payloadAs<QList<VariantRow>>()) {
+        Result removeResult = m_repo->removeVariant(row.id);
+        if (!removeResult.ok()) return removeResult;
+    }
+    for (const AutomatonData& data : variants) {
+        Result insertResult = insertVariantData(data);
+        if (!insertResult.ok()) return insertResult;
+    }
+
+    QString error;
+    if (!transaction.commit(&error)) {
+        return Result::error(
+            QStringLiteral("Не удалось применить архив BazaVar."),
+            ResultCategory::Database)
+            .withCode(ErrorCode::DatabaseCommitFailed)
+            .withDetails(error);
+    }
+    return Result::success(
+        QStringLiteral("Загружено вариантов: %1").arg(variants.size()));
+}
+
 Result VariantService::loadVariant(int variantNumber) {
     Result findResult = m_repo->findVariant(variantNumber);
     if (!findResult.ok()) return findResult;
@@ -100,9 +318,17 @@ Result VariantService::loadVariant(int variantNumber) {
 
     const VariantRow variant = findResult.payloadAs<VariantRow>();
 
-    return (variantTypeStringToType(variant.conversion) == VariantType::MooreToMealy)
+    Result loaded = (variantTypeStringToType(variant.conversion) == VariantType::MooreToMealy)
        ? loadMoore(variant.id, variantNumber)
        : loadMealy(variant.id, variantNumber);
+    if (!loaded.ok() || !loaded.hasPayload()) return loaded;
+
+    AutomatonData data = loaded.payloadAs<AutomatonData>();
+    if (!variant.imageData.isEmpty())
+        data.setDiagramImage(variant.imageData, variant.imageName);
+    return Result::success(
+        QStringLiteral("Variant №%1 loaded").arg(variantNumber))
+        .withPayload(data);
 }
 
 Result VariantService::isExist(int variantNumber) {
@@ -117,6 +343,18 @@ Result VariantService::isExist(int variantNumber) {
 
 Result VariantService::findAllVariants() const {
     return m_repo->findAllVariants();
+}
+
+int VariantService::firstAvailableVariantNumber() const {
+    Result result = m_repo->findAllVariants();
+    if (!result.ok() || !result.hasPayload()) return 1;
+
+    QSet<int> used;
+    for (const VariantRow& row : result.payloadAs<QList<VariantRow>>())
+        if (row.number > 0) used.insert(row.number);
+    int number = 1;
+    while (used.contains(number)) ++number;
+    return number;
 }
 
 

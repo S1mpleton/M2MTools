@@ -5,11 +5,14 @@
 #include "data/database.h"
 
 #include <QString>
+#include <QByteArray>
 
 struct VariantRow {
     int id = -1;
     int number = 0;
     QString conversion;
+    QByteArray imageData;
+    QString imageName;
 };
 
 struct StateRow {
@@ -64,7 +67,11 @@ public:
 
     Result findAllVariants() const;
 
-    Result insertVariant(int number, const QString& conversion);
+    Result insertVariant(int number, const QString& conversion,
+                         const QByteArray& imageData = {},
+                         const QString& imageName = {});
+
+    Result updateVariantNumber(int variantId, int number);
 
     Result removeVariant(int variantId);
 

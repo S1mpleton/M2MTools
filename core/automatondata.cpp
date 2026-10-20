@@ -77,8 +77,8 @@ QString variantTypeToString(VariantType variantType) {
 
 QString variantTypeDisplayName(VariantType variantType) {
     switch (variantType) {
-        case VariantType::MealyToMoore: return QStringLiteral("MealyToMoore");
-        case VariantType::MooreToMealy: return QStringLiteral("MooreToMealy");
+        case VariantType::MealyToMoore: return QStringLiteral("Мили → Мура");
+        case VariantType::MooreToMealy: return QStringLiteral("Мура → Мили");
     }
 
     Logger::error(QString("function 'variantTypeDisplayName'. Do not defined field"));
@@ -89,6 +89,16 @@ QString variantTypeDisplayName(VariantType variantType) {
 AutomatonData::AutomatonData() {
     setStateUsageChecker(ValidationLevel::Soft);
 
+}
+
+void AutomatonData::setDiagramImage(const QByteArray& data, const QString& fileName) {
+    m_diagramImage = data;
+    m_diagramFileName = fileName;
+}
+
+void AutomatonData::clearDiagramImage() {
+    m_diagramImage.clear();
+    m_diagramFileName.clear();
 }
 
 CellKind AutomatonData::cellKind(int row, int col) const  {

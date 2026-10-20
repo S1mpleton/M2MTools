@@ -4,6 +4,7 @@
 
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QSet>
 
 SchemaManager::SchemaManager(Database* db, QObject* parent)
     : QObject(parent), m_db(db) {}
@@ -28,6 +29,30 @@ bool SchemaManager::createSchema(QString* error) {
 
             if (error) *error = msg;
             emit schemaError(msg);
+            return false;
+        }
+    }
+
+    // Backward-compatible migration for databases created by older builds.
+    QSet<QString> variantColumns;
+    QSqlQuery columnQuery = m_db->query(QStringLiteral("PRAGMA table_info(Variants);"));
+    if (!columnQuery.isActive()) {
+        if (error) *error = columnQuery.lastError().text();
+        return false;
+    }
+    while (columnQuery.next())
+        variantColumns.insert(columnQuery.value(1).toString());
+
+    const QList<QPair<QString, QString>> migrations = {
+        {QStringLiteral("image_data"), QStringLiteral("ALTER TABLE Variants ADD COLUMN image_data BLOB;")},
+        {QStringLiteral("image_name"), QStringLiteral("ALTER TABLE Variants ADD COLUMN image_name TEXT;")},
+    };
+    for (const auto& migration : migrations) {
+        if (variantColumns.contains(migration.first)) continue;
+        QString localError;
+        if (!m_db->exec(migration.second, {}, &localError)) {
+            if (error) *error = localError;
+            emit schemaError(localError);
             return false;
         }
     }

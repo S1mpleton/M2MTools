@@ -18,7 +18,7 @@ void FieldErrorHighlighter::show(const Result& result) {
     if (!m_field) return;
 
     m_field->setStyleSheet(QString::fromLatin1(kErrorStyle));
-    m_field->setToolTip(result.message());
+    m_field->setToolTip(translateResult(result));
 
     // Иконку добавляем только один раз
     if (!m_field->findChild<QAction*>(kErrorIconId)) {

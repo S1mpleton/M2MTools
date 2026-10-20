@@ -10,7 +10,9 @@ namespace SQLRequests {
         "CREATE TABLE IF NOT EXISTS Variants ("
             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
             "number INTEGER NOT NULL UNIQUE, "
-            "conversion TEXT NOT NULL "
+            "conversion TEXT NOT NULL, "
+            "image_data BLOB, "
+            "image_name TEXT, "
                 "CHECK (conversion IN ('MealyToMoore', 'MooreToMealy'))"
         ");"
     );
@@ -100,13 +102,13 @@ namespace SQLRequests {
 
     // Variants
     inline const QString SELECT_VARIANT_BY_NUMBER_AND_TYPE = QStringLiteral(
-        "SELECT id, number, conversion "
+        "SELECT id, number, conversion, image_data, image_name "
         "FROM Variants "
         "WHERE number = :num"
         );
 
     inline const QString SELECT_ALL_VARIANTS = QStringLiteral(
-        "SELECT id, number, conversion "
+        "SELECT id, number, conversion, NULL, image_name "
         "FROM Variants "
         "ORDER BY conversion, number"
         );
@@ -119,8 +121,12 @@ namespace SQLRequests {
         );
 
     inline const QString INSERT_VARIANT = QStringLiteral(
-        "INSERT INTO Variants (number, conversion) "
-        "VALUES (:num, :conv)"
+        "INSERT INTO Variants (number, conversion, image_data, image_name) "
+        "VALUES (:num, :conv, :image_data, :image_name)"
+        );
+
+    inline const QString UPDATE_VARIANT_NUMBER = QStringLiteral(
+        "UPDATE Variants SET number = :num WHERE id = :id"
         );
 
     inline const QString DELETE_VARIANT = QStringLiteral(

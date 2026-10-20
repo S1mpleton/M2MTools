@@ -4,6 +4,9 @@
 #include "data/variantservice.h"
 #include <QDialog>
 
+class QComboBox;
+class QPushButton;
+
 namespace Ui {
 class VariantsList;
 }
@@ -21,10 +24,16 @@ public:
 
     bool hasSelection() const { return m_hasSelection; }
 
+signals:
+    void variantDeleted(int number);
+    void variantsSwapped(int firstNumber, int secondNumber);
+    void variantsCompacted(int firstMissingNumber);
+
 private slots:
     void onLoadClicked();
     void onDeleteClicked();
     void onSelectionChanged();
+    void onSwapClicked();
 
 private:
     Ui::VariantsList *ui;
@@ -35,8 +44,14 @@ private:
     VariantType m_selectedType = VariantType::MooreToMealy;
     bool m_hasSelection = false;
 
+    QComboBox* m_swapFirst = nullptr;
+    QComboBox* m_swapSecond = nullptr;
+    QPushButton* m_swapButton = nullptr;
+
     void populateTable();
     void configureTable();
+    void configureSwapControls();
+    void populateSwapControls(const QList<VariantRow>& variants);
 
     struct VariantRef {
         int number;

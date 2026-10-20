@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QString>
 #include <QJsonObject>
+#include <QByteArray>
 
 enum class FieldType {
     State,
@@ -71,6 +72,10 @@ public:
     const QMap<QString, QStringList>& getMooreOutputs() const { return m_mooreOutputs; }
     const QVector<QVector<CellData>>& getTransitionTable() const { return m_transitionTable; }
 
+    const QByteArray& getDiagramImage() const { return m_diagramImage; }
+    const QString& getDiagramFileName() const { return m_diagramFileName; }
+    bool hasDiagramImage() const { return !m_diagramImage.isEmpty(); }
+
     const ValidationLevel& getValidationLevel() const { return m_validationLevel; }
 
     // Settors
@@ -87,6 +92,9 @@ public:
 
     Result setTransitionCellByName(const QString& inputName, const QString& stateName, const QString& text);
     Result setMooreOutputCellByName(const QString& stateName, const QString& text);
+
+    void setDiagramImage(const QByteArray& data, const QString& fileName);
+    void clearDiagramImage();
 
     void setTransition(int inputIndex, int stateIndex, const CellData& cell);
     void setMooreOutput(const QString& state, const QStringList& outputs);
@@ -110,6 +118,9 @@ private:
 
     QMap<QString, QStringList> m_mooreOutputs; // only Moore
     QVector<QVector<CellData>> m_transitionTable;
+
+    QByteArray m_diagramImage;
+    QString m_diagramFileName;
 
     StateUsageChecker m_stateUsageChecker;
     ValidationLevel m_validationLevel;
