@@ -19,6 +19,8 @@ class QStackedWidget;
 class QTableWidget;
 QT_END_NAMESPACE
 
+class VariantImagePanel;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -48,7 +50,6 @@ private slots:
     void onLoadVariantPushButton();
     void onSavePushButtonClicked();
     void onNewVariantClicked();
-    void onLoadImageClicked();
     void onRemoveImageClicked();
     void onExportArchiveClicked();
     void onImportArchiveClicked();
@@ -74,13 +75,9 @@ private:
     QComboBox* m_editModeComboBox = nullptr;
     QStackedWidget* m_editorStack = nullptr;
     QTableWidget* m_reactionTable = nullptr;
-    QLabel* m_diagramLabel = nullptr;
-    QLabel* m_imageFileLabel = nullptr;
-    QLabel* m_countsLabel = nullptr;
+    VariantImagePanel* m_imagePanel = nullptr;
     QLabel* m_validationLabel = nullptr;
     QPushButton* m_newVariantButton = nullptr;
-    QPushButton* m_loadImageButton = nullptr;
-    QPushButton* m_removeImageButton = nullptr;
     QPushButton* m_addReactionStepButton = nullptr;
     QPushButton* m_removeReactionStepButton = nullptr;
     QPushButton* m_exportArchiveButton = nullptr;
@@ -111,7 +108,6 @@ private:
 
 protected:
     void changeEvent(QEvent *event) override;
-    bool eventFilter(QObject* watched, QEvent* event) override;
 };
 
 #endif // MAINWINDOW_H

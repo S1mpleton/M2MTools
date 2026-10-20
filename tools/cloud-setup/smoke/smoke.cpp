@@ -11,6 +11,8 @@
 #include <QFile>
 #include <QLabel>
 #include <QPushButton>
+#include <QRect>
+#include <QScrollArea>
 #include <QSqlQuery>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -218,6 +220,8 @@ int main(int argc, char** argv) {
         QTimer::singleShot(100, &app, [&] {
             try {
                 require(window.isVisible(), "main window visibility");
+                window.resize(window.minimumSize());
+                QApplication::processEvents();
                 auto* names = window.findChild<QLineEdit*>("stateNamesLineEdit");
                 auto* inputs = window.findChild<QLineEdit*>("InputSignalNamesLineEdit");
                 auto* table = window.findChild<QTableWidget*>("transitionTableWidget");
@@ -232,6 +236,13 @@ int main(int argc, char** argv) {
                 require(names && inputs && outputs && table && editMode &&
                         reactionTable && diagram && exportArchive && importArchive,
                         "modern main window controls");
+                require(!window.findChild<QScrollArea*>(),
+                        "main workflow does not require a scroll area");
+                require(window.styleSheet().isEmpty() &&
+                        diagram->styleSheet().isEmpty(),
+                        "normal controls use the platform palette");
+                require(window.minimumHeight() <= 620,
+                        "main window supports a compact desktop size");
                 names->setText("s0, s1");
                 inputs->setText("x0");
                 outputs->setText("y0");
@@ -251,6 +262,18 @@ int main(int argc, char** argv) {
                 table->item(1, 1)->setText("s0 / y0");
                 require(reactionTable->item(2, 0)->text() == "s0",
                         "transition edit updates reaction");
+                for (QPushButton* button : {exportArchive, importArchive}) {
+                    const QRect buttonRect(
+                        button->mapTo(window.centralWidget(), QPoint(0, 0)),
+                        button->size());
+                    require(window.centralWidget()->rect().contains(buttonRect),
+                            "all primary actions fit inside the window");
+                }
+                const QString screenshotPath =
+                    qEnvironmentVariable("M2MTOOLS_SMOKE_SCREENSHOT");
+                if (!screenshotPath.isEmpty())
+                    require(window.grab().save(screenshotPath),
+                            "UI screenshot can be captured");
                 std::cout << "PASS modern offscreen UI and live bidirectional editing\n";
                 window.close();
                 app.exit(0);

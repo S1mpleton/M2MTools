@@ -9,29 +9,25 @@
 #include "ui/presenters/errorpresenterfactory.h"
 #include "ui/translateresult.h"
 #include "ui/variantslist.h"
+#include "ui/widgets/variantimagepanel.h"
 #include "validation/compositevalidator.h"
 #include "validation/editvalidator.h"
 #include "validation/listnamesvalidator.h"
 
 #include <QActionGroup>
 #include <QComboBox>
-#include <QDragEnterEvent>
-#include <QDropEvent>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QGroupBox>
 #include <QHeaderView>
+#include <QHBoxLayout>
 #include <QImage>
 #include <QInputDialog>
 #include <QLabel>
-#include <QMimeData>
-#include <QMouseEvent>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTableWidget>
-#include <QTimer>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -40,6 +36,8 @@ namespace {
 constexpr int kMaximumImageSize = 10 * 1024 * 1024;
 const QColor kErrorBackground(255, 224, 224);
 const QColor kIncompleteBackground(255, 244, 204);
+const QColor kErrorForeground(127, 29, 29);
+const QColor kIncompleteForeground(120, 53, 15);
 
 QString displayCell(const QString& value) {
     return value.trimmed().isEmpty() ? QStringLiteral("—") : value;
@@ -82,50 +80,18 @@ MainWindow::~MainWindow() {
 
 void MainWindow::setupModernUi() {
     setWindowTitle(QStringLiteral("M2MTools — редактор эквивалентных автоматов"));
-    resize(1180, 820);
-    setMinimumSize(980, 700);
+    resize(1100, 720);
+    setMinimumSize(900, 620);
 
-    setStyleSheet(QStringLiteral(R"(
-        QMainWindow, QWidget#centralwidget { background: #f4f7fb; color: #172033; }
-        QGroupBox {
-            background: white; border: 1px solid #dfe6f1; border-radius: 12px;
-            margin-top: 12px; padding: 14px 10px 10px 10px;
-            font-weight: 600;
-        }
-        QGroupBox::title { subcontrol-origin: margin; left: 14px; padding: 0 6px; color: #334155; }
-        QLineEdit, QComboBox, QSpinBox {
-            min-height: 34px; border: 1px solid #cbd5e1; border-radius: 8px;
-            padding: 0 10px; background: #ffffff; selection-background-color: #2563eb;
-        }
-        QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border: 2px solid #3b82f6; }
-        QPushButton {
-            min-height: 34px; border: 1px solid #cbd5e1; border-radius: 8px;
-            padding: 0 16px; background: #ffffff; font-weight: 600;
-        }
-        QPushButton:hover { background: #eff6ff; border-color: #60a5fa; }
-        QPushButton#primaryButton { color: white; background: #2563eb; border-color: #2563eb; }
-        QPushButton#primaryButton:hover { background: #1d4ed8; }
-        QPushButton#dangerButton { color: #b91c1c; }
-        QTableWidget {
-            border: 1px solid #dbe4f0; border-radius: 8px; gridline-color: #e5eaf2;
-            background: white; alternate-background-color: #f8fafc; selection-background-color: #dbeafe;
-            selection-color: #172033;
-        }
-        QHeaderView::section {
-            background: #eef2ff; color: #334155; border: none; border-right: 1px solid #dbe4f0;
-            border-bottom: 1px solid #dbe4f0; padding: 8px; font-weight: 600;
-        }
-        QLabel#diagramDropZone {
-            background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 12px;
-            color: #64748b; padding: 12px;
-        }
-        QLabel#validationMessage { border-radius: 8px; padding: 9px 12px; }
-        QStatusBar { background: white; border-top: 1px solid #e2e8f0; }
-    )"));
+    // Use the platform palette and widget style. A partial custom theme can
+    // easily combine a dark system foreground with a forced light background.
+    setStyleSheet(QString());
+    ui->verticalLayout->setContentsMargins(8, 6, 8, 6);
+    ui->verticalLayout->setSpacing(6);
 
     ui->groupBox->setTitle(QStringLiteral("Вариант"));
-    ui->groupBox->setMinimumHeight(105);
-    ui->groupBox->setMaximumHeight(125);
+    ui->groupBox->setMinimumHeight(58);
+    ui->groupBox->setMaximumHeight(72);
     ui->groupBox_2->setTitle(QStringLiteral("Обозначения автомата"));
     ui->groupBox_3->setTitle(QStringLiteral("Описание автомата"));
     ui->label->setText(QStringLiteral("Номер варианта"));
@@ -148,7 +114,12 @@ void MainWindow::setupModernUi() {
 
     m_newVariantButton = new QPushButton(QStringLiteral("Новый вариант"), ui->groupBox);
     m_newVariantButton->setObjectName(QStringLiteral("newVariantButton"));
-    ui->gridLayout_2->addWidget(m_newVariantButton, 0, 2, 1, 1);
+    ui->gridLayout_2->removeWidget(ui->label_2);
+    ui->gridLayout_2->removeWidget(ui->variantTypeComboBox);
+    ui->gridLayout_2->addWidget(ui->label_2, 0, 2);
+    ui->gridLayout_2->addWidget(ui->variantTypeComboBox, 0, 3);
+    ui->gridLayout_2->addWidget(m_newVariantButton, 0, 4);
+    ui->gridLayout_2->setColumnStretch(3, 1);
 
     auto* initialStateLabel = new QLabel(QStringLiteral("Начальное состояние"), ui->groupBox_2);
     m_initialStateComboBox = new QComboBox(ui->groupBox_2);
@@ -156,44 +127,16 @@ void MainWindow::setupModernUi() {
     ui->gridLayout_3->addWidget(initialStateLabel, 3, 0);
     ui->gridLayout_3->addWidget(m_initialStateComboBox, 3, 1);
 
-    auto* diagramGroup = new QGroupBox(QStringLiteral("Изображение задания и состав"), centralWidget());
-    diagramGroup->setObjectName(QStringLiteral("diagramGroup"));
-    auto* diagramLayout = new QHBoxLayout(diagramGroup);
-    m_diagramLabel = new QLabel(
-        QStringLiteral("Перетащите сюда изображение ТМП\nили нажмите, чтобы выбрать файл"),
-        diagramGroup);
-    m_diagramLabel->setObjectName(QStringLiteral("diagramDropZone"));
-    m_diagramLabel->setAlignment(Qt::AlignCenter);
-    m_diagramLabel->setMinimumSize(320, 145);
-    m_diagramLabel->setAcceptDrops(true);
-    m_diagramLabel->installEventFilter(this);
-    diagramLayout->addWidget(m_diagramLabel, 3);
-
-    auto* diagramActions = new QVBoxLayout;
-    m_imageFileLabel = new QLabel(QStringLiteral("Файл не выбран"), diagramGroup);
-    m_imageFileLabel->setWordWrap(true);
-    m_imageFileLabel->setObjectName(QStringLiteral("imageFileLabel"));
-    m_countsLabel = new QLabel(diagramGroup);
-    m_countsLabel->setWordWrap(true);
-    m_loadImageButton = new QPushButton(QStringLiteral("Загрузить изображение"), diagramGroup);
-    m_loadImageButton->setObjectName(QStringLiteral("loadImageButton"));
-    m_removeImageButton = new QPushButton(QStringLiteral("Удалить изображение"), diagramGroup);
-    m_removeImageButton->setObjectName(QStringLiteral("dangerButton"));
-    diagramActions->addWidget(m_imageFileLabel);
-    diagramActions->addWidget(m_countsLabel);
-    diagramActions->addStretch();
-    diagramActions->addWidget(m_loadImageButton);
-    diagramActions->addWidget(m_removeImageButton);
-    diagramLayout->addLayout(diagramActions, 2);
+    m_imagePanel = new VariantImagePanel(centralWidget());
     ui->verticalLayout->removeWidget(ui->groupBox_2);
     auto* detailsRow = new QWidget(centralWidget());
-    detailsRow->setMinimumHeight(190);
-    detailsRow->setMaximumHeight(220);
+    detailsRow->setMinimumHeight(130);
+    detailsRow->setMaximumHeight(160);
     auto* detailsLayout = new QHBoxLayout(detailsRow);
     detailsLayout->setContentsMargins(0, 0, 0, 0);
-    detailsLayout->setSpacing(10);
+    detailsLayout->setSpacing(6);
     detailsLayout->addWidget(ui->groupBox_2, 3);
-    detailsLayout->addWidget(diagramGroup, 4);
+    detailsLayout->addWidget(m_imagePanel, 4);
     ui->verticalLayout->insertWidget(1, detailsRow);
 
     ui->label_6->hide();
@@ -208,7 +151,6 @@ void MainWindow::setupModernUi() {
     });
     auto* modeHint = new QLabel(
         QStringLiteral("Обе формы обновляются автоматически"), ui->groupBox_3);
-    modeHint->setStyleSheet(QStringLiteral("color: #64748b; font-weight: 400;"));
     modeLayout->addWidget(modeLabel);
     modeLayout->addWidget(m_editModeComboBox);
     modeLayout->addStretch();
@@ -222,7 +164,7 @@ void MainWindow::setupModernUi() {
     transitionLayout->setContentsMargins(0, 0, 0, 0);
     ui->transitionTableWidget->setParent(transitionPage);
     ui->transitionTableWidget->setAlternatingRowColors(true);
-    ui->transitionTableWidget->setMinimumHeight(230);
+    ui->transitionTableWidget->setMinimumHeight(155);
     transitionLayout->addWidget(ui->transitionTableWidget);
     m_editorStack->addWidget(transitionPage);
 
@@ -231,12 +173,10 @@ void MainWindow::setupModernUi() {
     reactionLayout->setContentsMargins(0, 0, 0, 0);
     auto* reactionHint = new QLabel(
         QStringLiteral(
-            "Каждый столбец — один такт: текущее состояние + вход → следующее состояние / выход. "
-            "Имена A, X и Y заполняются из реакции автоматически."),
+            "Один столбец — один такт: A + X → A′ / Y. "
+            "Имена заполняются автоматически."),
         reactionPage);
     reactionHint->setWordWrap(true);
-    reactionHint->setStyleSheet(
-        QStringLiteral("color: #475569; font-weight: 400; padding: 4px;"));
     reactionLayout->addWidget(reactionHint);
     m_reactionTable = new QTableWidget(4, 1, reactionPage);
     m_reactionTable->setObjectName(QStringLiteral("reactionTableWidget"));
@@ -249,7 +189,7 @@ void MainWindow::setupModernUi() {
     m_reactionTable->horizontalHeader()->setMinimumSectionSize(110);
     m_reactionTable->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_reactionTable->setAlternatingRowColors(true);
-    m_reactionTable->setMinimumHeight(230);
+    m_reactionTable->setMinimumHeight(145);
     reactionLayout->addWidget(m_reactionTable);
     auto* reactionButtons = new QHBoxLayout;
     m_addReactionStepButton = new QPushButton(QStringLiteral("+ Добавить такт"), reactionPage);
@@ -262,7 +202,7 @@ void MainWindow::setupModernUi() {
     reactionLayout->addLayout(reactionButtons);
     m_editorStack->addWidget(reactionPage);
     ui->gridLayout_4->addWidget(m_editorStack, 1, 0);
-    ui->groupBox_3->setMinimumHeight(320);
+    ui->groupBox_3->setMinimumHeight(250);
     ui->verticalLayout->setStretch(2, 1);
 
     m_validationLabel = new QLabel(this);
@@ -274,6 +214,7 @@ void MainWindow::setupModernUi() {
 
     ui->savePushButton->setText(QStringLiteral("Сохранить вариант"));
     ui->savePushButton->setObjectName(QStringLiteral("primaryButton"));
+    ui->savePushButton->setDefault(true);
     ui->loadVariantPushButton->setText(QStringLiteral("Открыть варианты"));
     m_importArchiveButton =
         new QPushButton(QStringLiteral("Открыть BazaVar…"), this);
@@ -340,9 +281,9 @@ void MainWindow::setupConnections() {
             this, &MainWindow::onLoadVariantPushButton);
     connect(m_newVariantButton, &QPushButton::clicked,
             this, &MainWindow::onNewVariantClicked);
-    connect(m_loadImageButton, &QPushButton::clicked,
-            this, &MainWindow::onLoadImageClicked);
-    connect(m_removeImageButton, &QPushButton::clicked,
+    connect(m_imagePanel, &VariantImagePanel::imagePathSelected,
+            this, [this](const QString& path) { loadImageFromPath(path); });
+    connect(m_imagePanel, &VariantImagePanel::removeRequested,
             this, &MainWindow::onRemoveImageClicked);
     connect(m_exportArchiveButton, &QPushButton::clicked,
             this, &MainWindow::onExportArchiveClicked);
@@ -672,14 +613,6 @@ void MainWindow::onNewVariantClicked() {
     ui->stateNamesLineEdit->setFocus();
 }
 
-void MainWindow::onLoadImageClicked() {
-    const QString path = QFileDialog::getOpenFileName(
-        this, QStringLiteral("Выберите изображение задания"), QString(),
-        QStringLiteral(
-            "Изображения (*.png *.jpg *.jpeg *.bmp *.webp);;Все файлы (*)"));
-    if (!path.isEmpty()) loadImageFromPath(path);
-}
-
 void MainWindow::onRemoveImageClicked() {
     m_data.clearDiagramImage();
     refreshImagePreview();
@@ -925,38 +858,15 @@ void MainWindow::refreshInitialStates() {
 }
 
 void MainWindow::refreshImagePreview() {
-    if (!m_data.hasDiagramImage()) {
-        m_diagramLabel->setPixmap(QPixmap());
-        m_diagramLabel->setText(QStringLiteral(
-            "Перетащите сюда изображение ТМП\n"
-            "или нажмите, чтобы выбрать файл"));
-        m_imageFileLabel->setText(QStringLiteral("Файл не выбран"));
-        m_removeImageButton->setEnabled(false);
-        return;
-    }
-    QPixmap image;
-    image.loadFromData(m_data.getDiagramImage());
-    const QSize target = m_diagramLabel->size() - QSize(24, 24);
-    m_diagramLabel->setText(QString());
-    m_diagramLabel->setPixmap(
-        image.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    m_imageFileLabel->setText(
-        QStringLiteral("Файл: %1\nРазмер: %2 КБ")
-            .arg(m_data.getDiagramFileName())
-            .arg(m_data.getDiagramImage().size() / 1024));
-    m_diagramLabel->setStyleSheet(QString());
-    m_removeImageButton->setEnabled(true);
+    m_imagePanel->setImage(
+        m_data.getDiagramImage(), m_data.getDiagramFileName());
 }
 
 void MainWindow::updateSummary() {
-    m_countsLabel->setText(
-        QStringLiteral(
-            "Состояний: %1\n"
-            "Входных сигналов: %2\n"
-            "Выходных сигналов: %3")
-            .arg(m_data.getStateNames().size())
-            .arg(m_data.getInputSignalNames().size())
-            .arg(m_data.getOutputSignalNames().size()));
+    m_imagePanel->setCounts(
+        m_data.getStateNames().size(),
+        m_data.getInputSignalNames().size(),
+        m_data.getOutputSignalNames().size());
 }
 
 void MainWindow::syncReactionFromData() {
@@ -1015,6 +925,7 @@ void MainWindow::applyReactionIssues(
             if (auto* item =
                     m_reactionTable->item(row, column)) {
                 item->setBackground(QBrush());
+                item->setForeground(QBrush());
                 item->setToolTip(QString());
             }
         }
@@ -1031,6 +942,9 @@ void MainWindow::applyReactionIssues(
                 item->setBackground(
                     issue.severity == ReactionIssueSeverity::Error
                         ? kErrorBackground : kIncompleteBackground);
+                item->setForeground(
+                    issue.severity == ReactionIssueSeverity::Error
+                        ? kErrorForeground : kIncompleteForeground);
                 item->setToolTip(issue.message);
             }
         }
@@ -1058,9 +972,7 @@ bool MainWindow::validateBeforeSave() {
         refreshTable();
     }
     if (!m_data.hasDiagramImage()) {
-        m_diagramLabel->setStyleSheet(QStringLiteral(
-            "background: #fff1f2; border: 2px solid #dc2626; "
-            "border-radius: 12px; color: #b91c1c;"));
+        m_imagePanel->setInvalid(true);
         showInlineMessage(
             QStringLiteral("Добавьте изображение задания для варианта."));
         return false;
@@ -1090,6 +1002,7 @@ bool MainWindow::validateTransitionCompleteness() {
             if (auto* item = ui->transitionTableWidget->item(
                     input + rowOffset, state + 1)) {
                 item->setBackground(kErrorBackground);
+                item->setForeground(kErrorForeground);
                 item->setToolTip(
                     QStringLiteral("Укажите следующее состояние"));
             }
@@ -1147,38 +1060,4 @@ void MainWindow::showInlineMessage(
 void MainWindow::clearInlineMessage() {
     m_validationLabel->clear();
     m_validationLabel->hide();
-}
-
-bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == m_diagramLabel) {
-        if (event->type() == QEvent::MouseButtonRelease) {
-            onLoadImageClicked();
-            return true;
-        }
-        if (event->type() == QEvent::DragEnter) {
-            auto* dragEvent =
-                static_cast<QDragEnterEvent*>(event);
-            if (dragEvent->mimeData()->hasUrls()) {
-                dragEvent->acceptProposedAction();
-                return true;
-            }
-        }
-        if (event->type() == QEvent::Drop) {
-            auto* dropEvent =
-                static_cast<QDropEvent*>(event);
-            const QList<QUrl> urls =
-                dropEvent->mimeData()->urls();
-            if (!urls.isEmpty() && urls.first().isLocalFile()) {
-                loadImageFromPath(urls.first().toLocalFile());
-                dropEvent->acceptProposedAction();
-                return true;
-            }
-        }
-        if (event->type() == QEvent::Resize
-            && m_data.hasDiagramImage()) {
-            QTimer::singleShot(
-                0, this, &MainWindow::refreshImagePreview);
-        }
-    }
-    return QMainWindow::eventFilter(watched, event);
 }

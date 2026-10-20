@@ -4,7 +4,7 @@
 
 namespace {
     const QColor kErrorBackground(204, 34, 34);
-    const QColor kNormalBackground("");
+    const QColor kErrorForeground(Qt::white);
 }
 
 TableCellErrorPresenter::TableCellErrorPresenter(
@@ -32,6 +32,7 @@ void TableCellErrorPresenter::setCoordinates(int row, int col) {
 void TableCellErrorPresenter::show(const Result& result) {
     if (auto* it = item()) {
         it->setBackground(QBrush(kErrorBackground));
+        it->setForeground(QBrush(kErrorForeground));
         it->setToolTip(translateResult(result));
     }
     if (m_statusBar)
@@ -41,6 +42,7 @@ void TableCellErrorPresenter::show(const Result& result) {
 void TableCellErrorPresenter::clear(const Result& result) {
     if (auto* it = item()) {
         it->setBackground(QBrush());
+        it->setForeground(QBrush());
         it->setToolTip("");
     }
     if (m_statusBar)
