@@ -349,7 +349,9 @@ int main(int argc, char** argv) {
                 require(!QApplication::activeModalWidget() &&
                         validationMessage->styleSheet() ==
                             UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Error) &&
-                        validationMessage->text().contains("no states"),
+                        validationMessage->text().contains("no states") &&
+                        validationMessage->isVisible() &&
+                        validationMessage->height() >= 40,
                         "save validation explains the automaton error inline without a popup");
                 newVariant->click();
                 require(validationMessage->styleSheet() ==
@@ -365,8 +367,8 @@ int main(int argc, char** argv) {
                         "automatic state and initial-state changes are animated");
                 require(names->findChild<QVariantAnimation*>(
                             "automaticFieldFeedback", Qt::FindDirectChildrenOnly)
-                            ->duration() >= 5000,
-                        "temporary field feedback remains visible for five seconds");
+                            ->duration() <= 1500,
+                        "automatic field feedback is one short pulse");
                 reactionTable->item(1, 0)->setText("xAuto");
                 require(inputs->findChild<QVariantAnimation*>(
                             "automaticFieldFeedback", Qt::FindDirectChildrenOnly),
@@ -405,6 +407,15 @@ int main(int argc, char** argv) {
                 reactionTable->item(3, 0)->setText("y0");
                 require(table->item(1, 1)->text() == "s1 / y0",
                         "reaction edit updates transition table");
+                require(QMetaObject::invokeMethod(
+                            &window, "onSavePushButtonClicked"),
+                        "closed-state save validation can be invoked");
+                QApplication::processEvents();
+                require(
+                        validationMessage->isVisible() &&
+                        validationMessage->height() >= 40 &&
+                        validationMessage->text().contains("no incoming transition"),
+                        "closed-state save error is visible in the feedback panel");
                 table->item(1, 1)->setText("s0 / y0");
                 require(reactionTable->item(2, 0)->text() == "s0",
                         "transition edit updates reaction");
@@ -429,6 +440,20 @@ int main(int argc, char** argv) {
                 require(reactionTable->item(0, 1) &&
                         reactionTable->item(0, 1)->text() == precedingNextState,
                         "inserted tact continues from the preceding next state");
+                names->setText("s0");
+                inputs->setText("x0, x1");
+                outputs->setText("y0");
+                table->item(1, 1)->setText("s0 / y0");
+                require(QMetaObject::invokeMethod(
+                            &window, "onSavePushButtonClicked"),
+                        "unused-input save validation can be invoked");
+                QApplication::processEvents();
+                require(
+                        validationMessage->isVisible() &&
+                        validationMessage->height() >= 40 &&
+                        validationMessage->text().contains(
+                            "Input signal 'x1' is not used"),
+                        "unused-input save error is visible in the feedback panel");
                 for (QPushButton* button : {exportArchive, importArchive}) {
                     const QRect buttonRect(
                         button->mapTo(window.centralWidget(), QPoint(0, 0)),

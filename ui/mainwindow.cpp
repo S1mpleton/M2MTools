@@ -38,6 +38,7 @@
 namespace {
 constexpr int kMaximumImageSize = 10 * 1024 * 1024;
 constexpr int kMinimumTransientFeedbackMs = 5000;
+constexpr int kAutomaticFieldPulseMs = 900;
 QString displayCell(const QString& value) {
     return value.trimmed().isEmpty() ? QStringLiteral("—") : value;
 }
@@ -183,12 +184,17 @@ void MainWindow::setupModernUi() {
     ui->groupBox_3->setMinimumHeight(250);
     ui->verticalLayout->setStretch(2, 1);
 
-    m_validationLabel = new QLabel(this);
+    m_validationLabel = new QLabel(centralWidget());
     m_validationLabel->setObjectName(QStringLiteral("validationMessage"));
     m_validationLabel->setWordWrap(true);
+    m_validationLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_validationLabel->setMinimumHeight(40);
+    m_validationLabel->setMaximumHeight(72);
+    m_validationLabel->setSizePolicy(
+        QSizePolicy::Expanding, QSizePolicy::Minimum);
+    m_validationLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_validationLabel->hide();
-    ui->verticalLayout->insertWidget(
-        ui->verticalLayout->count() - 1, m_validationLabel);
+    ui->verticalLayout->insertWidget(3, m_validationLabel);
 
     ui->savePushButton->setObjectName(QStringLiteral("primaryButton"));
     ui->savePushButton->setDefault(true);
@@ -1119,6 +1125,9 @@ bool MainWindow::validateBeforeSave() {
 void MainWindow::presentAutomatonValidation(const Result& result) {
     const QString message = translateResult(result);
     showInlineMessage(message);
+    const QSignalBlocker transitionTableBlocker(
+        ui->transitionTableWidget);
+    const QSignalBlocker reactionTableBlocker(m_reactionTable);
 
     const auto showFieldError = [this, &result](QWidget* field,
                                                 IErrorPresenter* presenter) {
@@ -1149,7 +1158,6 @@ void MainWindow::presentAutomatonValidation(const Result& result) {
     };
     const auto markReactionTacts = [this, &markItem](int row,
                                                       const QString& offender) {
-        const QSignalBlocker blocker(m_reactionTable);
         for (int column = 0;
              column < m_reactionTable->columnCount(); ++column) {
             const QTableWidgetItem* match = m_reactionTable->item(row, column);
@@ -1249,6 +1257,10 @@ void MainWindow::showInlineMessage(const QString& text,
     m_validationLabel->setText(text);
     m_validationLabel->setStyleSheet(UiFeedbackStyle::bannerStyle(level));
     m_validationLabel->show();
+    m_validationLabel->updateGeometry();
+    ui->verticalLayout->invalidate();
+    ui->verticalLayout->activate();
+    m_validationLabel->raise();
     if (effectiveTimeout > 0) {
         QTimer::singleShot(effectiveTimeout, this, [this, revision] {
             if (revision == m_messageRevision)
@@ -1282,7 +1294,7 @@ void MainWindow::pulseField(QWidget* field, UiFeedbackLevel level) {
 
     auto* animation = new QVariantAnimation(field);
     animation->setObjectName(QStringLiteral("automaticFieldFeedback"));
-    animation->setDuration(kMinimumTransientFeedbackMs);
+    animation->setDuration(kAutomaticFieldPulseMs);
     animation->setStartValue(190);
     animation->setKeyValueAt(0.12, 255);
     animation->setKeyValueAt(0.85, 255);

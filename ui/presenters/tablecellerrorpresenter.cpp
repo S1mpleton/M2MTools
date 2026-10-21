@@ -3,6 +3,8 @@
 #include "ui/feedbackstyle.h"
 #include "ui/translateresult.h"
 
+#include <QSignalBlocker>
+
 TableCellErrorPresenter::TableCellErrorPresenter(
     QTableWidget* table,
     int row,
@@ -26,20 +28,28 @@ void TableCellErrorPresenter::setCoordinates(int row, int col) {
 }
 
 void TableCellErrorPresenter::show(const Result& result) {
-    if (auto* it = item()) {
-        it->setBackground(QBrush(UiFeedbackStyle::background(UiFeedbackLevel::Error)));
-        it->setForeground(QBrush(UiFeedbackStyle::foreground(UiFeedbackLevel::Error)));
-        it->setToolTip(translateResult(result));
+    if (m_table) {
+        const QSignalBlocker blocker(m_table);
+        if (auto* it = item()) {
+            it->setBackground(QBrush(
+                UiFeedbackStyle::background(UiFeedbackLevel::Error)));
+            it->setForeground(QBrush(
+                UiFeedbackStyle::foreground(UiFeedbackLevel::Error)));
+            it->setToolTip(translateResult(result));
+        }
     }
     if (m_statusBar)
         m_statusBar->showMessage(translateResult(result));
 }
 
 void TableCellErrorPresenter::clear(const Result& result) {
-    if (auto* it = item()) {
-        it->setBackground(QBrush());
-        it->setForeground(QBrush());
-        it->setToolTip("");
+    if (m_table) {
+        const QSignalBlocker blocker(m_table);
+        if (auto* it = item()) {
+            it->setBackground(QBrush());
+            it->setForeground(QBrush());
+            it->setToolTip("");
+        }
     }
     Q_UNUSED(result);
 }
