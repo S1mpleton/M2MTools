@@ -1,5 +1,7 @@
 #include "variantimagepanel.h"
 
+#include "ui/feedbackstyle.h"
+
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
@@ -85,9 +87,7 @@ void VariantImagePanel::changeEvent(QEvent* event) {
 
 void VariantImagePanel::setInvalid(bool invalid) {
     m_preview->setStyleSheet(invalid
-        ? QStringLiteral(
-              "background: #fff1f2; color: #7f1d1d; "
-              "border: 2px solid #dc2626;")
+        ? UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error)
         : QString());
 }
 

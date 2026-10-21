@@ -52,6 +52,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ui/presenters/errorpresenterfactory.h ui/presenters/errorpresenterfactory.cpp
 
         ui/widgets/variantimagepanel.h ui/widgets/variantimagepanel.cpp
+        ui/feedbackstyle.h
 
         resources.qrc
         data/sqlrequests.h

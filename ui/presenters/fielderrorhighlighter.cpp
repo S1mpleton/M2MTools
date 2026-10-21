@@ -1,9 +1,9 @@
 #include "fielderrorhighlighter.h"
 
+#include "ui/feedbackstyle.h"
 #include "ui/translateresult.h"
 
 namespace {
-    constexpr auto kErrorStyle   = "background: #CC2222; color: white;";
     constexpr auto kErrorIconId  = "errorIcon";
     constexpr auto kIconPath     = ":/ui/resources/icons/warning.png";
 }
@@ -17,7 +17,7 @@ FieldErrorHighlighter::FieldErrorHighlighter(QLineEdit* field, QStatusBar* statu
 void FieldErrorHighlighter::show(const Result& result) {
     if (!m_field) return;
 
-    m_field->setStyleSheet(QString::fromLatin1(kErrorStyle));
+    m_field->setStyleSheet(UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error));
     m_field->setToolTip(translateResult(result));
 
     // Add the icon only once.
@@ -41,6 +41,5 @@ void FieldErrorHighlighter::clear(const Result& result) {
         icon->deleteLater();
     }
 
-    if (m_statusBar)
-        m_statusBar->showMessage(translateResult(result), 2500);
+    Q_UNUSED(result);
 }

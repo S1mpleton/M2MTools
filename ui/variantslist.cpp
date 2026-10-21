@@ -202,8 +202,8 @@ void VariantsList::onDeleteClicked() {
     }
     if (gap > 0 && ResultMessenger::askConfirm(
             this,
-            tr("Renumber variants?"),
-            tr("Variant #%1 is empty. Shift subsequent numbers?").arg(gap))) {
+            tr("Variant #%1 is empty. Shift subsequent numbers?").arg(gap),
+            tr("Renumber variants?"))) {
         Result compactResult = m_service->compactVariantNumbers();
         Logger::log(compactResult);
         if (!compactResult.ok())

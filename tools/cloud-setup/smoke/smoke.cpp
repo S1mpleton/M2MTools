@@ -4,6 +4,7 @@
 #include "data/schemamanager.h"
 #include "data/variantservice.h"
 #include "ui/mainwindow.h"
+#include "ui/feedbackstyle.h"
 #include "ui/variantslist.h"
 #include <QAction>
 #include <QApplication>
@@ -19,6 +20,7 @@
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QVariantAnimation>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -281,8 +283,13 @@ int main(int argc, char** argv) {
                     window.findChild<QPushButton*>("exportArchiveButton");
                 auto* importArchive =
                     window.findChild<QPushButton*>("importArchiveButton");
+                auto* validationMessage =
+                    window.findChild<QLabel*>("validationMessage");
+                auto* newVariant =
+                    window.findChild<QPushButton*>("newVariantButton");
                 require(names && inputs && outputs && table && editMode && initialState &&
-                        reactionTable && diagram && exportArchive && importArchive,
+                        reactionTable && diagram && exportArchive && importArchive &&
+                        validationMessage && newVariant,
                         "modern main window controls");
                 require(editMode->currentIndex() == 1,
                         "reaction editor is selected on startup");
@@ -299,6 +306,12 @@ int main(int argc, char** argv) {
                 require(window.windowTitle() != englishTitle &&
                         addTactButton->text() != englishAddTact,
                         "Russian catalog translates dynamic controls");
+                require(QCoreApplication::translate(
+                            "ResultMessenger", "Error") == QString::fromUtf8("Ошибка") &&
+                        QCoreApplication::translate(
+                            "main", "Database error") ==
+                            QString::fromUtf8("Ошибка базы данных"),
+                        "Russian catalog translates popup windows");
                 englishAction->trigger();
                 QApplication::processEvents();
                 require(window.windowTitle() == englishTitle &&
@@ -316,9 +329,38 @@ int main(int argc, char** argv) {
                         "main window supports a compact desktop size");
                 require(reactionTable->item(0, 0),
                         "empty reaction exposes its first state cell");
+                require(QMetaObject::invokeMethod(
+                            &window, "onSavePushButtonClicked"),
+                        "save validation can be invoked");
+                require(!QApplication::activeModalWidget() &&
+                        validationMessage->styleSheet() ==
+                            UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Error),
+                        "save validation stays inline without a popup");
+                newVariant->click();
+                require(validationMessage->styleSheet() ==
+                            UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Success),
+                        "successful user actions use the green inline message");
                 reactionTable->item(0, 0)->setText("q0");
                 require(initialState->currentText() == "q0",
                         "first state entered in a reaction becomes initial");
+                require(names->findChild<QVariantAnimation*>(
+                            "automaticFieldFeedback", Qt::FindDirectChildrenOnly) &&
+                        initialState->findChild<QVariantAnimation*>(
+                            "automaticFieldFeedback", Qt::FindDirectChildrenOnly),
+                        "automatic state and initial-state changes are animated");
+                reactionTable->item(1, 0)->setText("xAuto");
+                require(inputs->findChild<QVariantAnimation*>(
+                            "automaticFieldFeedback", Qt::FindDirectChildrenOnly),
+                        "automatic input addition is animated");
+                reactionTable->item(2, 0)->setText("q0");
+                reactionTable->item(3, 0)->setText("yAuto");
+                require(outputs->findChild<QVariantAnimation*>(
+                            "automaticFieldFeedback", Qt::FindDirectChildrenOnly),
+                        "automatic output addition is animated");
+                names->setText("1bad");
+                require(names->styleSheet() ==
+                            UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error),
+                        "invalid symbol lists use the shared error color");
                 names->setText("s0, s1");
                 inputs->setText("x0");
                 outputs->setText("y0");

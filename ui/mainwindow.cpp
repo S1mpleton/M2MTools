@@ -29,30 +29,35 @@
 #include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTableWidget>
+#include <QTimer>
+#include <QVariantAnimation>
 #include <QVBoxLayout>
 
 #include <algorithm>
 
 namespace {
 constexpr int kMaximumImageSize = 10 * 1024 * 1024;
-const QColor kErrorBackground(255, 224, 224);
-const QColor kIncompleteBackground(255, 244, 204);
-const QColor kErrorForeground(127, 29, 29);
-const QColor kIncompleteForeground(120, 53, 15);
-
 QString displayCell(const QString& value) {
     return value.trimmed().isEmpty() ? QStringLiteral("—") : value;
 }
 }
 
 MainWindow::MainWindow(VariantService* service, QWidget *parent)
+    : MainWindow(service, nullptr, parent)
+{
+}
+
+MainWindow::MainWindow(VariantService* service,
+                       TranslationManager* translator,
+                       QWidget* parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_variantService(service)
-    , m_translator(new TranslationManager(this))
+    , m_translator(translator ? translator : new TranslationManager(this))
 {
     ui->setupUi(this);
-    m_translator->loadSystemLocale();
+    if (m_translator->currentLocale().isEmpty())
+        m_translator->loadSystemLocale();
     m_logWindow = new LogWindow(this);
 
     auto* composite = new CompositeValidator(this);
@@ -378,6 +383,8 @@ void MainWindow::onVariantNumberChanged(int number) {
 
 void MainWindow::onInitialStateChanged(const QString& state) {
     if (m_updatingUi || state.isEmpty()) return;
+    cancelFieldPulse(m_initialStateComboBox);
+    m_initialStateComboBox->setToolTip(QString());
     const Result result = m_data.setInitialState(state);
     Logger::log(result);
     if (!result.ok()) {
@@ -391,6 +398,8 @@ void MainWindow::onInitialStateChanged(const QString& state) {
 
 void MainWindow::onStateNamesChanged(const QString& text) {
     if (m_updatingUi) return;
+    cancelFieldPulse(ui->stateNamesLineEdit);
+    const QString previousInitialState = m_data.getInitialState();
     const Result result = m_data.setStateNames(NameListParser::parse(text));
     Logger::log(result);
     if (!result.ok()) {
@@ -402,10 +411,16 @@ void MainWindow::onStateNamesChanged(const QString& text) {
     refreshTable();
     syncReactionFromData();
     updateSummary();
+    if (previousInitialState != m_data.getInitialState())
+        pulseField(m_initialStateComboBox,
+                   m_data.getInitialState().isEmpty()
+                       ? UiFeedbackLevel::Warning
+                       : UiFeedbackLevel::Success);
 }
 
 void MainWindow::onInputNamesChanged(const QString& text) {
     if (m_updatingUi) return;
+    cancelFieldPulse(ui->InputSignalNamesLineEdit);
     const Result result = m_data.setInputSignalNames(NameListParser::parse(text));
     Logger::log(result);
     if (!result.ok()) {
@@ -420,6 +435,7 @@ void MainWindow::onInputNamesChanged(const QString& text) {
 
 void MainWindow::onOutputNamesChanged(const QString& text) {
     if (m_updatingUi) return;
+    cancelFieldPulse(ui->OutputSignalNamesLineEdit);
     const Result result = m_data.setOutputSignalNames(NameListParser::parse(text));
     Logger::log(result);
     if (!result.ok()) {
@@ -449,8 +465,7 @@ void MainWindow::onTableCellChanged(int row, int col) {
         syncReactionFromData();
     } else {
         m_cellPresenter->show(result);
-        showInlineMessage(translateResult(result) + (result.details().isEmpty()
-            ? QString() : QStringLiteral(" — ") + result.details()));
+        showInlineMessage(translateResult(result));
     }
 }
 
@@ -489,6 +504,7 @@ void MainWindow::onReactionCellChanged(int row, int column) {
             nextCurrent->setText(nextState->text().trimmed());
         }
     }
+    const AutomatonData previousData = m_data;
     ReactionSyncReport report = syncDataFromReaction();
     if (report.hasErrors()) return;
 
@@ -503,6 +519,7 @@ void MainWindow::onReactionCellChanged(int row, int column) {
     refreshData();
     refreshTable();
     updateSummary();
+    highlightAutomaticDataChanges(previousData);
 }
 
 void MainWindow::onAddReactionStep() {
@@ -574,7 +591,8 @@ void MainWindow::onLoadVariantPushButton() {
         refreshTable();
         syncReactionFromData();
         showInlineMessage(
-            tr("The open variant was deleted. The fields have been cleared."), false);
+            tr("The open variant was deleted. The fields have been cleared."),
+            UiFeedbackLevel::Warning, 3500);
     });
     connect(&dialog, &VariantsList::variantsSwapped, this,
             [this](int first, int second) {
@@ -598,7 +616,7 @@ void MainWindow::onLoadVariantPushButton() {
     Result result = m_variantService->loadVariant(number);
     Logger::log(result);
     if (!result.ok() || !result.hasPayload()) {
-        ResultMessenger::show(this, result);
+        showInlineMessage(translateResult(result));
         return;
     }
     m_data = result.payloadAs<AutomatonData>();
@@ -607,9 +625,8 @@ void MainWindow::onLoadVariantPushButton() {
     refreshData();
     refreshTable();
     syncReactionFromData();
-    clearInlineMessage();
-    ui->statusbar->showMessage(
-        tr("Variant #%1 loaded").arg(number), 3000);
+    showInlineMessage(tr("Variant #%1 loaded").arg(number),
+                      UiFeedbackLevel::Success, 3500);
 }
 
 void MainWindow::onSavePushButtonClicked() {
@@ -617,30 +634,21 @@ void MainWindow::onSavePushButtonClicked() {
 
     Result existsResult = m_variantService->isExist(m_data.getVariantNumber());
     if (!existsResult.ok()) {
-        ResultMessenger::show(this, existsResult);
+        showInlineMessage(translateResult(existsResult));
         return;
     }
     const bool exists = existsResult.payloadAs<bool>();
-    if (exists) {
-        const bool replace = ResultMessenger::askConfirm(
-            this,
-            tr("Replace variant #%1?").arg(m_data.getVariantNumber()),
-            tr("A variant with this number already exists. Its data will be replaced."));
-        if (!replace) return;
-    }
 
     Result result = exists
         ? m_variantService->replaceVariant(m_data)
         : m_variantService->saveVariant(m_data);
     Logger::log(result);
     if (!result.ok()) {
-        ResultMessenger::show(this, result);
+        showInlineMessage(translateResult(result));
         return;
     }
-    clearInlineMessage();
-    ui->statusbar->showMessage(
-        tr("Variant #%1 saved").arg(m_data.getVariantNumber()),
-        3500);
+    showInlineMessage(tr("Variant #%1 saved").arg(m_data.getVariantNumber()),
+                      UiFeedbackLevel::Success, 3500);
 }
 
 void MainWindow::onNewVariantClicked() {
@@ -649,12 +657,12 @@ void MainWindow::onNewVariantClicked() {
         const int requested = ui->numberVariantSpinBox->value();
         Result exists = m_variantService->isExist(requested);
         if (!exists.ok()) {
-            ResultMessenger::show(this, exists);
+            showInlineMessage(translateResult(exists));
             return;
         }
         if (exists.payloadAs<bool>()) {
             ui->numberVariantSpinBox->setStyleSheet(
-                QStringLiteral("border: 2px solid #dc2626;"));
+                UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error));
             showInlineMessage(
                 tr("Variant #%1 already exists. Choose another number.")
                     .arg(requested));
@@ -674,7 +682,8 @@ void MainWindow::onNewVariantClicked() {
     refreshData();
     refreshTable();
     syncReactionFromData();
-    clearInlineMessage();
+    showInlineMessage(tr("New variant #%1 is ready.").arg(number),
+                      UiFeedbackLevel::Success, 2500);
     ui->stateNamesLineEdit->setFocus();
     Logger::info(QStringLiteral("Created a new in-memory variant #%1")
                      .arg(number), ResultCategory::Ui);
@@ -685,7 +694,7 @@ void MainWindow::onRemoveImageClicked() {
     refreshImagePreview();
     showInlineMessage(
         tr("The image was removed. Load a new one before saving."),
-        false);
+        UiFeedbackLevel::Warning, 3500);
     Logger::info(QStringLiteral("Removed the current variant image"),
                  ResultCategory::Ui);
 }
@@ -693,7 +702,7 @@ void MainWindow::onRemoveImageClicked() {
 void MainWindow::onExportArchiveClicked() {
     Result allResult = m_variantService->findAllVariants();
     if (!allResult.ok()) {
-        ResultMessenger::show(this, allResult);
+        showInlineMessage(translateResult(allResult));
         return;
     }
     QList<VariantRow> rows = allResult.payloadAs<QList<VariantRow>>();
@@ -709,9 +718,10 @@ void MainWindow::onExportArchiveClicked() {
         }
     }
     if (gap > 0 && ResultMessenger::askConfirm(
-            this, tr("Renumber variants?"),
+            this,
             tr("Variant #%1 is empty. Shift subsequent numbers before export?")
-                .arg(gap))) {
+                .arg(gap),
+            tr("Renumber variants?"))) {
         int newCurrentNumber = m_data.getVariantNumber();
         for (int i = 0; i < rows.size(); ++i) {
             if (rows[i].number == m_data.getVariantNumber()) {
@@ -721,7 +731,7 @@ void MainWindow::onExportArchiveClicked() {
         }
         Result compactResult = m_variantService->compactVariantNumbers();
         if (!compactResult.ok()) {
-            ResultMessenger::show(this, compactResult);
+            showInlineMessage(translateResult(compactResult));
             return;
         }
         m_data.setVariantNumber(newCurrentNumber);
@@ -757,13 +767,11 @@ void MainWindow::onExportArchiveClicked() {
     Result result = m_variantService->exportArchive(path, password);
     Logger::log(result);
     if (!result.ok()) {
-        ResultMessenger::show(this, result);
         showInlineMessage(translateResult(result));
         return;
     }
-    clearInlineMessage();
-    ui->statusbar->showMessage(
-        tr("The encrypted BazaVar archive was saved."), 4000);
+    showInlineMessage(tr("The encrypted BazaVar archive was saved."),
+                      UiFeedbackLevel::Success, 4000);
 }
 
 void MainWindow::onImportArchiveClicked() {
@@ -779,15 +787,15 @@ void MainWindow::onImportArchiveClicked() {
         QLineEdit::Password, QString(), &accepted);
     if (!accepted) return;
     if (!ResultMessenger::askConfirm(
-            this, tr("Open BazaVar?"),
-            tr("The current variant database will be replaced by the archive contents."))) {
+            this,
+            tr("The current variant database will be replaced by the archive contents."),
+            tr("Open BazaVar?"))) {
         return;
     }
 
     Result result = m_variantService->importArchive(path, password);
     Logger::log(result);
     if (!result.ok()) {
-        ResultMessenger::show(this, result);
         showInlineMessage(translateResult(result));
         return;
     }
@@ -809,9 +817,8 @@ void MainWindow::onImportArchiveClicked() {
     refreshData();
     refreshTable();
     syncReactionFromData();
-    clearInlineMessage();
-    ui->statusbar->showMessage(
-        tr("The BazaVar archive was opened."), 4000);
+    showInlineMessage(tr("The BazaVar archive was opened."),
+                      UiFeedbackLevel::Success, 4000);
 }
 
 void MainWindow::refreshTable() {
@@ -891,6 +898,18 @@ void MainWindow::refreshTable() {
 }
 
 void MainWindow::refreshData() {
+    cancelFieldPulse(ui->stateNamesLineEdit);
+    cancelFieldPulse(ui->InputSignalNamesLineEdit);
+    cancelFieldPulse(ui->OutputSignalNamesLineEdit);
+    cancelFieldPulse(m_initialStateComboBox);
+    const Result refreshed = Result::success(
+        QStringLiteral("Automaton fields refreshed from the current data"));
+    m_stateNamesPresenter->clear(refreshed);
+    m_inputNamesPresenter->clear(refreshed);
+    m_outputNamesPresenter->clear(refreshed);
+    m_initialStateComboBox->setStyleSheet(QString());
+    m_initialStateComboBox->setToolTip(QString());
+
     m_updatingUi = true;
     const int typeIndex =
         m_data.getType() == VariantType::MealyToMoore ? 0 : 1;
@@ -1010,10 +1029,12 @@ void MainWindow::applyReactionIssues(
                     m_reactionTable->item(row, issue.column)) {
                 item->setBackground(
                     issue.severity == ReactionIssueSeverity::Error
-                        ? kErrorBackground : kIncompleteBackground);
+                        ? UiFeedbackStyle::background(UiFeedbackLevel::Error)
+                        : UiFeedbackStyle::background(UiFeedbackLevel::Warning));
                 item->setForeground(
                     issue.severity == ReactionIssueSeverity::Error
-                        ? kErrorForeground : kIncompleteForeground);
+                        ? UiFeedbackStyle::foreground(UiFeedbackLevel::Error)
+                        : UiFeedbackStyle::foreground(UiFeedbackLevel::Warning));
                 item->setToolTip(issue.message);
             }
         }
@@ -1027,7 +1048,7 @@ void MainWindow::applyReactionIssues(
     if (!firstError.isEmpty())
         showInlineMessage(firstError);
     else if (!firstIncomplete.isEmpty())
-        showInlineMessage(firstIncomplete, false);
+        showInlineMessage(firstIncomplete, UiFeedbackLevel::Warning);
     else
         clearInlineMessage();
 }
@@ -1052,7 +1073,6 @@ bool MainWindow::validateBeforeSave() {
     Logger::log(result);
     if (!result.ok()) {
         presentAutomatonValidation(result);
-        ResultMessenger::show(this, result);
         return false;
     }
     return true;
@@ -1062,31 +1082,89 @@ void MainWindow::presentAutomatonValidation(const Result& result) {
     const QString message = translateResult(result);
     showInlineMessage(message);
 
-    if (result.code() != ErrorCode::ADStateWithoutIncomingTransition
-        && result.code() != ErrorCode::ADStateWithoutOutgoingTransition) {
+    const auto showFieldError = [this, &result](QWidget* field,
+                                                IErrorPresenter* presenter) {
+        cancelFieldPulse(field);
+        presenter->show(result);
+    };
+    const auto markItem = [&message](QTableWidgetItem* item) {
+        if (!item) return;
+        item->setBackground(
+            UiFeedbackStyle::background(UiFeedbackLevel::Error));
+        item->setForeground(
+            UiFeedbackStyle::foreground(UiFeedbackLevel::Error));
+        item->setToolTip(message);
+    };
+    const auto markTransitionRow = [this, &markItem](int row) {
+        if (row < 0) return;
+        for (int column = 0;
+             column < ui->transitionTableWidget->columnCount(); ++column) {
+            markItem(ui->transitionTableWidget->item(row, column));
+        }
+    };
+    const auto markTransitionColumn = [this, &markItem](int column) {
+        if (column < 0) return;
+        for (int row = 0;
+             row < ui->transitionTableWidget->rowCount(); ++row) {
+            markItem(ui->transitionTableWidget->item(row, column));
+        }
+    };
+    const auto markReactionTacts = [this, &markItem](int row,
+                                                      const QString& offender) {
+        const QSignalBlocker blocker(m_reactionTable);
+        for (int column = 0;
+             column < m_reactionTable->columnCount(); ++column) {
+            const QTableWidgetItem* match = m_reactionTable->item(row, column);
+            if (!match || match->text().trimmed() != offender) continue;
+            for (int reactionRow = 0;
+                 reactionRow < m_reactionTable->rowCount(); ++reactionRow) {
+                markItem(m_reactionTable->item(reactionRow, column));
+            }
+        }
+    };
+
+    switch (result.code()) {
+    case ErrorCode::ADEmptyStateList:
+        showFieldError(ui->stateNamesLineEdit, m_stateNamesPresenter);
+        return;
+    case ErrorCode::ADEmptyInputList:
+        showFieldError(ui->InputSignalNamesLineEdit, m_inputNamesPresenter);
+        return;
+    case ErrorCode::ADEmptyOutputList:
+        showFieldError(ui->OutputSignalNamesLineEdit, m_outputNamesPresenter);
+        return;
+    case ErrorCode::ADInitialStateNotSet:
+    case ErrorCode::ADInitialStateNotFound:
+        cancelFieldPulse(m_initialStateComboBox);
+        m_initialStateComboBox->setStyleSheet(
+            UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error));
+        m_initialStateComboBox->setToolTip(message);
+        return;
+    case ErrorCode::ADUnusedInput: {
+        showFieldError(ui->InputSignalNamesLineEdit, m_inputNamesPresenter);
+        const int inputIndex =
+            m_data.getInputSignalNames().indexOf(result.offender());
+        const int rowOffset =
+            m_data.getType() == VariantType::MooreToMealy ? 2 : 1;
+        markTransitionRow(inputIndex < 0 ? -1 : inputIndex + rowOffset);
+        markReactionTacts(1, result.offender());
+        return;
+    }
+    case ErrorCode::ADUnusedOutput:
+        showFieldError(ui->OutputSignalNamesLineEdit, m_outputNamesPresenter);
+        markReactionTacts(3, result.offender());
+        return;
+    case ErrorCode::ADStateWithoutIncomingTransition:
+    case ErrorCode::ADStateWithoutOutgoingTransition:
+        showFieldError(ui->stateNamesLineEdit, m_stateNamesPresenter);
+        break;
+    default:
         return;
     }
 
     const int stateIndex = m_data.getStateNames().indexOf(result.offender());
-    const int headerRow =
-        m_data.getType() == VariantType::MooreToMealy ? 1 : 0;
-    if (stateIndex >= 0) {
-        if (auto* item = ui->transitionTableWidget->item(
-                headerRow, stateIndex + 1)) {
-            item->setBackground(kErrorBackground);
-            item->setForeground(kErrorForeground);
-            item->setToolTip(message);
-        }
-    }
-
-    const QSignalBlocker blocker(m_reactionTable);
-    for (int column = 0; column < m_reactionTable->columnCount(); ++column) {
-        QTableWidgetItem* item = m_reactionTable->item(0, column);
-        if (!item || item->text().trimmed() != result.offender()) continue;
-        item->setBackground(kErrorBackground);
-        item->setForeground(kErrorForeground);
-        item->setToolTip(message);
-    }
+    markTransitionColumn(stateIndex < 0 ? -1 : stateIndex + 1);
+    markReactionTacts(0, result.offender());
 }
 
 bool MainWindow::loadImageFromPath(const QString& path) {
@@ -1115,28 +1193,110 @@ bool MainWindow::loadImageFromPath(const QString& path) {
     }
     m_data.setDiagramImage(data, QFileInfo(path).fileName());
     refreshImagePreview();
-    clearInlineMessage();
+    showInlineMessage(tr("The task image was loaded."),
+                      UiFeedbackLevel::Success, 2500);
     Logger::info(QStringLiteral("Loaded image '%1' (%2 bytes)")
                      .arg(QFileInfo(path).fileName()).arg(data.size()),
                  ResultCategory::Ui);
     return true;
 }
 
-void MainWindow::showInlineMessage(
-    const QString& text, bool error) {
+void MainWindow::showInlineMessage(const QString& text,
+                                   UiFeedbackLevel level,
+                                   int timeoutMs) {
+    const quint64 revision = ++m_messageRevision;
     m_validationLabel->setText(text);
-    m_validationLabel->setStyleSheet(error
-        ? QStringLiteral(
-              "background: #fff1f2; color: #9f1239; "
-              "border: 1px solid #fecdd3;")
-        : QStringLiteral(
-              "background: #fffbeb; color: #92400e; "
-              "border: 1px solid #fde68a;"));
+    m_validationLabel->setStyleSheet(UiFeedbackStyle::bannerStyle(level));
     m_validationLabel->show();
-    ui->statusbar->showMessage(text);
+    ui->statusbar->showMessage(text, timeoutMs);
+    if (timeoutMs > 0) {
+        QTimer::singleShot(timeoutMs, this, [this, revision] {
+            if (revision == m_messageRevision)
+                clearInlineMessage();
+        });
+    }
 }
 
 void MainWindow::clearInlineMessage() {
+    ++m_messageRevision;
     m_validationLabel->clear();
     m_validationLabel->hide();
+    ui->statusbar->clearMessage();
+}
+
+void MainWindow::cancelFieldPulse(QWidget* field) {
+    if (!field) return;
+    auto* animation = qobject_cast<QVariantAnimation*>(
+        field->property("automaticFieldFeedbackAnimation")
+            .value<QObject*>());
+    if (!animation) return;
+
+    animation->stop();
+    field->setProperty("automaticFieldFeedbackAnimation", QVariant());
+    field->setStyleSheet(QString());
+    animation->deleteLater();
+}
+
+void MainWindow::pulseField(QWidget* field, UiFeedbackLevel level) {
+    if (!field) return;
+    cancelFieldPulse(field);
+
+    auto* animation = new QVariantAnimation(field);
+    animation->setObjectName(QStringLiteral("automaticFieldFeedback"));
+    animation->setDuration(900);
+    animation->setStartValue(0);
+    animation->setKeyValueAt(0.28, 255);
+    animation->setEndValue(0);
+    animation->setEasingCurve(QEasingCurve::InOutQuad);
+    field->setProperty("automaticFieldFeedbackAnimation",
+                       QVariant::fromValue<QObject*>(animation));
+    connect(animation, &QVariantAnimation::valueChanged, field,
+            [field, level](const QVariant& value) {
+                field->setStyleSheet(
+                    UiFeedbackStyle::fieldStyle(level, value.toInt()));
+            });
+    connect(animation, &QVariantAnimation::finished, field,
+            [field, animation] {
+                if (field->property("automaticFieldFeedbackAnimation")
+                        .value<QObject*>() == animation) {
+                    field->setStyleSheet(QString());
+                    field->setProperty("automaticFieldFeedbackAnimation", QVariant());
+                }
+                animation->deleteLater();
+            });
+    animation->start();
+}
+
+void MainWindow::highlightAutomaticDataChanges(
+    const AutomatonData& previousData) {
+    const auto pulseListChange = [this](QWidget* field,
+                                        IErrorPresenter* presenter,
+                                        const QStringList& before,
+                                        const QStringList& after) {
+        if (before == after) return;
+        presenter->clear(Result::success(
+            QStringLiteral("Automatically synchronized symbol list")));
+        pulseField(field, after.size() >= before.size()
+                              ? UiFeedbackLevel::Success
+                              : UiFeedbackLevel::Warning);
+    };
+
+    pulseListChange(ui->stateNamesLineEdit,
+                    m_stateNamesPresenter,
+                    previousData.getStateNames(), m_data.getStateNames());
+    pulseListChange(ui->InputSignalNamesLineEdit,
+                    m_inputNamesPresenter,
+                    previousData.getInputSignalNames(),
+                    m_data.getInputSignalNames());
+    pulseListChange(ui->OutputSignalNamesLineEdit,
+                    m_outputNamesPresenter,
+                    previousData.getOutputSignalNames(),
+                    m_data.getOutputSignalNames());
+    if (previousData.getInitialState() != m_data.getInitialState()) {
+        m_initialStateComboBox->setToolTip(QString());
+        pulseField(m_initialStateComboBox,
+                   m_data.getInitialState().isEmpty()
+                       ? UiFeedbackLevel::Warning
+                       : UiFeedbackLevel::Success);
+    }
 }

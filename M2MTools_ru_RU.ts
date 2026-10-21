@@ -248,7 +248,7 @@
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="119"/>
-        <location filename="ui/mainwindow.cpp" line="225"/>
+        <location filename="ui/mainwindow.cpp" line="230"/>
         <source>Transition table</source>
         <translation>Таблица переходов</translation>
     </message>
@@ -304,7 +304,7 @@
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="170"/>
-        <location filename="ui/mainwindow.cpp" line="217"/>
+        <location filename="ui/mainwindow.cpp" line="222"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
@@ -315,14 +315,14 @@
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="208"/>
-        <location filename="ui/mainwindow.cpp" line="221"/>
+        <location filename="ui/mainwindow.cpp" line="226"/>
         <source>Exit</source>
         <translation>Выход</translation>
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="216"/>
-        <location filename="ui/mainwindow.cpp" line="218"/>
-        <location filename="ui/mainwindow.cpp" line="235"/>
+        <location filename="ui/mainwindow.cpp" line="223"/>
+        <location filename="ui/mainwindow.cpp" line="240"/>
         <source>Save variant</source>
         <translation>Сохранить автомат</translation>
     </message>
@@ -383,298 +383,306 @@ Details: %2</source>
         <translation type="obsolete">Вых. сигналы</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="202"/>
+        <location filename="ui/mainwindow.cpp" line="207"/>
         <source>M2MTools — Equivalent Automata Editor</source>
         <translation>M2MTools — редактор эквивалентных автоматов</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="203"/>
+        <location filename="ui/mainwindow.cpp" line="208"/>
         <source>Variant</source>
         <translation>Вариант</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="204"/>
+        <location filename="ui/mainwindow.cpp" line="209"/>
         <source>Automaton Symbols</source>
         <translation>Обозначения автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="205"/>
+        <location filename="ui/mainwindow.cpp" line="210"/>
         <source>Automaton Definition</source>
         <translation>Описание автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="206"/>
+        <location filename="ui/mainwindow.cpp" line="211"/>
         <source>Variant number</source>
         <translation>Номер варианта</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="207"/>
+        <location filename="ui/mainwindow.cpp" line="212"/>
         <source>Conversion</source>
         <translation>Преобразование</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="208"/>
+        <location filename="ui/mainwindow.cpp" line="213"/>
         <source>States A</source>
         <translation>Состояния A</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="209"/>
+        <location filename="ui/mainwindow.cpp" line="214"/>
         <source>Input signals X</source>
         <translation>Входные сигналы X</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="210"/>
+        <location filename="ui/mainwindow.cpp" line="215"/>
         <source>Output signals Y</source>
         <translation>Выходные сигналы Y</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="211"/>
+        <location filename="ui/mainwindow.cpp" line="216"/>
         <source>Mealy → Moore</source>
         <translation>Мили → Мура</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="212"/>
+        <location filename="ui/mainwindow.cpp" line="217"/>
         <source>Moore → Mealy</source>
         <translation>Мура → Мили</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="213"/>
+        <location filename="ui/mainwindow.cpp" line="218"/>
         <source>For example: a0, a1, a2</source>
         <translation>Например: a0, a1, a2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="214"/>
+        <location filename="ui/mainwindow.cpp" line="219"/>
         <source>For example: x1, x2</source>
         <translation>Например: x1, x2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="215"/>
+        <location filename="ui/mainwindow.cpp" line="220"/>
         <source>For example: y1, y2</source>
         <translation>Например: y1, y2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="216"/>
+        <location filename="ui/mainwindow.cpp" line="221"/>
         <source>File</source>
         <translation>Файл</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="219"/>
-        <location filename="ui/mainwindow.cpp" line="236"/>
+        <location filename="ui/mainwindow.cpp" line="224"/>
+        <location filename="ui/mainwindow.cpp" line="241"/>
         <source>Open variants</source>
         <translation>Открыть варианты</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="220"/>
+        <location filename="ui/mainwindow.cpp" line="225"/>
         <source>Event log</source>
         <translation>Журнал событий</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="222"/>
+        <location filename="ui/mainwindow.cpp" line="227"/>
         <source>New variant</source>
         <translation>Новый вариант</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="223"/>
+        <location filename="ui/mainwindow.cpp" line="228"/>
         <source>Initial state</source>
         <translation>Начальное состояние</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="224"/>
+        <location filename="ui/mainwindow.cpp" line="229"/>
         <source>Edit using:</source>
         <translation>Редактировать по:</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="226"/>
+        <location filename="ui/mainwindow.cpp" line="231"/>
         <source>Automaton reaction</source>
         <translation>Реакция автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="227"/>
+        <location filename="ui/mainwindow.cpp" line="232"/>
         <source>Both forms update automatically</source>
         <translation>Обе формы обновляются автоматически</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="228"/>
+        <location filename="ui/mainwindow.cpp" line="233"/>
         <source>One column is one tact: A + X → A′ / Y. Names are added automatically. Press Enter to insert a tact after the selected column.</source>
         <translation>Один столбец — один такт: A + X → A′ / Y. Имена добавляются автоматически. Enter вставляет такт после выделенного столбца.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="232"/>
-        <location filename="ui/mainwindow.cpp" line="855"/>
-        <location filename="ui/mainwindow.cpp" line="860"/>
+        <location filename="ui/mainwindow.cpp" line="237"/>
+        <location filename="ui/mainwindow.cpp" line="862"/>
+        <location filename="ui/mainwindow.cpp" line="867"/>
         <source>State</source>
         <translation>Состояния</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="232"/>
+        <location filename="ui/mainwindow.cpp" line="237"/>
         <source>Input X</source>
         <translation>Вход X</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="232"/>
+        <location filename="ui/mainwindow.cpp" line="237"/>
         <source>Next state</source>
         <translation>След. состояние</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="232"/>
-        <location filename="ui/mainwindow.cpp" line="850"/>
+        <location filename="ui/mainwindow.cpp" line="237"/>
+        <location filename="ui/mainwindow.cpp" line="857"/>
         <source>Output Y</source>
         <translation>Выход Y</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="233"/>
+        <location filename="ui/mainwindow.cpp" line="238"/>
         <source>+ Add tact</source>
         <translation>+ Добавить такт</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="234"/>
+        <location filename="ui/mainwindow.cpp" line="239"/>
         <source>Remove tact</source>
         <translation>Удалить такт</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="237"/>
+        <location filename="ui/mainwindow.cpp" line="242"/>
         <source>Open BazaVar…</source>
         <translation>Открыть BazaVar…</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="238"/>
+        <location filename="ui/mainwindow.cpp" line="243"/>
         <source>Export BazaVar…</source>
         <translation>Экспорт BazaVar…</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="474"/>
+        <location filename="ui/mainwindow.cpp" line="489"/>
         <source>The first tact must start with the selected initial state &apos;%1&apos;.</source>
         <translation>Первый такт должен начинаться с выбранного начального состояния &apos;%1&apos;.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="577"/>
+        <location filename="ui/mainwindow.cpp" line="594"/>
         <source>The open variant was deleted. The fields have been cleared.</source>
         <translation>Открытый вариант удалён. Поля очищены.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="612"/>
+        <location filename="ui/mainwindow.cpp" line="628"/>
         <source>Variant #%1 loaded</source>
         <translation>Вариант №%1 загружен</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="627"/>
+        <location filename="ui/mainwindow.cpp" line="1184"/>
+        <source>The task image was loaded.</source>
+        <translation>Изображение задания загружено.</translation>
+    </message>
+    <message>
         <source>Replace variant #%1?</source>
-        <translation>Заменить вариант №%1?</translation>
+        <translation type="vanished">Заменить вариант №%1?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="628"/>
         <source>A variant with this number already exists. Its data will be replaced.</source>
-        <translation>Вариант с таким номером уже существует. Его данные будут заменены.</translation>
+        <translation type="vanished">Вариант с таким номером уже существует. Его данные будут заменены.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="642"/>
+        <location filename="ui/mainwindow.cpp" line="650"/>
         <source>Variant #%1 saved</source>
         <translation>Вариант №%1 сохранён</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="659"/>
+        <location filename="ui/mainwindow.cpp" line="667"/>
         <source>Variant #%1 already exists. Choose another number.</source>
         <translation>Вариант №%1 уже существует. Выберите другой номер.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="687"/>
+        <location filename="ui/mainwindow.cpp" line="696"/>
         <source>The image was removed. Load a new one before saving.</source>
         <translation>Изображение удалено. Загрузите новое перед сохранением.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="712"/>
+        <location filename="ui/mainwindow.cpp" line="724"/>
         <source>Renumber variants?</source>
         <translation>Перенумеровать варианты?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="713"/>
+        <location filename="ui/mainwindow.cpp" line="722"/>
         <source>Variant #%1 is empty. Shift subsequent numbers before export?</source>
         <translation>Вариант №%1 пуст. Сдвинуть следующие номера перед экспортом?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="732"/>
+        <location filename="ui/mainwindow.cpp" line="685"/>
+        <source>New variant #%1 is ready.</source>
+        <translation>Новый вариант №%1 готов.</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="742"/>
         <source>Save encrypted database</source>
         <translation>Сохранить зашифрованную базу</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="734"/>
-        <location filename="ui/mainwindow.cpp" line="772"/>
+        <location filename="ui/mainwindow.cpp" line="744"/>
+        <location filename="ui/mainwindow.cpp" line="780"/>
         <source>M2MTools archive (*.m2m);;All files (*)</source>
         <translation>Архив M2MTools (*.m2m);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="741"/>
-        <location filename="ui/mainwindow.cpp" line="777"/>
+        <location filename="ui/mainwindow.cpp" line="751"/>
+        <location filename="ui/mainwindow.cpp" line="785"/>
         <source>BazaVar password</source>
         <translation>Пароль BazaVar</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="742"/>
+        <location filename="ui/mainwindow.cpp" line="752"/>
         <source>Enter a password (at least 8 characters):</source>
         <translation>Введите пароль (не менее 8 символов):</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="746"/>
+        <location filename="ui/mainwindow.cpp" line="756"/>
         <source>Confirm password</source>
         <translation>Подтверждение пароля</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="747"/>
+        <location filename="ui/mainwindow.cpp" line="757"/>
         <source>Repeat the password:</source>
         <translation>Повторите пароль:</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="751"/>
+        <location filename="ui/mainwindow.cpp" line="761"/>
         <source>Passwords do not match.</source>
         <translation>Пароли не совпадают.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="766"/>
+        <location filename="ui/mainwindow.cpp" line="773"/>
         <source>The encrypted BazaVar archive was saved.</source>
         <translation>Зашифрованный архив BazaVar сохранён.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="771"/>
+        <location filename="ui/mainwindow.cpp" line="779"/>
         <source>Open encrypted database</source>
         <translation>Открыть зашифрованную базу</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="778"/>
+        <location filename="ui/mainwindow.cpp" line="786"/>
         <source>Enter the archive password:</source>
         <translation>Введите пароль архива:</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="782"/>
+        <location filename="ui/mainwindow.cpp" line="792"/>
         <source>Open BazaVar?</source>
         <translation>Открыть BazaVar?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="783"/>
+        <location filename="ui/mainwindow.cpp" line="791"/>
         <source>The current variant database will be replaced by the archive contents.</source>
         <translation>Текущая база вариантов будет заменена содержимым архива.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="814"/>
+        <location filename="ui/mainwindow.cpp" line="820"/>
         <source>The BazaVar archive was opened.</source>
         <translation>Архив BazaVar открыт.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1046"/>
+        <location filename="ui/mainwindow.cpp" line="1055"/>
         <source>Add the task image for this variant.</source>
         <translation>Добавьте изображение задания для варианта.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1095"/>
+        <location filename="ui/mainwindow.cpp" line="1161"/>
         <source>Could not open the image file.</source>
         <translation>Не удалось открыть файл изображения.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1102"/>
+        <location filename="ui/mainwindow.cpp" line="1168"/>
         <source>The image size must not exceed 10 MB.</source>
         <translation>Размер изображения не должен превышать 10 МБ.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1111"/>
+        <location filename="ui/mainwindow.cpp" line="1177"/>
         <source>The selected file is not a supported image.</source>
         <translation>Выбранный файл не является поддерживаемым изображением.</translation>
     </message>
@@ -858,6 +866,7 @@ Details: %2</source>
         <translation>Предупреждение</translation>
     </message>
     <message>
+        <location filename="tools/cloud-setup/smoke/smoke.cpp" line="309"/>
         <location filename="ui/dialogs/resultmessenger.cpp" line="17"/>
         <source>Error</source>
         <translation>Ошибка</translation>
@@ -890,7 +899,7 @@ Details: %2</source>
 <context>
     <name>VariantImagePanel</name>
     <message>
-        <location filename="ui/widgets/variantimagepanel.cpp" line="76"/>
+        <location filename="ui/widgets/variantimagepanel.cpp" line="78"/>
         <source>States: %1  ·  Inputs: %2  ·  Outputs: %3</source>
         <translation>Состояний: %1  ·  Входов: %2  ·  Выходов: %3</translation>
     </message>
@@ -1062,12 +1071,12 @@ or click to select a file</source>
         <translation>Удалить вариант №%1?</translation>
     </message>
     <message>
-        <location filename="ui/variantslist.cpp" line="205"/>
+        <location filename="ui/variantslist.cpp" line="206"/>
         <source>Renumber variants?</source>
         <translation>Перенумеровать варианты?</translation>
     </message>
     <message>
-        <location filename="ui/variantslist.cpp" line="206"/>
+        <location filename="ui/variantslist.cpp" line="205"/>
         <source>Variant #%1 is empty. Shift subsequent numbers?</source>
         <translation>Вариант №%1 пуст. Сдвинуть следующие номера?</translation>
     </message>
@@ -1109,6 +1118,30 @@ or click to select a file</source>
         <location filename="ui/variantslist.ui" line="44"/>
         <source>Delete</source>
         <translation>Удалить</translation>
+    </message>
+</context>
+<context>
+    <name>main</name>
+    <message>
+        <location filename="main.cpp" line="21"/>
+        <location filename="tools/cloud-setup/smoke/smoke.cpp" line="311"/>
+        <source>Database error</source>
+        <translation>Ошибка базы данных</translation>
+    </message>
+    <message>
+        <location filename="main.cpp" line="22"/>
+        <source>Failed to open the database.</source>
+        <translation>Не удалось открыть базу данных.</translation>
+    </message>
+    <message>
+        <location filename="main.cpp" line="34"/>
+        <source>Schema error</source>
+        <translation>Ошибка структуры базы данных</translation>
+    </message>
+    <message>
+        <location filename="main.cpp" line="35"/>
+        <source>Failed to initialize the database schema.</source>
+        <translation>Не удалось инициализировать структуру базы данных.</translation>
     </message>
 </context>
 </TS>

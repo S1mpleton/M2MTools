@@ -5,6 +5,7 @@
 #include "core/reactionsynchronizer.h"
 #include "data/variantservice.h"
 #include "infrastructure/translationmanager.h"
+#include "ui/feedbackstyle.h"
 #include "ui/logwindow.h"
 #include "ui/presenters/tablecellerrorpresenter.h"
 
@@ -27,6 +28,8 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 public:
     explicit MainWindow(VariantService* service, QWidget *parent = nullptr);
+    MainWindow(VariantService* service, TranslationManager* translator,
+               QWidget* parent);
     ~MainWindow() override;
 
 private slots:
@@ -63,6 +66,7 @@ private:
     bool m_updatingUi = false;
     bool m_numberWasEdited = false;
     bool m_initialStateWasEdited = false;
+    quint64 m_messageRevision = 0;
 
     LogWindow* m_logWindow = nullptr;
     VariantService* m_variantService = nullptr;
@@ -110,8 +114,13 @@ private:
     bool validateBeforeSave();
     void presentAutomatonValidation(const Result& result);
     bool loadImageFromPath(const QString& path);
-    void showInlineMessage(const QString& text, bool error = true);
+    void showInlineMessage(const QString& text,
+                           UiFeedbackLevel level = UiFeedbackLevel::Error,
+                           int timeoutMs = 0);
     void clearInlineMessage();
+    void cancelFieldPulse(QWidget* field);
+    void pulseField(QWidget* field, UiFeedbackLevel level);
+    void highlightAutomaticDataChanges(const AutomatonData& previousData);
 
 protected:
     void changeEvent(QEvent *event) override;

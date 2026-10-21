@@ -1,11 +1,7 @@
 #include "tablecellerrorpresenter.h"
 
+#include "ui/feedbackstyle.h"
 #include "ui/translateresult.h"
-
-namespace {
-    const QColor kErrorBackground(204, 34, 34);
-    const QColor kErrorForeground(Qt::white);
-}
 
 TableCellErrorPresenter::TableCellErrorPresenter(
     QTableWidget* table,
@@ -31,8 +27,8 @@ void TableCellErrorPresenter::setCoordinates(int row, int col) {
 
 void TableCellErrorPresenter::show(const Result& result) {
     if (auto* it = item()) {
-        it->setBackground(QBrush(kErrorBackground));
-        it->setForeground(QBrush(kErrorForeground));
+        it->setBackground(QBrush(UiFeedbackStyle::background(UiFeedbackLevel::Error)));
+        it->setForeground(QBrush(UiFeedbackStyle::foreground(UiFeedbackLevel::Error)));
         it->setToolTip(translateResult(result));
     }
     if (m_statusBar)
@@ -45,6 +41,5 @@ void TableCellErrorPresenter::clear(const Result& result) {
         it->setForeground(QBrush());
         it->setToolTip("");
     }
-    if (m_statusBar)
-        m_statusBar->showMessage(translateResult(result), 2500);
+    Q_UNUSED(result);
 }

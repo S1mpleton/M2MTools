@@ -1,6 +1,7 @@
 #include "logwindow.h"
 #include "infrastructure/logger.h"
 #include "ui/dialogs/resultmessenger.h"
+#include "ui/feedbackstyle.h"
 #include "ui/translateresult.h"
 
 #include <QVBoxLayout>
@@ -111,11 +112,12 @@ void LogWindow::appendResult(const Result& result) {
     if (!passesFilter(result))
         return;
 
-    const QString color = result.isError() ?
-                QStringLiteral("#CC2222") :
-                result.isWarning() ?
-                    QStringLiteral("#CC8822") :
-                    QStringLiteral("#228822");
+    const UiFeedbackLevel level = result.isError()
+        ? UiFeedbackLevel::Error
+        : result.isWarning()
+            ? UiFeedbackLevel::Warning
+            : UiFeedbackLevel::Success;
+    const QString color = UiFeedbackStyle::foreground(level).name();
 
     const QString timestamp = result.timestamp().toString("hh:mm:ss");
 
