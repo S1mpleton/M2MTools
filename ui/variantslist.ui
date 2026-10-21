@@ -32,6 +32,16 @@
         <item>
          <widget class="QComboBox" name="variantSortComboBox"/>
         </item>
+        <item>
+         <widget class="QLabel" name="typeFilterLabel">
+          <property name="text">
+           <string>Automaton type</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="variantTypeFilterComboBox"/>
+        </item>
        </layout>
       </item>
       <item row="1" column="0">

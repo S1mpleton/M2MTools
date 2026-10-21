@@ -27,7 +27,6 @@ public:
 signals:
     void variantDeleted(int number);
     void variantsSwapped(int firstNumber, int secondNumber);
-    void variantsCompacted(int firstMissingNumber);
 
 private slots:
     void onLoadClicked();

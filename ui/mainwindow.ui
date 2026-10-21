@@ -161,7 +161,9 @@
     </property>
     <addaction name="actionSaveVariant"/>
     <addaction name="actionLoadVariant"/>
-    <addaction name="actionShowLogger"/>
+    <addaction name="actionDatabaseSeparator"/>
+    <addaction name="actionImportDatabase"/>
+    <addaction name="actionExportDatabase"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
@@ -195,6 +197,7 @@
      <addaction name="actionSetLangRu"/>
     </widget>
     <addaction name="menuLanguage"/>
+    <addaction name="actionShowLogger"/>
    </widget>
    <addaction name="menuMain"/>
    <addaction name="menuSettings"/>
@@ -222,6 +225,27 @@
    </property>
    <property name="text">
     <string>Load variant</string>
+   </property>
+  </action>
+  <action name="actionDatabaseSeparator">
+   <property name="separator">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionImportDatabase">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentOpen"/>
+   </property>
+   <property name="text">
+    <string>Import database</string>
+   </property>
+  </action>
+  <action name="actionExportDatabase">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentSaveAs"/>
+   </property>
+   <property name="text">
+    <string>Export database</string>
    </property>
   </action>
   <action name="actionSetLangEn">

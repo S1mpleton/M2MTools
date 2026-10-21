@@ -11,7 +11,6 @@
 #include <QGroupBox>
 #include <QIntValidator>
 #include <QPushButton>
-#include <QSet>
 
 #include <algorithm>
 
@@ -19,8 +18,12 @@ namespace {
 enum class VariantSort {
     NumberAscending,
     NumberDescending,
-    TypeAscending,
-    TypeDescending,
+};
+
+enum class VariantTypeFilter {
+    All,
+    MealyToMoore,
+    MooreToMealy,
 };
 
 QList<VariantRow> sortedVariants(QList<VariantRow> variants,
@@ -28,21 +31,25 @@ QList<VariantRow> sortedVariants(QList<VariantRow> variants,
     std::stable_sort(
         variants.begin(), variants.end(),
         [sort](const VariantRow& left, const VariantRow& right) {
-            if (sort == VariantSort::NumberAscending)
-                return left.number < right.number;
-            if (sort == VariantSort::NumberDescending)
-                return left.number > right.number;
-
-            const int leftType = static_cast<int>(
-                variantTypeStringToType(left.conversion));
-            const int rightType = static_cast<int>(
-                variantTypeStringToType(right.conversion));
-            if (leftType == rightType)
-                return left.number < right.number;
-            return sort == VariantSort::TypeAscending
-                ? leftType < rightType : leftType > rightType;
+            return sort == VariantSort::NumberAscending
+                ? left.number < right.number
+                : left.number > right.number;
         });
     return variants;
+}
+
+QList<VariantRow> filteredVariants(
+    const QList<VariantRow>& variants, VariantTypeFilter filter) {
+    if (filter == VariantTypeFilter::All) return variants;
+
+    const VariantType expected = filter == VariantTypeFilter::MealyToMoore
+        ? VariantType::MealyToMoore : VariantType::MooreToMealy;
+    QList<VariantRow> filtered;
+    for (const VariantRow& variant : variants) {
+        if (variantTypeStringToType(variant.conversion) == expected)
+            filtered.append(variant);
+    }
+    return filtered;
 }
 }
 
@@ -66,6 +73,8 @@ VariantsList::VariantsList(VariantService *service, QWidget *parent)
     connect(ui->variantsTableWidget, &QTableWidget::itemSelectionChanged,
             this, &VariantsList::onSelectionChanged);
     connect(ui->variantSortComboBox, &QComboBox::currentIndexChanged,
+            this, [this] { populateTable(); });
+    connect(ui->variantTypeFilterComboBox, &QComboBox::currentIndexChanged,
             this, [this] { populateTable(); });
     connect(m_swapButton, &QPushButton::clicked,
             this, &VariantsList::onSwapClicked);
@@ -97,12 +106,15 @@ void VariantsList::configureTable() {
     ui->variantSortComboBox->addItem(
         tr("Variant number: descending"),
         static_cast<int>(VariantSort::NumberDescending));
-    ui->variantSortComboBox->addItem(
-        tr("Task type: ascending"),
-        static_cast<int>(VariantSort::TypeAscending));
-    ui->variantSortComboBox->addItem(
-        tr("Task type: descending"),
-        static_cast<int>(VariantSort::TypeDescending));
+
+    ui->variantTypeFilterComboBox->addItem(
+        tr("All types"), static_cast<int>(VariantTypeFilter::All));
+    ui->variantTypeFilterComboBox->addItem(
+        tr("Mealy → Moore"),
+        static_cast<int>(VariantTypeFilter::MealyToMoore));
+    ui->variantTypeFilterComboBox->addItem(
+        tr("Moore → Mealy"),
+        static_cast<int>(VariantTypeFilter::MooreToMealy));
 }
 
 void VariantsList::configureSwapControls() {
@@ -141,10 +153,14 @@ void VariantsList::populateTable() {
         return;
     }
 
+    const QList<VariantRow> allVariants =
+        r.payloadAs<QList<VariantRow>>();
     const auto sort = static_cast<VariantSort>(
         ui->variantSortComboBox->currentData().toInt());
+    const auto filter = static_cast<VariantTypeFilter>(
+        ui->variantTypeFilterComboBox->currentData().toInt());
     const auto variants = sortedVariants(
-        r.payloadAs<QList<VariantRow>>(), sort);
+        filteredVariants(allVariants, filter), sort);
     table->setRowCount(variants.size());
 
     for (int i = 0; i < variants.size(); ++i) {
@@ -164,7 +180,7 @@ void VariantsList::populateTable() {
         imageItem->setToolTip(v.imageName);
         table->setItem(i, 2, imageItem);
     }
-    populateSwapControls(variants);
+    populateSwapControls(allVariants);
 }
 
 void VariantsList::populateSwapControls(const QList<VariantRow>& variants) {
@@ -236,36 +252,6 @@ void VariantsList::onDeleteClicked() {
 
     emit variantDeleted(ref->number);
     populateTable();
-
-    Result allResult = m_service->findAllVariants();
-    if (!allResult.ok()) return;
-    const auto variants = allResult.payloadAs<QList<VariantRow>>();
-    QSet<int> numbers;
-    int maximum = 0;
-    for (const VariantRow& variant : variants) {
-        numbers.insert(variant.number);
-        maximum = qMax(maximum, variant.number);
-    }
-    int gap = 0;
-    for (int number = 1; number < maximum; ++number) {
-        if (!numbers.contains(number)) {
-            gap = number;
-            break;
-        }
-    }
-    if (gap > 0 && ResultMessenger::askConfirm(
-            this,
-            tr("Variant #%1 is empty. Shift subsequent numbers?").arg(gap),
-            tr("Renumber variants?"))) {
-        Result compactResult = m_service->compactVariantNumbers();
-        Logger::log(compactResult);
-        if (!compactResult.ok())
-            ResultMessenger::show(this, compactResult);
-        else {
-            emit variantsCompacted(gap);
-            populateTable();
-        }
-    }
 }
 
 void VariantsList::onSwapClicked() {

@@ -33,11 +33,6 @@ QWidget* ReactionDelegate::createEditor(
         editor->setValidator(
             new EditValidator(editor, kSingleNameForbiddenCharacters));
     }
-    auto* delegate = const_cast<ReactionDelegate*>(this);
-    connect(editor, &QLineEdit::textEdited, delegate,
-            [delegate, editor] {
-                emit delegate->commitData(editor);
-            });
     return editor;
 }
 

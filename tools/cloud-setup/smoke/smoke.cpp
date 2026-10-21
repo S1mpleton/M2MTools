@@ -9,13 +9,16 @@
 #include "validation/compositevalidator.h"
 #include "validation/editvalidator.h"
 #include <QAction>
+#include <QAbstractButton>
 #include <QApplication>
 #include <QLineEdit>
 #include <QComboBox>
 #include <QFile>
 #include <QLabel>
+#include <QMenu>
+#include <QMessageBox>
+#include <QPointer>
 #include <QPushButton>
-#include <QRect>
 #include <QScrollArea>
 #include <QShortcut>
 #include <QSpinBox>
@@ -313,9 +316,11 @@ int main(int argc, char** argv) {
             VariantsList variantsDialog(&service);
             auto* sort = variantsDialog.findChild<QComboBox*>(
                 "variantSortComboBox");
+            auto* typeFilter = variantsDialog.findChild<QComboBox*>(
+                "variantTypeFilterComboBox");
             auto* variantsTable = variantsDialog.findChild<QTableWidget*>(
                 "variantsTableWidget");
-            require(sort && variantsTable &&
+            require(sort && typeFilter && variantsTable &&
                     variantsDialog.findChild<QComboBox*>("swapFirstComboBox") &&
                     variantsDialog.findChild<QComboBox*>("swapSecondComboBox") &&
                     variantsDialog.findChild<QPushButton*>("swapVariantsButton"),
@@ -327,14 +332,46 @@ int main(int argc, char** argv) {
             require(variantsTable->item(0, 0)->text() == "3" &&
                     variantsTable->item(1, 0)->text() == "1",
                     "variants can be sorted by number descending");
-            sort->setCurrentIndex(2);
-            require(variantsTable->item(0, 0)->text() == "1",
-                    "variants can be sorted by task type");
-            sort->setCurrentIndex(3);
-            require(variantsTable->item(0, 0)->text() == "3",
-                    "task type sorting can be reversed");
+            typeFilter->setCurrentIndex(1);
+            require(variantsTable->rowCount() == 1 &&
+                    variantsTable->item(0, 0)->text() == "1",
+                    "variant list can select Mealy-to-Moore tasks");
+            typeFilter->setCurrentIndex(2);
+            require(variantsTable->rowCount() == 1 &&
+                    variantsTable->item(0, 0)->text() == "3",
+                    "variant list can select Moore-to-Mealy tasks");
+            typeFilter->setCurrentIndex(0);
+            sort->setCurrentIndex(0);
+            variantsTable->setCurrentCell(0, 0);
+            int deleteConfirmationCount = 0;
+            QPointer<QMessageBox> handledBox;
+            QTimer modalResponder;
+            modalResponder.setInterval(1);
+            QObject::connect(&modalResponder, &QTimer::timeout, [&] {
+                auto* box = qobject_cast<QMessageBox*>(
+                    QApplication::activeModalWidget());
+                if (!box || handledBox == box) return;
+                handledBox = box;
+                ++deleteConfirmationCount;
+                if (auto* button = box->button(
+                        deleteConfirmationCount == 1
+                            ? QMessageBox::Yes : QMessageBox::No)) {
+                    button->click();
+                }
+            });
+            modalResponder.start();
+            require(QMetaObject::invokeMethod(
+                        &variantsDialog, "onDeleteClicked"),
+                    "variant deletion can be invoked");
+            modalResponder.stop();
+            require(deleteConfirmationCount == 1,
+                    "deletion asks only once and does not offer renumbering");
+            require(!service.isExist(1).payloadAs<bool>(),
+                    "confirmed variant deletion removes the selected variant");
         }
-        std::cout << "PASS variant list sorting and swap controls\n";
+        requireOk(service.saveVariant(makeVariant(
+            1, VariantType::MealyToMoore, "one.png")));
+        std::cout << "PASS variant sorting, type selection and swap controls\n";
 
         MainWindow window(&service);
         window.show();
@@ -353,9 +390,11 @@ int main(int argc, char** argv) {
                 auto* reactionTable = window.findChild<QTableWidget*>("reactionTableWidget");
                 auto* diagram = window.findChild<QLabel*>("diagramDropZone");
                 auto* exportArchive =
-                    window.findChild<QPushButton*>("exportArchiveButton");
+                    window.findChild<QAction*>("actionExportDatabase");
                 auto* importArchive =
-                    window.findChild<QPushButton*>("importArchiveButton");
+                    window.findChild<QAction*>("actionImportDatabase");
+                auto* fileMenu = window.findChild<QMenu*>("menuMain");
+                auto* settingsMenu = window.findChild<QMenu*>("menuSettings");
                 auto* validationMessage =
                     window.findChild<QLabel*>("validationMessage");
                 auto* newVariant =
@@ -366,11 +405,35 @@ int main(int argc, char** argv) {
                     window.findChild<QComboBox*>("variantTypeComboBox");
                 require(names && inputs && outputs && table && editMode && initialState &&
                         reactionTable && diagram && exportArchive && importArchive &&
+                        fileMenu && settingsMenu &&
                         validationMessage && newVariant && variantNumber && conversion,
                         "modern main window controls");
                 require(importArchive->text() == "Import database" &&
                         exportArchive->text() == "Export database",
-                        "database actions use concise English labels");
+                        "database menu actions use concise English labels");
+                const QList<QAction*> fileActions = fileMenu->actions();
+                const int openActionIndex = fileActions.indexOf(
+                    window.findChild<QAction*>("actionLoadVariant"));
+                require(openActionIndex >= 0 &&
+                        fileActions.value(openActionIndex + 1)->isSeparator() &&
+                        fileActions.value(openActionIndex + 2) == importArchive &&
+                        fileActions.value(openActionIndex + 3) == exportArchive,
+                        "database actions follow Open variants after a separator");
+                require(settingsMenu->actions().contains(
+                            window.findChild<QAction*>("actionShowLogger")) &&
+                        !fileActions.contains(
+                            window.findChild<QAction*>("actionShowLogger")) &&
+                        !window.findChild<QPushButton*>("importArchiveButton") &&
+                        !window.findChild<QPushButton*>("exportArchiveButton"),
+                        "event log is in Settings and database buttons are removed");
+                auto* languageMenu = window.findChild<QMenu*>("menuLanguage");
+                const QList<QAction*> settingsActions = settingsMenu->actions();
+                require(languageMenu &&
+                        settingsActions.indexOf(languageMenu->menuAction()) >= 0 &&
+                        settingsActions.indexOf(
+                            window.findChild<QAction*>("actionShowLogger")) >
+                            settingsActions.indexOf(languageMenu->menuAction()),
+                        "event log is placed below the language selector");
                 require(editMode->currentIndex() == 1,
                         "reaction editor is selected on startup");
                 auto* russianAction = window.findChild<QAction*>("actionSetLangRu");
@@ -473,7 +536,25 @@ int main(int argc, char** argv) {
                             UiFeedbackStyle::background(UiFeedbackLevel::Error) &&
                         validationMessage->text().contains("Invalid name"),
                         "invalid reaction names are highlighted immediately");
-                reactionTable->item(0, 0)->setText("q0");
+                reactionTable->item(0, 0)->setText(QString());
+                reactionTable->editItem(reactionTable->item(0, 0));
+                QApplication::processEvents();
+                auto* reactionEditor = reactionTable->findChild<QLineEdit*>(
+                    "reactionCellEditor");
+                require(reactionEditor, "reaction cell editor is opened");
+                reactionEditor->setText("q0");
+                require(QMetaObject::invokeMethod(
+                            reactionEditor, "textEdited", Qt::DirectConnection,
+                            Q_ARG(QString, QStringLiteral("q0"))),
+                        "reaction typing can be simulated");
+                require(names->text().isEmpty() &&
+                        reactionTable->item(0, 0)->text().isEmpty(),
+                        "symbol fields stay unchanged while a reaction cell is edited");
+                reactionTable->setFocus(Qt::OtherFocusReason);
+                QApplication::processEvents();
+                require(reactionTable->item(0, 0)->text() == "q0" &&
+                        names->text() == "q0",
+                        "reaction changes are applied after cell editing finishes");
                 require(initialState->currentText() == "q0",
                         "first state entered in a reaction becomes initial");
                 require(names->findChild<QVariantAnimation*>(
@@ -570,13 +651,48 @@ int main(int argc, char** argv) {
                         validationMessage->text().contains(
                             "Input signal 'x1' is not used"),
                         "unused-input save error is visible in the feedback panel");
-                for (QPushButton* button : {exportArchive, importArchive}) {
-                    const QRect buttonRect(
-                        button->mapTo(window.centralWidget(), QPoint(0, 0)),
-                        button->size());
-                    require(window.centralWidget()->rect().contains(buttonRect),
-                            "all primary actions fit inside the window");
-                }
+
+                MainWindow replacementWindow(&service);
+                replacementWindow.show();
+                bool variantDialogHandled = false;
+                QTimer::singleShot(0, &replacementWindow, [&] {
+                    auto* dialog = qobject_cast<VariantsList*>(
+                        QApplication::activeModalWidget());
+                    if (!dialog) return;
+                    auto* variants = dialog->findChild<QTableWidget*>(
+                        "variantsTableWidget");
+                    auto* load = dialog->findChild<QPushButton*>(
+                        "loadPushButton");
+                    if (!variants || !load || variants->rowCount() == 0) return;
+                    variants->setCurrentCell(0, 0);
+                    variantDialogHandled = true;
+                    load->click();
+                });
+                require(QMetaObject::invokeMethod(
+                            &replacementWindow, "onLoadVariantPushButton"),
+                        "existing variant can be opened for replacement test");
+                require(variantDialogHandled,
+                        "variant selection dialog was handled");
+
+                bool replacementQuestionShown = false;
+                QString replacementQuestionText;
+                QTimer::singleShot(0, &replacementWindow, [&] {
+                    auto* box = qobject_cast<QMessageBox*>(
+                        QApplication::activeModalWidget());
+                    if (!box) return;
+                    replacementQuestionShown = true;
+                    replacementQuestionText = box->text();
+                    if (auto* button = box->button(QMessageBox::No))
+                        button->click();
+                });
+                require(QMetaObject::invokeMethod(
+                            &replacementWindow, "onSavePushButtonClicked"),
+                        "existing variant save can be invoked");
+                require(replacementQuestionShown &&
+                        replacementQuestionText.contains("already exists"),
+                        "saving an existing variant asks before replacement");
+                replacementWindow.close();
+
                 const QString screenshotPath =
                     qEnvironmentVariable("M2MTOOLS_SMOKE_SCREENSHOT");
                 if (!screenshotPath.isEmpty())

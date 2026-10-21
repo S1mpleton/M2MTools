@@ -88,8 +88,6 @@ private:
     QPushButton* m_newVariantButton = nullptr;
     QPushButton* m_addReactionStepButton = nullptr;
     QPushButton* m_removeReactionStepButton = nullptr;
-    QPushButton* m_exportArchiveButton = nullptr;
-    QPushButton* m_importArchiveButton = nullptr;
 
     void setupModernUi();
     void setupPresenters();

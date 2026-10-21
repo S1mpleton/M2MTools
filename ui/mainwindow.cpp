@@ -199,14 +199,6 @@ void MainWindow::setupModernUi() {
 
     ui->savePushButton->setObjectName(QStringLiteral("primaryButton"));
     ui->savePushButton->setDefault(true);
-    m_importArchiveButton = new QPushButton(this);
-    m_importArchiveButton->setObjectName(
-        QStringLiteral("importArchiveButton"));
-    m_exportArchiveButton = new QPushButton(this);
-    m_exportArchiveButton->setObjectName(
-        QStringLiteral("exportArchiveButton"));
-    ui->horizontalLayout->addWidget(m_importArchiveButton);
-    ui->horizontalLayout->addWidget(m_exportArchiveButton);
 
     m_editModeComboBox->setCurrentIndex(1);
     m_editorStack->setCurrentIndex(1);
@@ -232,6 +224,8 @@ void MainWindow::retranslateDynamicUi() {
     ui->menuSettings->setTitle(tr("Settings"));
     ui->actionSaveVariant->setText(tr("Save variant"));
     ui->actionLoadVariant->setText(tr("Open variants"));
+    ui->actionImportDatabase->setText(tr("Import database"));
+    ui->actionExportDatabase->setText(tr("Export database"));
     ui->actionShowLogger->setText(tr("Event log"));
     ui->actionExit->setText(tr("Exit"));
     m_newVariantButton->setText(tr("New variant"));
@@ -249,8 +243,6 @@ void MainWindow::retranslateDynamicUi() {
     m_removeReactionStepButton->setText(tr("Remove tact"));
     ui->savePushButton->setText(tr("Save variant"));
     ui->loadVariantPushButton->setText(tr("Open variants"));
-    m_importArchiveButton->setText(tr("Import database"));
-    m_exportArchiveButton->setText(tr("Export database"));
 }
 
 void MainWindow::setupPresenters() {
@@ -269,6 +261,10 @@ void MainWindow::setupConnections() {
             this, &MainWindow::onShowLogClicked);
     connect(ui->actionLoadVariant, &QAction::triggered,
             this, &MainWindow::onLoadVariantPushButton);
+    connect(ui->actionImportDatabase, &QAction::triggered,
+            this, &MainWindow::onImportArchiveClicked);
+    connect(ui->actionExportDatabase, &QAction::triggered,
+            this, &MainWindow::onExportArchiveClicked);
     connect(ui->actionSaveVariant, &QAction::triggered,
             this, &MainWindow::onSavePushButtonClicked);
     connect(ui->actionExit, &QAction::triggered,
@@ -323,10 +319,6 @@ void MainWindow::setupConnections() {
             this, [this](const QString& path) { loadImageFromPath(path); });
     connect(m_imagePanel, &VariantImagePanel::removeRequested,
             this, &MainWindow::onRemoveImageClicked);
-    connect(m_exportArchiveButton, &QPushButton::clicked,
-            this, &MainWindow::onExportArchiveClicked);
-    connect(m_importArchiveButton, &QPushButton::clicked,
-            this, &MainWindow::onImportArchiveClicked);
 }
 
 void MainWindow::setupLanguageGroup() {
@@ -617,12 +609,6 @@ void MainWindow::onLoadVariantPushButton() {
             return;
         refreshData();
     });
-    connect(&dialog, &VariantsList::variantsCompacted, this, [this](int gap) {
-        if (m_data.getVariantNumber() > gap) {
-            m_data.setVariantNumber(m_data.getVariantNumber() - 1);
-            refreshData();
-        }
-    });
     if (dialog.exec() != QDialog::Accepted || !dialog.hasSelection()) return;
 
     const int number = dialog.selectedVariantNumber();
@@ -650,6 +636,17 @@ void MainWindow::onSavePushButtonClicked() {
         return;
     }
     const bool exists = existsResult.payloadAs<bool>();
+    if (exists && !ResultMessenger::askConfirm(
+            this,
+            tr("Variant #%1 already exists. Replace it?")
+                .arg(m_data.getVariantNumber()),
+            tr("Replace variant?"))) {
+        Logger::info(QStringLiteral(
+                         "Variant #%1 replacement was cancelled by the user")
+                         .arg(m_data.getVariantNumber()),
+                     ResultCategory::Ui);
+        return;
+    }
 
     Result result = exists
         ? m_variantService->replaceVariant(m_data)
