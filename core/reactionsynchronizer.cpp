@@ -253,26 +253,31 @@ QVector<ReactionStep> ReactionSynchronizer::buildReaction(const AutomatonData& d
     for (const QString& state : states) {
         const int stateIndex = data.getStateNames().indexOf(state);
         for (int inputIndex = 0; inputIndex < inputs.size(); ++inputIndex) {
+            if (stateIndex < 0 || inputIndex >= table.size()
+                || stateIndex >= table[inputIndex].size()) {
+                continue;
+            }
+            const CellData& cell = table[inputIndex][stateIndex];
+            if (cell.nextState.trimmed().isEmpty()) continue;
+
             ReactionStep step;
             step.currentState = state;
             step.inputSignal = inputs[inputIndex];
-
-            if (inputIndex < table.size() && stateIndex < table[inputIndex].size()) {
-                const CellData& cell = table[inputIndex][stateIndex];
-                step.nextState = cell.nextState;
-                const QStringList outputs = data.getType() == VariantType::MealyToMoore
-                    ? cell.outputSignals
-                    : data.getMooreOutputs().value(cell.nextState);
-                step.outputSignals = outputs.join(QStringLiteral(", "));
-            }
+            step.nextState = cell.nextState;
+            const QStringList outputs = data.getType() == VariantType::MealyToMoore
+                ? cell.outputSignals
+                : data.getMooreOutputs().value(cell.nextState);
+            step.outputSignals = outputs.join(QStringLiteral(", "));
             result.append(step);
         }
     }
 
-    if (result.isEmpty()) {
+    if (result.isEmpty() || (!initialState.isEmpty()
+                            && result.first().currentState != initialState)) {
         ReactionStep firstStep;
         firstStep.currentState = initialState;
-        result.append(firstStep);
+        if (!inputs.isEmpty()) firstStep.inputSignal = inputs.first();
+        result.prepend(firstStep);
     }
     return result;
 }

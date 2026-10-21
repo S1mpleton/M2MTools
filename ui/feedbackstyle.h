@@ -46,9 +46,10 @@ inline QString fieldStyle(UiFeedbackLevel level, int alpha = 255) {
     outline.setAlpha(alpha);
     return QStringLiteral(
         "background-color: rgba(%1, %2, %3, %4); "
-        "border: 1px solid rgba(%5, %6, %7, %8);")
+        "border: 1px solid rgba(%5, %6, %7, %8); color: %9;")
         .arg(fill.red()).arg(fill.green()).arg(fill.blue()).arg(fill.alpha())
-        .arg(outline.red()).arg(outline.green()).arg(outline.blue()).arg(outline.alpha());
+        .arg(outline.red()).arg(outline.green()).arg(outline.blue()).arg(outline.alpha())
+        .arg(foreground(level).name());
 }
 
 inline QString bannerStyle(UiFeedbackLevel level) {

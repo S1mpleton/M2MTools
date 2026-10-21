@@ -17,6 +17,7 @@
 #include <QScrollArea>
 #include <QShortcut>
 #include <QSqlQuery>
+#include <QStatusBar>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -93,13 +94,26 @@ int main(int argc, char** argv) {
                 "reaction creates transition table cell");
         const auto rebuiltReaction =
             ReactionSynchronizer::buildReaction(reactionReport.data);
-        require(rebuiltReaction.size() == 4, "transition table creates canonical reaction");
+        require(rebuiltReaction.size() == 2,
+                "reaction contains only explicitly defined transitions");
         const ReactionSyncReport conflictReport =
             ReactionSynchronizer::buildAutomaton({
                 {"a0", "x1", "a1", "y1"},
                 {"a0", "x1", "a2", "y2"},
             }, reactionBase);
         require(conflictReport.hasErrors(), "conflicting reaction is rejected");
+        AutomatonData sparseDraft;
+        requireOk(sparseDraft.setStateNames({"a0", "a1"}));
+        requireOk(sparseDraft.setInputSignalNames({"x1", "x2"}));
+        requireOk(sparseDraft.setOutputSignalNames({"y1"}));
+        requireOk(sparseDraft.setTransitionCellByName(
+            "x2", "a0", "a0 / y1"));
+        const QVector<ReactionStep> sparseReaction =
+            ReactionSynchronizer::buildReaction(sparseDraft);
+        require(sparseReaction.size() == 1 &&
+                sparseReaction.first().currentState == "a0" &&
+                sparseReaction.first().inputSignal == "x2",
+                "states do not create tacts for every available input");
         std::cout << "PASS reaction/table bidirectional model and conflict detection\n";
 
         AutomatonData closedAutomaton;
@@ -334,8 +348,9 @@ int main(int argc, char** argv) {
                         "save validation can be invoked");
                 require(!QApplication::activeModalWidget() &&
                         validationMessage->styleSheet() ==
-                            UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Error),
-                        "save validation stays inline without a popup");
+                            UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Error) &&
+                        validationMessage->text().contains("no states"),
+                        "save validation explains the automaton error inline without a popup");
                 newVariant->click();
                 require(validationMessage->styleSheet() ==
                             UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Success),
@@ -348,6 +363,10 @@ int main(int argc, char** argv) {
                         initialState->findChild<QVariantAnimation*>(
                             "automaticFieldFeedback", Qt::FindDirectChildrenOnly),
                         "automatic state and initial-state changes are animated");
+                require(names->findChild<QVariantAnimation*>(
+                            "automaticFieldFeedback", Qt::FindDirectChildrenOnly)
+                            ->duration() >= 5000,
+                        "temporary field feedback remains visible for five seconds");
                 reactionTable->item(1, 0)->setText("xAuto");
                 require(inputs->findChild<QVariantAnimation*>(
                             "automaticFieldFeedback", Qt::FindDirectChildrenOnly),
@@ -361,14 +380,20 @@ int main(int argc, char** argv) {
                 require(names->styleSheet() ==
                             UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error),
                         "invalid symbol lists use the shared error color");
+                require(names->styleSheet().contains("color: #8a1c13") &&
+                        QMetaObject::invokeMethod(
+                            &window, "onSavePushButtonClicked") &&
+                        validationMessage->text().contains("Invalid name") &&
+                        window.statusBar()->currentMessage().isEmpty(),
+                        "save errors are readable in the inline message, not the status bar");
                 names->setText("s0, s1");
                 inputs->setText("x0");
                 outputs->setText("y0");
                 require(table->rowCount() == 2 && table->columnCount() == 3,
                         "UI signals rebuild the transition table");
                 editMode->setCurrentIndex(1);
-                require(reactionTable->columnCount() == 2,
-                        "reaction has one column per state/input pair");
+                require(reactionTable->columnCount() == 1,
+                        "unused state/input pairs do not create reaction tacts");
                 require(initialState->currentText() == "s0" &&
                         reactionTable->item(0, 0)->text() == "s0",
                         "first entered state initializes the reaction");

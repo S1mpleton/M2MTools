@@ -37,6 +37,7 @@
 
 namespace {
 constexpr int kMaximumImageSize = 10 * 1024 * 1024;
+constexpr int kMinimumTransientFeedbackMs = 5000;
 QString displayCell(const QString& value) {
     return value.trimmed().isEmpty() ? QStringLiteral("—") : value;
 }
@@ -88,6 +89,8 @@ MainWindow::~MainWindow() {
 void MainWindow::setupModernUi() {
     resize(1100, 720);
     setMinimumSize(900, 620);
+    ui->statusbar->clearMessage();
+    ui->statusbar->hide();
 
     // Use the platform palette and widget style. A partial custom theme can
     // easily combine a dark system foreground with a forced light background.
@@ -245,13 +248,13 @@ void MainWindow::retranslateDynamicUi() {
 
 void MainWindow::setupPresenters() {
     m_stateNamesPresenter = ErrorPresenterFactory::forLineEdit(
-        ui->stateNamesLineEdit, ui->statusbar, this);
+        ui->stateNamesLineEdit, nullptr, this);
     m_inputNamesPresenter = ErrorPresenterFactory::forLineEdit(
-        ui->InputSignalNamesLineEdit, ui->statusbar, this);
+        ui->InputSignalNamesLineEdit, nullptr, this);
     m_outputNamesPresenter = ErrorPresenterFactory::forLineEdit(
-        ui->OutputSignalNamesLineEdit, ui->statusbar, this);
+        ui->OutputSignalNamesLineEdit, nullptr, this);
     m_cellPresenter = new TableCellErrorPresenter(
-        ui->transitionTableWidget, 0, 0, ui->statusbar, this);
+        ui->transitionTableWidget, 0, 0, nullptr, this);
 }
 
 void MainWindow::setupConnections() {
@@ -404,9 +407,11 @@ void MainWindow::onStateNamesChanged(const QString& text) {
     Logger::log(result);
     if (!result.ok()) {
         m_stateNamesPresenter->show(result);
+        showInlineMessage(translateResult(result));
         return;
     }
     m_stateNamesPresenter->clear(result);
+    clearInlineMessage();
     refreshInitialStates();
     refreshTable();
     syncReactionFromData();
@@ -425,9 +430,11 @@ void MainWindow::onInputNamesChanged(const QString& text) {
     Logger::log(result);
     if (!result.ok()) {
         m_inputNamesPresenter->show(result);
+        showInlineMessage(translateResult(result));
         return;
     }
     m_inputNamesPresenter->clear(result);
+    clearInlineMessage();
     refreshTable();
     syncReactionFromData();
     updateSummary();
@@ -440,9 +447,11 @@ void MainWindow::onOutputNamesChanged(const QString& text) {
     Logger::log(result);
     if (!result.ok()) {
         m_outputNamesPresenter->show(result);
+        showInlineMessage(translateResult(result));
         return;
     }
     m_outputNamesPresenter->clear(result);
+    clearInlineMessage();
     syncReactionFromData();
     updateSummary();
 }
@@ -1054,6 +1063,35 @@ void MainWindow::applyReactionIssues(
 }
 
 bool MainWindow::validateBeforeSave() {
+    const auto validateSymbols = [this](QLineEdit* field,
+                                        IErrorPresenter* presenter,
+                                        const Result& result) {
+        Logger::log(result);
+        if (result.ok()) return true;
+        cancelFieldPulse(field);
+        presenter->show(result);
+        showInlineMessage(translateResult(result));
+        return false;
+    };
+    if (!validateSymbols(
+            ui->stateNamesLineEdit, m_stateNamesPresenter,
+            m_data.setStateNames(
+                NameListParser::parse(ui->stateNamesLineEdit->text())))) {
+        return false;
+    }
+    if (!validateSymbols(
+            ui->InputSignalNamesLineEdit, m_inputNamesPresenter,
+            m_data.setInputSignalNames(
+                NameListParser::parse(ui->InputSignalNamesLineEdit->text())))) {
+        return false;
+    }
+    if (!validateSymbols(
+            ui->OutputSignalNamesLineEdit, m_outputNamesPresenter,
+            m_data.setOutputSignalNames(
+                NameListParser::parse(ui->OutputSignalNamesLineEdit->text())))) {
+        return false;
+    }
+
     if (m_editModeComboBox->currentIndex() == 1) {
         const ReactionSyncReport report = syncDataFromReaction();
         if (report.hasErrors()) return false;
@@ -1061,18 +1099,18 @@ bool MainWindow::validateBeforeSave() {
         refreshData();
         refreshTable();
     }
+    const Result result = m_data.validate();
+    Logger::log(result);
+    if (!result.ok()) {
+        presentAutomatonValidation(result);
+        return false;
+    }
     if (!m_data.hasDiagramImage()) {
         m_imagePanel->setInvalid(true);
         showInlineMessage(
             tr("Add the task image for this variant."));
         Logger::warning(QStringLiteral("Variant validation failed: task image is missing"),
                         ResultCategory::Validation);
-        return false;
-    }
-    const Result result = m_data.validate();
-    Logger::log(result);
-    if (!result.ok()) {
-        presentAutomatonValidation(result);
         return false;
     }
     return true;
@@ -1205,12 +1243,14 @@ void MainWindow::showInlineMessage(const QString& text,
                                    UiFeedbackLevel level,
                                    int timeoutMs) {
     const quint64 revision = ++m_messageRevision;
+    const int effectiveTimeout = timeoutMs > 0
+        ? qMax(timeoutMs, kMinimumTransientFeedbackMs)
+        : 0;
     m_validationLabel->setText(text);
     m_validationLabel->setStyleSheet(UiFeedbackStyle::bannerStyle(level));
     m_validationLabel->show();
-    ui->statusbar->showMessage(text, timeoutMs);
-    if (timeoutMs > 0) {
-        QTimer::singleShot(timeoutMs, this, [this, revision] {
+    if (effectiveTimeout > 0) {
+        QTimer::singleShot(effectiveTimeout, this, [this, revision] {
             if (revision == m_messageRevision)
                 clearInlineMessage();
         });
@@ -1221,7 +1261,6 @@ void MainWindow::clearInlineMessage() {
     ++m_messageRevision;
     m_validationLabel->clear();
     m_validationLabel->hide();
-    ui->statusbar->clearMessage();
 }
 
 void MainWindow::cancelFieldPulse(QWidget* field) {
@@ -1243,10 +1282,11 @@ void MainWindow::pulseField(QWidget* field, UiFeedbackLevel level) {
 
     auto* animation = new QVariantAnimation(field);
     animation->setObjectName(QStringLiteral("automaticFieldFeedback"));
-    animation->setDuration(900);
-    animation->setStartValue(0);
-    animation->setKeyValueAt(0.28, 255);
-    animation->setEndValue(0);
+    animation->setDuration(kMinimumTransientFeedbackMs);
+    animation->setStartValue(190);
+    animation->setKeyValueAt(0.12, 255);
+    animation->setKeyValueAt(0.85, 255);
+    animation->setEndValue(190);
     animation->setEasingCurve(QEasingCurve::InOutQuad);
     field->setProperty("automaticFieldFeedbackAnimation",
                        QVariant::fromValue<QObject*>(animation));
