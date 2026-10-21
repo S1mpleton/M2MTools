@@ -226,8 +226,7 @@ Result VariantService::compactVariantNumbers() {
     return Result::success(QStringLiteral("Variant numbers compacted"));
 }
 
-Result VariantService::exportArchive(
-    const QString& path, const QString& password) {
+Result VariantService::exportArchive(const QString& path) {
     Result allResult = m_repo->findAllVariants();
     if (!allResult.ok()) return allResult;
 
@@ -259,14 +258,12 @@ Result VariantService::exportArchive(
         }
         variants.append(data);
     }
-    return VariantArchive::save(path, variants, password);
+    return VariantArchive::save(path, variants);
 }
 
-Result VariantService::importArchive(
-    const QString& path, const QString& password) {
+Result VariantService::importArchive(const QString& path) {
     QList<AutomatonData> variants;
-    Result loadResult =
-        VariantArchive::load(path, password, &variants);
+    Result loadResult = VariantArchive::load(path, &variants);
     if (!loadResult.ok()) return loadResult;
 
     Transaction transaction(m_db);

@@ -64,7 +64,6 @@ private:
     bool m_updatingTable = false;
     bool m_updatingReaction = false;
     bool m_updatingUi = false;
-    bool m_numberWasEdited = false;
     bool m_initialStateWasEdited = false;
     quint64 m_messageRevision = 0;
 

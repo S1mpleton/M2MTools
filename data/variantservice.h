@@ -23,8 +23,8 @@ public:
     Result swapVariants(int firstNumber, int secondNumber);
     Result compactVariantNumbers();
 
-    Result exportArchive(const QString& path, const QString& password);
-    Result importArchive(const QString& path, const QString& password);
+    Result exportArchive(const QString& path);
+    Result importArchive(const QString& path);
 
     Result isExist(int variantNumber);
 

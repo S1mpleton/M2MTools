@@ -4,103 +4,99 @@
 <context>
     <name>AutomatonData</name>
     <message>
-        <location filename="ui/translateresult.cpp" line="45"/>
+        <location filename="ui/translateresult.cpp" line="44"/>
         <source>Automaton has no states. Please add at least one state.</source>
         <translation>Нет ни одного состояния.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="50"/>
+        <location filename="ui/translateresult.cpp" line="49"/>
         <source>Automaton has no input signals. Please add at least one input signal.</source>
         <translation>Нет входных сигналов.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="55"/>
+        <location filename="ui/translateresult.cpp" line="54"/>
         <source>Automaton has no output signals. Please add at least one output signal.</source>
         <translation>Нет выходных сигналов.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="60"/>
+        <location filename="ui/translateresult.cpp" line="59"/>
         <source>Internal error: transition table size does not match the number of input signals.</source>
         <translation>Внутренняя ошибка: размер таблицы переходов не соответствует количеству входных сигналов.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="65"/>
+        <location filename="ui/translateresult.cpp" line="64"/>
         <source>State &apos;%1&apos; has no incoming transition. Add a transition into this state.</source>
         <oldsource>State &apos;%1&apos; is not used in any transition.</oldsource>
         <translation>Состояние &apos;%1&apos; не имеет входящего перехода. Добавьте переход в это состояние.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="71"/>
+        <location filename="ui/translateresult.cpp" line="70"/>
         <source>State &apos;%1&apos; has no outgoing transition. Add a transition from this state.</source>
         <translation>Состояние &apos;%1&apos; не имеет исходящего перехода. Добавьте переход из этого состояния.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="77"/>
+        <location filename="ui/translateresult.cpp" line="76"/>
         <source>Input signal &apos;%1&apos; is not used in any transition.</source>
         <translation>Входной сигнал &apos;%1&apos; не используется в таблице переходов.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="82"/>
+        <location filename="ui/translateresult.cpp" line="81"/>
         <source>Output signal &apos;%1&apos; is not used.</source>
         <translation>Выходной сигнал &apos;%1&apos; не используется в таблице переходов.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="87"/>
+        <location filename="ui/translateresult.cpp" line="86"/>
         <source>There are duplicates of &apos;%1&apos; name in this list.</source>
         <oldsource>There are %1 duplicates of &apos;%2&apos; in the &apos;%3&apos; list.</oldsource>
         <translation>Есть дубликаты имени &apos;%1&apos; этом списке.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="92"/>
+        <location filename="ui/translateresult.cpp" line="91"/>
         <source>The name &apos;%1&apos; already exist in other list.</source>
         <oldsource>The name &apos;%1&apos; is already in use among &apos;%2&apos; list.</oldsource>
         <translation>Другой список уже содержит имя &apos;%1&apos;.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="97"/>
+        <location filename="ui/translateresult.cpp" line="96"/>
         <source>The cell has duplicate name &apos;%1&apos;.</source>
         <oldsource>The cell has duplicate name &apos;%1&apos;</oldsource>
         <translation>Редактируемая ячейка имеет дубликат &apos;%1&apos;.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="122"/>
+        <location filename="ui/translateresult.cpp" line="121"/>
         <source>Unknown state &apos;%1&apos;.</source>
         <oldsource>Unknown state &apos;%1&apos;</oldsource>
         <translation>Неизвестное состояние &apos;%1&apos;.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="127"/>
+        <location filename="ui/translateresult.cpp" line="126"/>
         <source>Unknown output signal &apos;%1&apos;.</source>
         <oldsource>Unknown output signal &apos;%1&apos;</oldsource>
         <translation>Неизвестный выходной сигнал &apos;%1&apos;.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="132"/>
+        <location filename="ui/translateresult.cpp" line="131"/>
         <source>Unknown input signal &apos;%1&apos;.</source>
         <oldsource>Unknown input signal &apos;%1&apos;</oldsource>
         <translation>Неизвестный входной сигнал &apos;%1&apos;.</translation>
     </message>
     <message>
-        <source>Duplicate  name: &apos;%1&apos;.</source>
-        <translation type="obsolete">Имя &apos;%1&apos; дублируется.</translation>
-    </message>
-    <message>
-        <location filename="ui/translateresult.cpp" line="102"/>
+        <location filename="ui/translateresult.cpp" line="101"/>
         <source>Invalid name: &apos;%1&apos;. Only letters and digits are allowed, first character must be a letter.</source>
         <translation>Имя &apos;%1&apos; не валидное. Имена не должны содержать спец. символы и начинаться с цифр.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="109"/>
+        <location filename="ui/translateresult.cpp" line="108"/>
         <source>Name cannot be empty.</source>
         <translation>Имя не может быть пустым.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="113"/>
+        <location filename="ui/translateresult.cpp" line="112"/>
         <source>Initial state is not set.</source>
         <translation>Начальное состояние не задано.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="117"/>
+        <location filename="ui/translateresult.cpp" line="116"/>
         <source>Initial state &apos;%1&apos; not found in state list.</source>
         <translation>Начальное состояние &apos;%1&apos; отсутствует в списке состояний.</translation>
     </message>
@@ -108,27 +104,27 @@
 <context>
     <name>Database</name>
     <message>
-        <location filename="ui/translateresult.cpp" line="140"/>
+        <location filename="ui/translateresult.cpp" line="139"/>
         <source>Failed to open database.</source>
         <translation>Не удалось открыть базу данных.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="144"/>
+        <location filename="ui/translateresult.cpp" line="143"/>
         <source>Database query failed. See logs for details.</source>
         <translation>Ошибка в выполнении запроса. Изучите логи.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="149"/>
+        <location filename="ui/translateresult.cpp" line="148"/>
         <source>Failed to insert data into database.</source>
         <translation>Ошибка при вставке данных в базе данных.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="153"/>
+        <location filename="ui/translateresult.cpp" line="152"/>
         <source>Failed to update data in database.</source>
         <translation>Ошибка при обновлении данных в базе данных.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="163"/>
+        <location filename="ui/translateresult.cpp" line="162"/>
         <source>Failed to commit database changes.</source>
         <translation>Не удалось зафиксировать изменения базы данных.</translation>
     </message>
@@ -159,62 +155,58 @@
         <translation>Диалог</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="25"/>
-        <location filename="ui/logwindow.cpp" line="198"/>
+        <location filename="ui/logwindow.cpp" line="26"/>
+        <location filename="ui/logwindow.cpp" line="200"/>
         <source>Application Log</source>
         <translation>Журнал событий</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="200"/>
+        <location filename="ui/logwindow.cpp" line="202"/>
         <source>Info</source>
         <translation>Информ.</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="201"/>
+        <location filename="ui/logwindow.cpp" line="203"/>
         <source>Warnings</source>
         <translation>Предупр.</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="202"/>
+        <location filename="ui/logwindow.cpp" line="204"/>
         <source>Errors</source>
         <translation>Ошибки</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="204"/>
+        <location filename="ui/logwindow.cpp" line="206"/>
         <source>Auto-scroll</source>
         <translation>Авто-прокрутка</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="206"/>
+        <location filename="ui/logwindow.cpp" line="208"/>
         <source>Copy Selected</source>
         <translation>Коп. выделенное</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="207"/>
+        <location filename="ui/logwindow.cpp" line="209"/>
         <source>Clear View</source>
         <translation>Очистить</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="208"/>
+        <location filename="ui/logwindow.cpp" line="210"/>
         <source>Save to File...</source>
         <translation>Сохр. в файл</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="165"/>
+        <location filename="ui/logwindow.cpp" line="167"/>
         <source>Save Log</source>
         <translation>Сохранение журнала</translation>
     </message>
     <message>
-        <location filename="ui/logwindow.cpp" line="166"/>
+        <location filename="ui/logwindow.cpp" line="168"/>
         <source>Text files (*.txt);;All files (*)</source>
         <translation>Текстовый файл (*.txt);;Все файлы (*)</translation>
     </message>
     <message>
-        <source>Error</source>
-        <translation type="obsolete">Ошибка</translation>
-    </message>
-    <message>
-        <location filename="ui/logwindow.cpp" line="172"/>
+        <location filename="ui/logwindow.cpp" line="174"/>
         <source>Cannot save file: %1</source>
         <translation>Не получилось сохранить файл: %1</translation>
     </message>
@@ -248,7 +240,7 @@
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="119"/>
-        <location filename="ui/mainwindow.cpp" line="230"/>
+        <location filename="ui/mainwindow.cpp" line="238"/>
         <source>Transition table</source>
         <translation>Таблица переходов</translation>
     </message>
@@ -304,7 +296,7 @@
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="170"/>
-        <location filename="ui/mainwindow.cpp" line="222"/>
+        <location filename="ui/mainwindow.cpp" line="230"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
@@ -315,14 +307,14 @@
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="208"/>
-        <location filename="ui/mainwindow.cpp" line="226"/>
+        <location filename="ui/mainwindow.cpp" line="234"/>
         <source>Exit</source>
         <translation>Выход</translation>
     </message>
     <message>
         <location filename="ui/mainwindow.ui" line="216"/>
-        <location filename="ui/mainwindow.cpp" line="223"/>
-        <location filename="ui/mainwindow.cpp" line="240"/>
+        <location filename="ui/mainwindow.cpp" line="231"/>
+        <location filename="ui/mainwindow.cpp" line="248"/>
         <source>Save variant</source>
         <translation>Сохранить автомат</translation>
     </message>
@@ -342,347 +334,262 @@
         <translation>Показать журнал событий</translation>
     </message>
     <message>
-        <source>Failed to save the variant: %1</source>
-        <translation type="obsolete">Ошибка при сохранении варианта: %1</translation>
-    </message>
-    <message>
-        <source>Error: %1</source>
-        <translation type="obsolete">Ошибка: %1</translation>
-    </message>
-    <message>
-        <source>
-Details: %2</source>
-        <translation type="obsolete">Детали: %2</translation>
-    </message>
-    <message>
-        <source>Saving</source>
-        <translation type="obsolete">Сохранение</translation>
-    </message>
-    <message>
-        <source>Variant №%1 not found</source>
-        <translation type="obsolete">Вариант №%1 не найден</translation>
-    </message>
-    <message>
-        <source>Variant №%1 loaded</source>
-        <translation type="obsolete">Вариант №%1 загружен</translation>
-    </message>
-    <message>
-        <source>The variant №%1 is exists.</source>
-        <translation type="obsolete">Вариант №%1 существует.</translation>
-    </message>
-    <message>
-        <source>Do you want remove variant №%1?</source>
-        <translation type="obsolete">Хотите удалить вариант №%1?</translation>
-    </message>
-    <message>
-        <source>Variant №%1 has been saved.</source>
-        <translation type="obsolete">Вариант №%1 сохранен.</translation>
-    </message>
-    <message>
-        <source>Output signal</source>
-        <translation type="obsolete">Вых. сигналы</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="207"/>
+        <location filename="ui/mainwindow.cpp" line="215"/>
         <source>M2MTools — Equivalent Automata Editor</source>
         <translation>M2MTools — редактор эквивалентных автоматов</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="208"/>
+        <location filename="ui/mainwindow.cpp" line="216"/>
         <source>Variant</source>
         <translation>Вариант</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="209"/>
+        <location filename="ui/mainwindow.cpp" line="217"/>
         <source>Automaton Symbols</source>
         <translation>Обозначения автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="210"/>
+        <location filename="ui/mainwindow.cpp" line="218"/>
         <source>Automaton Definition</source>
         <translation>Описание автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="211"/>
+        <location filename="ui/mainwindow.cpp" line="219"/>
         <source>Variant number</source>
         <translation>Номер варианта</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="212"/>
+        <location filename="ui/mainwindow.cpp" line="220"/>
         <source>Conversion</source>
         <translation>Преобразование</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="213"/>
+        <location filename="ui/mainwindow.cpp" line="221"/>
         <source>States A</source>
         <translation>Состояния A</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="214"/>
+        <location filename="ui/mainwindow.cpp" line="222"/>
         <source>Input signals X</source>
         <translation>Входные сигналы X</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="215"/>
+        <location filename="ui/mainwindow.cpp" line="223"/>
         <source>Output signals Y</source>
         <translation>Выходные сигналы Y</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="216"/>
+        <location filename="ui/mainwindow.cpp" line="224"/>
         <source>Mealy → Moore</source>
         <translation>Мили → Мура</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="217"/>
+        <location filename="ui/mainwindow.cpp" line="225"/>
         <source>Moore → Mealy</source>
         <translation>Мура → Мили</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="218"/>
+        <location filename="ui/mainwindow.cpp" line="226"/>
         <source>For example: a0, a1, a2</source>
         <translation>Например: a0, a1, a2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="219"/>
+        <location filename="ui/mainwindow.cpp" line="227"/>
         <source>For example: x1, x2</source>
         <translation>Например: x1, x2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="220"/>
+        <location filename="ui/mainwindow.cpp" line="228"/>
         <source>For example: y1, y2</source>
         <translation>Например: y1, y2</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="221"/>
+        <location filename="ui/mainwindow.cpp" line="229"/>
         <source>File</source>
         <translation>Файл</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="224"/>
-        <location filename="ui/mainwindow.cpp" line="241"/>
+        <location filename="ui/mainwindow.cpp" line="232"/>
+        <location filename="ui/mainwindow.cpp" line="249"/>
         <source>Open variants</source>
         <translation>Открыть варианты</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="225"/>
+        <location filename="ui/mainwindow.cpp" line="233"/>
         <source>Event log</source>
         <translation>Журнал событий</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="227"/>
+        <location filename="ui/mainwindow.cpp" line="235"/>
         <source>New variant</source>
         <translation>Новый вариант</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="228"/>
+        <location filename="ui/mainwindow.cpp" line="236"/>
         <source>Initial state</source>
         <translation>Начальное состояние</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="229"/>
+        <location filename="ui/mainwindow.cpp" line="237"/>
         <source>Edit using:</source>
         <translation>Редактировать по:</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="231"/>
+        <location filename="ui/mainwindow.cpp" line="239"/>
         <source>Automaton reaction</source>
         <translation>Реакция автомата</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="232"/>
+        <location filename="ui/mainwindow.cpp" line="240"/>
         <source>Both forms update automatically</source>
         <translation>Обе формы обновляются автоматически</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="233"/>
+        <location filename="ui/mainwindow.cpp" line="241"/>
         <source>One column is one tact: A + X → A′ / Y. Names are added automatically. Press Enter to insert a tact after the selected column.</source>
         <translation>Один столбец — один такт: A + X → A′ / Y. Имена добавляются автоматически. Enter вставляет такт после выделенного столбца.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="237"/>
-        <location filename="ui/mainwindow.cpp" line="862"/>
-        <location filename="ui/mainwindow.cpp" line="867"/>
+        <location filename="ui/mainwindow.cpp" line="245"/>
+        <location filename="ui/mainwindow.cpp" line="831"/>
+        <location filename="ui/mainwindow.cpp" line="836"/>
         <source>State</source>
         <translation>Состояния</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="237"/>
+        <location filename="ui/mainwindow.cpp" line="245"/>
         <source>Input X</source>
         <translation>Вход X</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="237"/>
+        <location filename="ui/mainwindow.cpp" line="245"/>
         <source>Next state</source>
         <translation>След. состояние</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="237"/>
-        <location filename="ui/mainwindow.cpp" line="857"/>
+        <location filename="ui/mainwindow.cpp" line="245"/>
+        <location filename="ui/mainwindow.cpp" line="826"/>
         <source>Output Y</source>
         <translation>Выход Y</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="238"/>
+        <location filename="ui/mainwindow.cpp" line="246"/>
         <source>+ Add tact</source>
         <translation>+ Добавить такт</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="239"/>
+        <location filename="ui/mainwindow.cpp" line="247"/>
         <source>Remove tact</source>
         <translation>Удалить такт</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="242"/>
+        <location filename="ui/mainwindow.cpp" line="250"/>
         <source>Open BazaVar…</source>
         <translation>Открыть BazaVar…</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="243"/>
+        <location filename="ui/mainwindow.cpp" line="251"/>
         <source>Export BazaVar…</source>
         <translation>Экспорт BazaVar…</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="489"/>
+        <location filename="ui/mainwindow.cpp" line="503"/>
         <source>The first tact must start with the selected initial state &apos;%1&apos;.</source>
         <translation>Первый такт должен начинаться с выбранного начального состояния &apos;%1&apos;.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="594"/>
+        <location filename="ui/mainwindow.cpp" line="608"/>
         <source>The open variant was deleted. The fields have been cleared.</source>
         <translation>Открытый вариант удалён. Поля очищены.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="628"/>
+        <location filename="ui/mainwindow.cpp" line="642"/>
         <source>Variant #%1 loaded</source>
         <translation>Вариант №%1 загружен</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1184"/>
+        <location filename="ui/mainwindow.cpp" line="735"/>
+        <source>Save BazaVar</source>
+        <translation>Сохранить BazaVar</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="748"/>
+        <source>The BazaVar file was saved.</source>
+        <translation>Файл BazaVar сохранён.</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="754"/>
+        <source>Open BazaVar</source>
+        <translation>Открыть BazaVar</translation>
+    </message>
+    <message>
+        <location filename="ui/mainwindow.cpp" line="1196"/>
         <source>The task image was loaded.</source>
         <translation>Изображение задания загружено.</translation>
     </message>
     <message>
-        <source>Replace variant #%1?</source>
-        <translation type="vanished">Заменить вариант №%1?</translation>
-    </message>
-    <message>
-        <source>A variant with this number already exists. Its data will be replaced.</source>
-        <translation type="vanished">Вариант с таким номером уже существует. Его данные будут заменены.</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="650"/>
+        <location filename="ui/mainwindow.cpp" line="664"/>
         <source>Variant #%1 saved</source>
         <translation>Вариант №%1 сохранён</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="667"/>
-        <source>Variant #%1 already exists. Choose another number.</source>
-        <translation>Вариант №%1 уже существует. Выберите другой номер.</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="696"/>
+        <location filename="ui/mainwindow.cpp" line="689"/>
         <source>The image was removed. Load a new one before saving.</source>
         <translation>Изображение удалено. Загрузите новое перед сохранением.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="724"/>
+        <location filename="ui/mainwindow.cpp" line="717"/>
         <source>Renumber variants?</source>
         <translation>Перенумеровать варианты?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="722"/>
+        <location filename="ui/mainwindow.cpp" line="715"/>
         <source>Variant #%1 is empty. Shift subsequent numbers before export?</source>
         <translation>Вариант №%1 пуст. Сдвинуть следующие номера перед экспортом?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="685"/>
+        <location filename="ui/mainwindow.cpp" line="678"/>
         <source>New variant #%1 is ready.</source>
         <translation>Новый вариант №%1 готов.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="742"/>
-        <source>Save encrypted database</source>
-        <translation>Сохранить зашифрованную базу</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="744"/>
-        <location filename="ui/mainwindow.cpp" line="780"/>
+        <location filename="ui/mainwindow.cpp" line="737"/>
+        <location filename="ui/mainwindow.cpp" line="755"/>
         <source>M2MTools archive (*.m2m);;All files (*)</source>
         <translation>Архив M2MTools (*.m2m);;Все файлы (*)</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="751"/>
-        <location filename="ui/mainwindow.cpp" line="785"/>
-        <source>BazaVar password</source>
-        <translation>Пароль BazaVar</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="752"/>
-        <source>Enter a password (at least 8 characters):</source>
-        <translation>Введите пароль (не менее 8 символов):</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="756"/>
-        <source>Confirm password</source>
-        <translation>Подтверждение пароля</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="757"/>
-        <source>Repeat the password:</source>
-        <translation>Повторите пароль:</translation>
-    </message>
-    <message>
         <location filename="ui/mainwindow.cpp" line="761"/>
-        <source>Passwords do not match.</source>
-        <translation>Пароли не совпадают.</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="773"/>
-        <source>The encrypted BazaVar archive was saved.</source>
-        <translation>Зашифрованный архив BazaVar сохранён.</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="779"/>
-        <source>Open encrypted database</source>
-        <translation>Открыть зашифрованную базу</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="786"/>
-        <source>Enter the archive password:</source>
-        <translation>Введите пароль архива:</translation>
-    </message>
-    <message>
-        <location filename="ui/mainwindow.cpp" line="792"/>
         <source>Open BazaVar?</source>
         <translation>Открыть BazaVar?</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="791"/>
+        <location filename="ui/mainwindow.cpp" line="760"/>
         <source>The current variant database will be replaced by the archive contents.</source>
         <translation>Текущая база вариантов будет заменена содержимым архива.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="820"/>
-        <source>The BazaVar archive was opened.</source>
-        <translation>Архив BazaVar открыт.</translation>
+        <location filename="ui/mainwindow.cpp" line="789"/>
+        <source>The BazaVar file was opened.</source>
+        <translation>Файл BazaVar открыт.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1055"/>
+        <location filename="ui/mainwindow.cpp" line="1071"/>
         <source>Add the task image for this variant.</source>
         <translation>Добавьте изображение задания для варианта.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1161"/>
+        <location filename="ui/mainwindow.cpp" line="1173"/>
         <source>Could not open the image file.</source>
         <translation>Не удалось открыть файл изображения.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1168"/>
+        <location filename="ui/mainwindow.cpp" line="1180"/>
         <source>The image size must not exceed 10 MB.</source>
         <translation>Размер изображения не должен превышать 10 МБ.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.cpp" line="1177"/>
+        <location filename="ui/mainwindow.cpp" line="1189"/>
         <source>The selected file is not a supported image.</source>
         <translation>Выбранный файл не является поддерживаемым изображением.</translation>
     </message>
@@ -789,66 +696,61 @@ Details: %2</source>
     </message>
     <message>
         <location filename="ui/translateresult.cpp" line="17"/>
-        <source>The archive password must contain at least 8 characters.</source>
-        <translation>Пароль архива должен содержать не менее 8 символов.</translation>
+        <source>Failed to prepare the BazaVar file.</source>
+        <translation>Не удалось подготовить файл BazaVar.</translation>
+    </message>
+    <message>
+        <location filename="ui/translateresult.cpp" line="22"/>
+        <source>The BazaVar file is damaged or was created by an incompatible application.</source>
+        <translation>Файл BazaVar повреждён или создан несовместимым приложением.</translation>
+    </message>
+    <message>
+        <location filename="ui/translateresult.cpp" line="23"/>
+        <source>The BazaVar file data is corrupted.</source>
+        <translation>Данные файла BazaVar повреждены.</translation>
     </message>
     <message>
         <location filename="ui/translateresult.cpp" line="18"/>
-        <source>Failed to encrypt the BazaVar archive.</source>
-        <translation>Не удалось зашифровать архив BazaVar.</translation>
-    </message>
-    <message>
-        <location filename="ui/translateresult.cpp" line="19"/>
         <source>Failed to open the BazaVar archive file.</source>
         <translation>Не удалось открыть файл архива BazaVar.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="20"/>
+        <location filename="ui/translateresult.cpp" line="19"/>
         <source>Failed to save the BazaVar archive.</source>
         <translation>Не удалось сохранить архив BazaVar.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="21"/>
+        <location filename="ui/translateresult.cpp" line="20"/>
         <source>Internal error: archive data destination was not provided.</source>
         <translation>Внутренняя ошибка: не указан получатель данных архива.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="22"/>
+        <location filename="ui/translateresult.cpp" line="21"/>
         <source>The selected file is not an M2MTools archive.</source>
         <translation>Выбранный файл не является архивом M2MTools.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="23"/>
-        <source>Failed to decrypt BazaVar. Check the password and file integrity.</source>
-        <translation>Не удалось расшифровать BazaVar. Проверьте пароль и целостность файла.</translation>
-    </message>
-    <message>
         <location filename="ui/translateresult.cpp" line="24"/>
-        <source>The decrypted archive data is corrupted.</source>
-        <translation>Расшифрованные данные архива повреждены.</translation>
-    </message>
-    <message>
-        <location filename="ui/translateresult.cpp" line="25"/>
         <source>This BazaVar archive version or format is not supported.</source>
         <translation>Версия или формат архива BazaVar не поддерживается.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="26"/>
+        <location filename="ui/translateresult.cpp" line="25"/>
         <source>The archive contains duplicate variant number #%1.</source>
         <translation>Архив содержит повтор номера варианта №%1.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="27"/>
+        <location filename="ui/translateresult.cpp" line="26"/>
         <source>Database integrity check failed. The data may have been modified manually.</source>
         <translation>Проверка целостности базы данных не пройдена. Возможно, данные были изменены вручную.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="28"/>
+        <location filename="ui/translateresult.cpp" line="27"/>
         <source>Failed to compute content hash.</source>
         <translation>Не удалось вычислить хеш содержимого.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="29"/>
+        <location filename="ui/translateresult.cpp" line="28"/>
         <source>The operation could not be completed. See the event log for details.</source>
         <translation>Не удалось завершить операцию. Подробности смотрите в журнале событий.</translation>
     </message>
@@ -866,7 +768,6 @@ Details: %2</source>
         <translation>Предупреждение</translation>
     </message>
     <message>
-        <location filename="tools/cloud-setup/smoke/smoke.cpp" line="309"/>
         <location filename="ui/dialogs/resultmessenger.cpp" line="17"/>
         <source>Error</source>
         <translation>Ошибка</translation>
@@ -885,10 +786,6 @@ Details: %2</source>
         <location filename="ui/dialogs/resultmessenger.cpp" line="31"/>
         <source>Technical details are available in the event log.</source>
         <translation>Технические подробности доступны в журнале событий.</translation>
-    </message>
-    <message>
-        <source>Details: %1</source>
-        <translation type="obsolete">Детали: %1</translation>
     </message>
     <message>
         <location filename="ui/dialogs/resultmessenger.cpp" line="65"/>
@@ -949,37 +846,37 @@ or click to select a file</source>
 <context>
     <name>VariantService</name>
     <message>
-        <location filename="ui/translateresult.cpp" line="173"/>
+        <location filename="ui/translateresult.cpp" line="172"/>
         <source>Variant №%1 not found.</source>
         <translation>Вариант №%1 не найден.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="177"/>
+        <location filename="ui/translateresult.cpp" line="176"/>
         <source>Variant №%1 already exists.</source>
         <translation>Вариант №%1 уже существет.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="181"/>
+        <location filename="ui/translateresult.cpp" line="180"/>
         <source>Failed to save variant.</source>
         <translation>Ошибка при сохранении варианта.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="185"/>
+        <location filename="ui/translateresult.cpp" line="184"/>
         <source>Failed to load variant.</source>
         <translation>Ошибка при загрузке варианта.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="189"/>
+        <location filename="ui/translateresult.cpp" line="188"/>
         <source>Failed to remove variant.</source>
         <translation>Ошибка при удалении варианта.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="193"/>
+        <location filename="ui/translateresult.cpp" line="192"/>
         <source>Variant has no content (empty states or inputs).</source>
         <translation>Вариант не имеет некоторого наполнения.</translation>
     </message>
     <message>
-        <location filename="ui/translateresult.cpp" line="196"/>
+        <location filename="ui/translateresult.cpp" line="195"/>
         <source>Variant #%1 has no task image.</source>
         <translation>Вариант №%1 не содержит изображения задания.</translation>
     </message>
@@ -1101,15 +998,6 @@ or click to select a file</source>
         <translation>Номера №%1 и №%2 успешно поменяны местами.</translation>
     </message>
     <message>
-        <source>Error: %1</source>
-        <translation type="obsolete">Ошибка: %1</translation>
-    </message>
-    <message>
-        <source>Do you want delete varinat №%1?</source>
-        <oldsource>Do you want delete varinat №%1</oldsource>
-        <translation type="obsolete">Вы хотите удалить вариант №%1?</translation>
-    </message>
-    <message>
         <location filename="ui/variantslist.ui" line="34"/>
         <source>Load</source>
         <translation>Загрузить</translation>
@@ -1124,7 +1012,6 @@ or click to select a file</source>
     <name>main</name>
     <message>
         <location filename="main.cpp" line="21"/>
-        <location filename="tools/cloud-setup/smoke/smoke.cpp" line="311"/>
         <source>Database error</source>
         <translation>Ошибка базы данных</translation>
     </message>

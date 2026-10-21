@@ -14,7 +14,7 @@
 #include <memory>
 
 namespace {
-const QByteArray kMagic("M2MTOOLS1");
+const QByteArray kMagic("M2MTOOLS2");
 constexpr int kSaltSize = 16;
 constexpr int kNonceSize = 12;
 constexpr int kTagSize = 16;
@@ -22,6 +22,22 @@ constexpr int kKeySize = 32;
 constexpr int kPbkdf2Iterations = 200000;
 
 using CipherContext = std::unique_ptr<EVP_CIPHER_CTX, decltype(&EVP_CIPHER_CTX_free)>;
+
+QByteArray applicationArchiveKeyMaterial() {
+    // This application-managed key is intentionally not exposed in the UI or
+    // stored in an archive. A compatible trusted application must use the same
+    // key material and M2MTOOLS2 container format.
+    static const QByteArray partA = QByteArray::fromHex(
+        "e758d0ffb756c99a9fed62dbb728a1e4"
+        "cb06939e6d0d017dbb321b89a262c6e8");
+    static const QByteArray partB = QByteArray::fromHex(
+        "91ed552426a3a7bc31a8c75f11d2ec96"
+        "aec327628668c5aa074e99718add5531");
+    QByteArray material(kKeySize, Qt::Uninitialized);
+    for (int i = 0; i < material.size(); ++i)
+        material[i] = partA[i] ^ partB[i];
+    return material;
+}
 
 QJsonArray stringListToJson(const QStringList& values) {
     QJsonArray array;
@@ -234,20 +250,18 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
                                .arg(number));
 }
 
-bool deriveKey(const QString& password, const QByteArray& salt,
-               QByteArray* key) {
+bool deriveKey(const QByteArray& salt, QByteArray* key) {
     if (!key) return false;
     key->resize(kKeySize);
-    const QByteArray passwordBytes = password.toUtf8();
+    QByteArray keyMaterial = applicationArchiveKeyMaterial();
     return PKCS5_PBKDF2_HMAC(
-        passwordBytes.constData(), passwordBytes.size(),
+        keyMaterial.constData(), keyMaterial.size(),
         reinterpret_cast<const unsigned char*>(salt.constData()), salt.size(),
         kPbkdf2Iterations, EVP_sha256(), key->size(),
         reinterpret_cast<unsigned char*>(key->data())) == 1;
 }
 
-bool encrypt(const QByteArray& plainText, const QString& password,
-             QByteArray* salt, QByteArray* nonce,
+bool encrypt(const QByteArray& plainText, QByteArray* salt, QByteArray* nonce,
              QByteArray* tag, QByteArray* cipherText) {
     if (!salt || !nonce || !tag || !cipherText) return false;
     salt->resize(kSaltSize);
@@ -259,7 +273,7 @@ bool encrypt(const QByteArray& plainText, const QString& password,
         return false;
     }
     QByteArray key;
-    if (!deriveKey(password, *salt, &key)) return false;
+    if (!deriveKey(*salt, &key)) return false;
 
     CipherContext context(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
     if (!context) return false;
@@ -307,12 +321,12 @@ bool encrypt(const QByteArray& plainText, const QString& password,
         context.get(), EVP_CTRL_GCM_GET_TAG, tag->size(), tag->data()) == 1;
 }
 
-bool decrypt(const QByteArray& cipherText, const QString& password,
-             const QByteArray& salt, const QByteArray& nonce,
+bool decrypt(const QByteArray& cipherText, const QByteArray& salt,
+             const QByteArray& nonce,
              const QByteArray& tag, QByteArray* plainText) {
     if (!plainText) return false;
     QByteArray key;
-    if (!deriveKey(password, salt, &key)) return false;
+    if (!deriveKey(salt, &key)) return false;
 
     CipherContext context(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
     if (!context) return false;
@@ -362,15 +376,7 @@ bool decrypt(const QByteArray& cipherText, const QString& password,
 }
 
 Result VariantArchive::save(const QString& path,
-                            const QList<AutomatonData>& variants,
-                            const QString& password) {
-    if (password.size() < 8) {
-        return Result::error(
-            QStringLiteral("Archive password must contain at least 8 characters"),
-            ResultCategory::Validation)
-            .withCode(ErrorCode::ArchivePasswordTooShort);
-    }
-
+                            const QList<AutomatonData>& variants) {
     QJsonArray variantArray;
     for (const AutomatonData& variant : variants)
         variantArray.append(automatonToJson(variant));
@@ -385,9 +391,9 @@ Result VariantArchive::save(const QString& path,
     QByteArray nonce;
     QByteArray tag;
     QByteArray cipherText;
-    if (!encrypt(plainText, password, &salt, &nonce, &tag, &cipherText)) {
+    if (!encrypt(plainText, &salt, &nonce, &tag, &cipherText)) {
         return Result::error(
-            QStringLiteral("Failed to encrypt the BazaVar archive"))
+            QStringLiteral("Failed to protect the BazaVar file"))
             .withCode(ErrorCode::ArchiveEncryptionFailed);
     }
 
@@ -411,7 +417,6 @@ Result VariantArchive::save(const QString& path,
 }
 
 Result VariantArchive::load(const QString& path,
-                            const QString& password,
                             QList<AutomatonData>* variants) {
     if (!variants) {
         return Result::error(
@@ -444,11 +449,11 @@ Result VariantArchive::load(const QString& path,
     const QByteArray cipherText = archive.mid(offset);
 
     QByteArray plainText;
-    if (!decrypt(cipherText, password, salt, nonce, tag, &plainText)) {
+    if (!decrypt(cipherText, salt, nonce, tag, &plainText)) {
         return Result::error(
             QStringLiteral(
-                "Failed to decrypt BazaVar: the password is incorrect "
-                "or the file was modified"))
+                "Failed to open BazaVar: the file was modified or was "
+                "created by an incompatible application"))
             .withCode(ErrorCode::ArchiveDecryptionFailed);
     }
 
@@ -458,7 +463,7 @@ Result VariantArchive::load(const QString& path,
     if (parseError.error != QJsonParseError::NoError ||
         !document.isObject()) {
         return Result::error(
-            QStringLiteral("Decrypted archive data is corrupted"))
+            QStringLiteral("BazaVar file data is corrupted"))
             .withCode(ErrorCode::ArchiveCorruptedPayload);
     }
     const QJsonObject root = document.object();

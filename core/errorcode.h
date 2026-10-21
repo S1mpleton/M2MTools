@@ -79,7 +79,7 @@ enum class ErrorCode {
     VariantUnknownState,
     VariantUnknownOutput,
 
-    // Encrypted variant archive
+    // Protected variant archive
     ArchiveInvalidEntry,
     ArchiveInvalidMetadata,
     ArchiveInvalidSymbols,
@@ -87,7 +87,6 @@ enum class ErrorCode {
     ArchiveCorruptedTransitionTable,
     ArchiveMissingImage,
     ArchiveInvalidVariant,
-    ArchivePasswordTooShort,
     ArchiveEncryptionFailed,
     ArchiveFileOpenFailed,
     ArchiveSaveFailed,

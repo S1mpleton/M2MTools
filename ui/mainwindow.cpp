@@ -22,7 +22,6 @@
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QImage>
-#include <QInputDialog>
 #include <QLabel>
 #include <QPushButton>
 #include <QShortcut>
@@ -277,9 +276,6 @@ void MainWindow::setupConnections() {
             this, &MainWindow::onVariantTypeChanged);
     connect(ui->numberVariantSpinBox, &QSpinBox::valueChanged,
             this, &MainWindow::onVariantNumberChanged);
-    connect(ui->numberVariantSpinBox, &QSpinBox::editingFinished, this, [this] {
-        if (!m_updatingUi) m_numberWasEdited = true;
-    });
     connect(m_initialStateComboBox, &QComboBox::currentTextChanged,
             this, &MainWindow::onInitialStateChanged);
     connect(ui->stateNamesLineEdit, &QLineEdit::textChanged,
@@ -635,7 +631,6 @@ void MainWindow::onLoadVariantPushButton() {
         return;
     }
     m_data = result.payloadAs<AutomatonData>();
-    m_numberWasEdited = false;
     m_initialStateWasEdited = true;
     refreshData();
     refreshTable();
@@ -667,31 +662,9 @@ void MainWindow::onSavePushButtonClicked() {
 }
 
 void MainWindow::onNewVariantClicked() {
-    int number = m_variantService->firstAvailableVariantNumber();
-    if (m_numberWasEdited) {
-        const int requested = ui->numberVariantSpinBox->value();
-        Result exists = m_variantService->isExist(requested);
-        if (!exists.ok()) {
-            showInlineMessage(translateResult(exists));
-            return;
-        }
-        if (exists.payloadAs<bool>()) {
-            ui->numberVariantSpinBox->setStyleSheet(
-                UiFeedbackStyle::fieldStyle(UiFeedbackLevel::Error));
-            showInlineMessage(
-                tr("Variant #%1 already exists. Choose another number.")
-                    .arg(requested));
-            return;
-        }
-        number = requested;
-    }
-
-    const VariantType type = ui->variantTypeComboBox->currentIndex() == 0
-        ? VariantType::MealyToMoore : VariantType::MooreToMealy;
+    const int number = m_variantService->firstAvailableVariantNumber();
     m_data = AutomatonData();
-    m_data.setVariantType(type);
     m_data.setVariantNumber(number);
-    m_numberWasEdited = false;
     m_initialStateWasEdited = false;
     ui->numberVariantSpinBox->setStyleSheet(QString());
     refreshData();
@@ -754,53 +727,29 @@ void MainWindow::onExportArchiveClicked() {
     }
 
     QString path = QFileDialog::getSaveFileName(
-        this, tr("Save encrypted database"),
+        this, tr("Save BazaVar"),
         QStringLiteral("BazaVar.m2m"),
         tr("M2MTools archive (*.m2m);;All files (*)"));
     if (path.isEmpty()) return;
     if (QFileInfo(path).suffix().isEmpty())
         path += QStringLiteral(".m2m");
 
-    bool accepted = false;
-    const QString password = QInputDialog::getText(
-        this, tr("BazaVar password"),
-        tr("Enter a password (at least 8 characters):"),
-        QLineEdit::Password, QString(), &accepted);
-    if (!accepted) return;
-    const QString confirmation = QInputDialog::getText(
-        this, tr("Confirm password"),
-        tr("Repeat the password:"),
-        QLineEdit::Password, QString(), &accepted);
-    if (!accepted) return;
-    if (password != confirmation) {
-        showInlineMessage(tr("Passwords do not match."));
-        Logger::warning(QStringLiteral("Archive export cancelled: password confirmation mismatch"),
-                        ResultCategory::Ui);
-        return;
-    }
-
-    Result result = m_variantService->exportArchive(path, password);
+    Result result = m_variantService->exportArchive(path);
     Logger::log(result);
     if (!result.ok()) {
         showInlineMessage(translateResult(result));
         return;
     }
-    showInlineMessage(tr("The encrypted BazaVar archive was saved."),
+    showInlineMessage(tr("The BazaVar file was saved."),
                       UiFeedbackLevel::Success, 4000);
 }
 
 void MainWindow::onImportArchiveClicked() {
     const QString path = QFileDialog::getOpenFileName(
-        this, tr("Open encrypted database"), QString(),
+        this, tr("Open BazaVar"), QString(),
         tr("M2MTools archive (*.m2m);;All files (*)"));
     if (path.isEmpty()) return;
 
-    bool accepted = false;
-    const QString password = QInputDialog::getText(
-        this, tr("BazaVar password"),
-        tr("Enter the archive password:"),
-        QLineEdit::Password, QString(), &accepted);
-    if (!accepted) return;
     if (!ResultMessenger::askConfirm(
             this,
             tr("The current variant database will be replaced by the archive contents."),
@@ -808,7 +757,7 @@ void MainWindow::onImportArchiveClicked() {
         return;
     }
 
-    Result result = m_variantService->importArchive(path, password);
+    Result result = m_variantService->importArchive(path);
     Logger::log(result);
     if (!result.ok()) {
         showInlineMessage(translateResult(result));
@@ -828,11 +777,10 @@ void MainWindow::onImportArchiveClicked() {
         m_data.setVariantNumber(
             m_variantService->firstAvailableVariantNumber());
     }
-    m_numberWasEdited = false;
     refreshData();
     refreshTable();
     syncReactionFromData();
-    showInlineMessage(tr("The BazaVar archive was opened."),
+    showInlineMessage(tr("The BazaVar file was opened."),
                       UiFeedbackLevel::Success, 4000);
 }
 

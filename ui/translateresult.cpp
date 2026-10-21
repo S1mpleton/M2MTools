@@ -14,14 +14,13 @@ namespace {
         QT_TRANSLATE_NOOP("Result", "The archive transition table is corrupted."),
         QT_TRANSLATE_NOOP("Result", "Variant #%1 in the archive has no image."),
         QT_TRANSLATE_NOOP("Result", "A variant in the archive failed validation."),
-        QT_TRANSLATE_NOOP("Result", "The archive password must contain at least 8 characters."),
-        QT_TRANSLATE_NOOP("Result", "Failed to encrypt the BazaVar archive."),
+        QT_TRANSLATE_NOOP("Result", "Failed to prepare the BazaVar file."),
         QT_TRANSLATE_NOOP("Result", "Failed to open the BazaVar archive file."),
         QT_TRANSLATE_NOOP("Result", "Failed to save the BazaVar archive."),
         QT_TRANSLATE_NOOP("Result", "Internal error: archive data destination was not provided."),
         QT_TRANSLATE_NOOP("Result", "The selected file is not an M2MTools archive."),
-        QT_TRANSLATE_NOOP("Result", "Failed to decrypt BazaVar. Check the password and file integrity."),
-        QT_TRANSLATE_NOOP("Result", "The decrypted archive data is corrupted."),
+        QT_TRANSLATE_NOOP("Result", "The BazaVar file is damaged or was created by an incompatible application."),
+        QT_TRANSLATE_NOOP("Result", "The BazaVar file data is corrupted."),
         QT_TRANSLATE_NOOP("Result", "This BazaVar archive version or format is not supported."),
         QT_TRANSLATE_NOOP("Result", "The archive contains duplicate variant number #%1."),
         QT_TRANSLATE_NOOP("Result", "Database integrity check failed. The data may have been modified manually."),
@@ -212,10 +211,8 @@ QString TranslateResult::forUi(const Result& r) {
             .arg(r.offender());
     case EC::ArchiveInvalidVariant:
         return trResult("A variant in the archive failed validation.");
-    case EC::ArchivePasswordTooShort:
-        return trResult("The archive password must contain at least 8 characters.");
     case EC::ArchiveEncryptionFailed:
-        return trResult("Failed to encrypt the BazaVar archive.");
+        return trResult("Failed to prepare the BazaVar file.");
     case EC::ArchiveFileOpenFailed:
         return trResult("Failed to open the BazaVar archive file.");
     case EC::ArchiveSaveFailed:
@@ -225,9 +222,9 @@ QString TranslateResult::forUi(const Result& r) {
     case EC::ArchiveInvalidFormat:
         return trResult("The selected file is not an M2MTools archive.");
     case EC::ArchiveDecryptionFailed:
-        return trResult("Failed to decrypt BazaVar. Check the password and file integrity.");
+        return trResult("The BazaVar file is damaged or was created by an incompatible application.");
     case EC::ArchiveCorruptedPayload:
-        return trResult("The decrypted archive data is corrupted.");
+        return trResult("The BazaVar file data is corrupted.");
     case EC::ArchiveUnsupportedVersion:
         return trResult("This BazaVar archive version or format is not supported.");
     case EC::ArchiveDuplicateVariantNumber:

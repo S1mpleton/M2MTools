@@ -10,11 +10,9 @@ class VariantArchive
 {
 public:
     static Result save(const QString& path,
-                       const QList<AutomatonData>& variants,
-                       const QString& password);
+                       const QList<AutomatonData>& variants);
 
     static Result load(const QString& path,
-                       const QString& password,
                        QList<AutomatonData>* variants);
 };
 

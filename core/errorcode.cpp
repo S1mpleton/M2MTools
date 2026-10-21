@@ -71,7 +71,6 @@ QString errorCodeToString(ErrorCode code) {
     case ErrorCode::ArchiveCorruptedTransitionTable: return QStringLiteral("ArchiveCorruptedTransitionTable");
     case ErrorCode::ArchiveMissingImage: return QStringLiteral("ArchiveMissingImage");
     case ErrorCode::ArchiveInvalidVariant: return QStringLiteral("ArchiveInvalidVariant");
-    case ErrorCode::ArchivePasswordTooShort: return QStringLiteral("ArchivePasswordTooShort");
     case ErrorCode::ArchiveEncryptionFailed: return QStringLiteral("ArchiveEncryptionFailed");
     case ErrorCode::ArchiveFileOpenFailed: return QStringLiteral("ArchiveFileOpenFailed");
     case ErrorCode::ArchiveSaveFailed: return QStringLiteral("ArchiveSaveFailed");

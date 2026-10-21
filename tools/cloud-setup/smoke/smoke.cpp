@@ -16,6 +16,7 @@
 #include <QRect>
 #include <QScrollArea>
 #include <QShortcut>
+#include <QSpinBox>
 #include <QSqlQuery>
 #include <QStatusBar>
 #include <QTableWidget>
@@ -229,16 +230,26 @@ int main(int argc, char** argv) {
         requireOk(service.saveVariant(makeVariant(
             202, VariantType::MooreToMealy, "second.png")));
         const QString archivePath = temporary.filePath("BazaVar.m2m");
-        requireOk(service.exportArchive(archivePath, "correct-password"));
+        requireOk(service.exportArchive(archivePath));
         QFile archiveFile(archivePath);
-        require(archiveFile.open(QIODevice::ReadOnly), "encrypted archive readable");
+        require(archiveFile.open(QIODevice::ReadOnly), "protected archive readable");
         const QByteArray archiveBytes = archiveFile.readAll();
-        require(archiveBytes.startsWith("M2MTOOLS1") &&
+        require(archiveBytes.startsWith("M2MTOOLS2") &&
                 !archiveBytes.contains("first.png"),
                 "archive has authenticated format and no plaintext metadata");
-        require(!service.importArchive(archivePath, "wrong-password").ok() &&
+        QByteArray modifiedBytes = archiveBytes;
+        modifiedBytes[modifiedBytes.size() - 1] =
+            modifiedBytes.at(modifiedBytes.size() - 1) ^ char(1);
+        const QString modifiedArchivePath =
+            temporary.filePath("ModifiedBazaVar.m2m");
+        QFile modifiedArchive(modifiedArchivePath);
+        require(modifiedArchive.open(QIODevice::WriteOnly) &&
+                modifiedArchive.write(modifiedBytes) == modifiedBytes.size(),
+                "modified archive fixture can be written");
+        modifiedArchive.close();
+        require(!service.importArchive(modifiedArchivePath).ok() &&
                 service.isExist(201).payloadAs<bool>(),
-                "wrong archive password does not alter database");
+                "modified archive does not alter database");
         requireOk(service.swapVariants(201, 202));
         auto swappedFirst = service.loadVariant(201).payloadAs<AutomatonData>();
         auto swappedSecond = service.loadVariant(202).payloadAs<AutomatonData>();
@@ -257,16 +268,16 @@ int main(int argc, char** argv) {
                 "variant gaps are compacted");
         requireOk(service.removeVariant(1));
         requireOk(service.removeVariant(2));
-        requireOk(service.importArchive(archivePath, "correct-password"));
+        requireOk(service.importArchive(archivePath));
         require(service.isExist(201).payloadAs<bool>() &&
                 service.isExist(202).payloadAs<bool>() &&
                 service.loadVariant(201).payloadAs<AutomatonData>()
                     .getDiagramFileName() == "first.png",
-                "encrypted archive restores complete database");
+                "protected archive restores complete database");
         requireOk(service.removeVariant(201));
         requireOk(service.removeVariant(202));
         std::cout << "PASS variant number swap, empty slot and compaction\n";
-        std::cout << "PASS encrypted BazaVar export/import and wrong-password safety\n";
+        std::cout << "PASS protected BazaVar export/import and modification safety\n";
 
         {
             VariantsList variantsDialog(&service);
@@ -276,6 +287,13 @@ int main(int argc, char** argv) {
                     "variant list exposes swap controls");
         }
         std::cout << "PASS variant list swap controls\n";
+
+        requireOk(service.saveVariant(makeVariant(
+            1, VariantType::MealyToMoore, "one.png")));
+        requireOk(service.saveVariant(makeVariant(
+            3, VariantType::MooreToMealy, "three.png")));
+        require(service.firstAvailableVariantNumber() == 2,
+                "smallest free variant number fills the first gap");
 
         MainWindow window(&service);
         window.show();
@@ -301,9 +319,13 @@ int main(int argc, char** argv) {
                     window.findChild<QLabel*>("validationMessage");
                 auto* newVariant =
                     window.findChild<QPushButton*>("newVariantButton");
+                auto* variantNumber =
+                    window.findChild<QSpinBox*>("numberVariantSpinBox");
+                auto* conversion =
+                    window.findChild<QComboBox*>("variantTypeComboBox");
                 require(names && inputs && outputs && table && editMode && initialState &&
                         reactionTable && diagram && exportArchive && importArchive &&
-                        validationMessage && newVariant,
+                        validationMessage && newVariant && variantNumber && conversion,
                         "modern main window controls");
                 require(editMode->currentIndex() == 1,
                         "reaction editor is selected on startup");
@@ -353,7 +375,20 @@ int main(int argc, char** argv) {
                         validationMessage->isVisible() &&
                         validationMessage->height() >= 40,
                         "save validation explains the automaton error inline without a popup");
+                variantNumber->setValue(99);
+                require(QMetaObject::invokeMethod(variantNumber, "editingFinished"),
+                        "manual variant number edit can be simulated");
+                conversion->setCurrentIndex(1);
+                names->setText("temporaryState");
+                inputs->setText("temporaryInput");
+                outputs->setText("temporaryOutput");
                 newVariant->click();
+                require(variantNumber->value() == 2 &&
+                        conversion->currentIndex() == 0 &&
+                        names->text().isEmpty() && inputs->text().isEmpty() &&
+                        outputs->text().isEmpty() && initialState->count() == 0 &&
+                        reactionTable->item(0, 0)->text().isEmpty(),
+                        "new variant clears all fields and uses the smallest free number");
                 require(validationMessage->styleSheet() ==
                             UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Success),
                         "successful user actions use the green inline message");
@@ -467,6 +502,8 @@ int main(int argc, char** argv) {
                     require(window.grab().save(screenshotPath),
                             "UI screenshot can be captured");
                 std::cout << "PASS modern offscreen UI and live bidirectional editing\n";
+                requireOk(service.removeVariant(1));
+                requireOk(service.removeVariant(3));
                 window.close();
                 app.exit(0);
             } catch (const std::exception& failure) {
