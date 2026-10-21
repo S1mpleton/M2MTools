@@ -6,6 +6,8 @@
 #include "ui/mainwindow.h"
 #include "ui/feedbackstyle.h"
 #include "ui/variantslist.h"
+#include "validation/compositevalidator.h"
+#include "validation/editvalidator.h"
 #include <QAction>
 #include <QApplication>
 #include <QLineEdit>
@@ -19,6 +21,7 @@
 #include <QSpinBox>
 #include <QSqlQuery>
 #include <QStatusBar>
+#include <QStyleOptionViewItem>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -225,10 +228,24 @@ int main(int argc, char** argv) {
             data.setDiagramImage("data", imageName);
             return data;
         };
+        auto makeSparseVariant = [] {
+            AutomatonData data;
+            requireOk(data.setVariantNumber(203));
+            requireOk(data.setVariantType(VariantType::MealyToMoore));
+            requireOk(data.setStateNames({"s0", "s1"}));
+            requireOk(data.setInputSignalNames({"x0", "x1"}));
+            requireOk(data.setOutputSignalNames({"y0"}));
+            requireOk(data.setTransitionCellByName("x0", "s0", "s1/y0"));
+            requireOk(data.setTransitionCellByName("x1", "s1", "s0/y0"));
+            data.setDiagramImage("sparse-data", "sparse.png");
+            requireOk(data.validate());
+            return data;
+        };
         requireOk(service.saveVariant(makeVariant(
             201, VariantType::MealyToMoore, "first.png")));
         requireOk(service.saveVariant(makeVariant(
             202, VariantType::MooreToMealy, "second.png")));
+        requireOk(service.saveVariant(makeSparseVariant()));
         const QString archivePath = temporary.filePath("BazaVar.m2m");
         requireOk(service.exportArchive(archivePath));
         QFile archiveFile(archivePath);
@@ -274,19 +291,16 @@ int main(int argc, char** argv) {
                 service.loadVariant(201).payloadAs<AutomatonData>()
                     .getDiagramFileName() == "first.png",
                 "protected archive restores complete database");
+        const AutomatonData sparseArchiveVariant =
+            service.loadVariant(203).payloadAs<AutomatonData>();
+        require(sparseArchiveVariant.getTransitionTable()[0][1].isEmpty() &&
+                sparseArchiveVariant.getTransitionTable()[1][0].isEmpty(),
+                "BazaVar round trip preserves valid sparse transitions");
         requireOk(service.removeVariant(201));
         requireOk(service.removeVariant(202));
+        requireOk(service.removeVariant(203));
         std::cout << "PASS variant number swap, empty slot and compaction\n";
         std::cout << "PASS protected BazaVar export/import and modification safety\n";
-
-        {
-            VariantsList variantsDialog(&service);
-            require(variantsDialog.findChild<QComboBox*>("swapFirstComboBox") &&
-                    variantsDialog.findChild<QComboBox*>("swapSecondComboBox") &&
-                    variantsDialog.findChild<QPushButton*>("swapVariantsButton"),
-                    "variant list exposes swap controls");
-        }
-        std::cout << "PASS variant list swap controls\n";
 
         requireOk(service.saveVariant(makeVariant(
             1, VariantType::MealyToMoore, "one.png")));
@@ -294,6 +308,33 @@ int main(int argc, char** argv) {
             3, VariantType::MooreToMealy, "three.png")));
         require(service.firstAvailableVariantNumber() == 2,
                 "smallest free variant number fills the first gap");
+
+        {
+            VariantsList variantsDialog(&service);
+            auto* sort = variantsDialog.findChild<QComboBox*>(
+                "variantSortComboBox");
+            auto* variantsTable = variantsDialog.findChild<QTableWidget*>(
+                "variantsTableWidget");
+            require(sort && variantsTable &&
+                    variantsDialog.findChild<QComboBox*>("swapFirstComboBox") &&
+                    variantsDialog.findChild<QComboBox*>("swapSecondComboBox") &&
+                    variantsDialog.findChild<QPushButton*>("swapVariantsButton"),
+                    "variant list exposes sorting and swap controls");
+            require(variantsTable->item(0, 0)->text() == "1" &&
+                    variantsTable->item(1, 0)->text() == "3",
+                    "variants are sorted by number ascending by default");
+            sort->setCurrentIndex(1);
+            require(variantsTable->item(0, 0)->text() == "3" &&
+                    variantsTable->item(1, 0)->text() == "1",
+                    "variants can be sorted by number descending");
+            sort->setCurrentIndex(2);
+            require(variantsTable->item(0, 0)->text() == "1",
+                    "variants can be sorted by task type");
+            sort->setCurrentIndex(3);
+            require(variantsTable->item(0, 0)->text() == "3",
+                    "task type sorting can be reversed");
+        }
+        std::cout << "PASS variant list sorting and swap controls\n";
 
         MainWindow window(&service);
         window.show();
@@ -327,6 +368,9 @@ int main(int argc, char** argv) {
                         reactionTable && diagram && exportArchive && importArchive &&
                         validationMessage && newVariant && variantNumber && conversion,
                         "modern main window controls");
+                require(importArchive->text() == "Import database" &&
+                        exportArchive->text() == "Export database",
+                        "database actions use concise English labels");
                 require(editMode->currentIndex() == 1,
                         "reaction editor is selected on startup");
                 auto* russianAction = window.findChild<QAction*>("actionSetLangRu");
@@ -340,7 +384,9 @@ int main(int argc, char** argv) {
                 russianAction->trigger();
                 QApplication::processEvents();
                 require(window.windowTitle() != englishTitle &&
-                        addTactButton->text() != englishAddTact,
+                        addTactButton->text() != englishAddTact &&
+                        importArchive->text() == QString::fromUtf8("Импорт БД") &&
+                        exportArchive->text() == QString::fromUtf8("Экспорт БД"),
                         "Russian catalog translates dynamic controls");
                 require(QCoreApplication::translate(
                             "ResultMessenger", "Error") == QString::fromUtf8("Ошибка") &&
@@ -365,6 +411,36 @@ int main(int argc, char** argv) {
                         "main window supports a compact desktop size");
                 require(reactionTable->item(0, 0),
                         "empty reaction exposes its first state cell");
+                QWidget* singleNameEditor = reactionTable->itemDelegate()->createEditor(
+                    reactionTable, QStyleOptionViewItem(),
+                    reactionTable->model()->index(0, 0));
+                auto* singleNameLineEdit = qobject_cast<QLineEdit*>(singleNameEditor);
+                require(singleNameLineEdit &&
+                        qobject_cast<const EditValidator*>(
+                            singleNameLineEdit->validator()),
+                        "reaction state cells use the shared single-name validator");
+                QString invalidSingleName = QStringLiteral("q@ 1");
+                int singleNamePosition = invalidSingleName.size();
+                singleNameLineEdit->validator()->validate(
+                    invalidSingleName, singleNamePosition);
+                require(invalidSingleName == QStringLiteral("q1"),
+                        "reaction single-name validator removes separators and symbols");
+                delete singleNameEditor;
+
+                QWidget* outputEditor = reactionTable->itemDelegate()->createEditor(
+                    reactionTable, QStyleOptionViewItem(),
+                    reactionTable->model()->index(3, 0));
+                auto* outputLineEdit = qobject_cast<QLineEdit*>(outputEditor);
+                require(outputLineEdit &&
+                        qobject_cast<const CompositeValidator*>(
+                            outputLineEdit->validator()),
+                        "reaction output cells use the shared name-list validator");
+                QString outputList = QStringLiteral("y1 ");
+                int outputPosition = outputList.size();
+                outputLineEdit->validator()->validate(outputList, outputPosition);
+                require(outputList == QStringLiteral("y1, "),
+                        "reaction output validator normalizes list separators");
+                delete outputEditor;
                 require(QMetaObject::invokeMethod(
                             &window, "onSavePushButtonClicked"),
                         "save validation can be invoked");
@@ -392,6 +468,11 @@ int main(int argc, char** argv) {
                 require(validationMessage->styleSheet() ==
                             UiFeedbackStyle::bannerStyle(UiFeedbackLevel::Success),
                         "successful user actions use the green inline message");
+                reactionTable->item(0, 0)->setText("1bad");
+                require(reactionTable->item(0, 0)->background().color() ==
+                            UiFeedbackStyle::background(UiFeedbackLevel::Error) &&
+                        validationMessage->text().contains("Invalid name"),
+                        "invalid reaction names are highlighted immediately");
                 reactionTable->item(0, 0)->setText("q0");
                 require(initialState->currentText() == "q0",
                         "first state entered in a reaction becomes initial");

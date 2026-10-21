@@ -13,6 +13,39 @@
 #include <QPushButton>
 #include <QSet>
 
+#include <algorithm>
+
+namespace {
+enum class VariantSort {
+    NumberAscending,
+    NumberDescending,
+    TypeAscending,
+    TypeDescending,
+};
+
+QList<VariantRow> sortedVariants(QList<VariantRow> variants,
+                                 VariantSort sort) {
+    std::stable_sort(
+        variants.begin(), variants.end(),
+        [sort](const VariantRow& left, const VariantRow& right) {
+            if (sort == VariantSort::NumberAscending)
+                return left.number < right.number;
+            if (sort == VariantSort::NumberDescending)
+                return left.number > right.number;
+
+            const int leftType = static_cast<int>(
+                variantTypeStringToType(left.conversion));
+            const int rightType = static_cast<int>(
+                variantTypeStringToType(right.conversion));
+            if (leftType == rightType)
+                return left.number < right.number;
+            return sort == VariantSort::TypeAscending
+                ? leftType < rightType : leftType > rightType;
+        });
+    return variants;
+}
+}
+
 VariantsList::VariantsList(VariantService *service, QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::VariantsList)
@@ -32,6 +65,8 @@ VariantsList::VariantsList(VariantService *service, QWidget *parent)
             this, &VariantsList::onDeleteClicked);
     connect(ui->variantsTableWidget, &QTableWidget::itemSelectionChanged,
             this, &VariantsList::onSelectionChanged);
+    connect(ui->variantSortComboBox, &QComboBox::currentIndexChanged,
+            this, [this] { populateTable(); });
     connect(m_swapButton, &QPushButton::clicked,
             this, &VariantsList::onSwapClicked);
 
@@ -55,6 +90,19 @@ void VariantsList::configureTable() {
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->horizontalHeader()->setStretchLastSection(true);
     table->verticalHeader()->setVisible(false);
+
+    ui->variantSortComboBox->addItem(
+        tr("Variant number: ascending"),
+        static_cast<int>(VariantSort::NumberAscending));
+    ui->variantSortComboBox->addItem(
+        tr("Variant number: descending"),
+        static_cast<int>(VariantSort::NumberDescending));
+    ui->variantSortComboBox->addItem(
+        tr("Task type: ascending"),
+        static_cast<int>(VariantSort::TypeAscending));
+    ui->variantSortComboBox->addItem(
+        tr("Task type: descending"),
+        static_cast<int>(VariantSort::TypeDescending));
 }
 
 void VariantsList::configureSwapControls() {
@@ -93,7 +141,10 @@ void VariantsList::populateTable() {
         return;
     }
 
-    const auto variants = r.payloadAs<QList<VariantRow>>();
+    const auto sort = static_cast<VariantSort>(
+        ui->variantSortComboBox->currentData().toInt());
+    const auto variants = sortedVariants(
+        r.payloadAs<QList<VariantRow>>(), sort);
     table->setRowCount(variants.size());
 
     for (int i = 0; i < variants.size(); ++i) {
@@ -119,9 +170,11 @@ void VariantsList::populateTable() {
 void VariantsList::populateSwapControls(const QList<VariantRow>& variants) {
     const QString firstText = m_swapFirst->currentText();
     const QString secondText = m_swapSecond->currentText();
+    const QList<VariantRow> variantsByNumber = sortedVariants(
+        variants, VariantSort::NumberAscending);
     for (QComboBox* combo : {m_swapFirst, m_swapSecond}) {
         combo->clear();
-        for (const VariantRow& variant : variants)
+        for (const VariantRow& variant : variantsByNumber)
             combo->addItem(QString::number(variant.number));
         combo->setCurrentIndex(-1);
     }

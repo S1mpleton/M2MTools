@@ -5,6 +5,7 @@
 #include "infrastructure/logger.h"
 #include "ui/delegates/mealydelegate.h"
 #include "ui/delegates/mooredelegate.h"
+#include "ui/delegates/reactiondelegate.h"
 #include "ui/dialogs/resultmessenger.h"
 #include "ui/presenters/errorpresenterfactory.h"
 #include "ui/translateresult.h"
@@ -168,6 +169,7 @@ void MainWindow::setupModernUi() {
     m_reactionTable->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_reactionTable->setAlternatingRowColors(true);
     m_reactionTable->setMinimumHeight(145);
+    m_reactionTable->setItemDelegate(new ReactionDelegate(m_reactionTable));
     reactionLayout->addWidget(m_reactionTable);
     auto* reactionButtons = new QHBoxLayout;
     m_addReactionStepButton = new QPushButton(reactionPage);
@@ -247,8 +249,8 @@ void MainWindow::retranslateDynamicUi() {
     m_removeReactionStepButton->setText(tr("Remove tact"));
     ui->savePushButton->setText(tr("Save variant"));
     ui->loadVariantPushButton->setText(tr("Open variants"));
-    m_importArchiveButton->setText(tr("Open BazaVar…"));
-    m_exportArchiveButton->setText(tr("Export BazaVar…"));
+    m_importArchiveButton->setText(tr("Import database"));
+    m_exportArchiveButton->setText(tr("Export database"));
 }
 
 void MainWindow::setupPresenters() {

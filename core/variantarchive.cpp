@@ -167,16 +167,14 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
                     .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
             }
             const QJsonObject cell = row[stateIndex].toObject();
-            const QString nextState =
-                cell.value(QStringLiteral("nextState")).toString();
-            if (nextState.isEmpty()) {
+            const QJsonValue nextStateValue =
+                cell.value(QStringLiteral("nextState"));
+            if (!nextStateValue.isString()) {
                 return Result::error(
-                    QStringLiteral(
-                        "Variant #%1 in the archive contains an incomplete transition")
-                        .arg(number))
-                    .withCode(ErrorCode::ArchiveCorruptedTransitionTable)
-                    .withOffender(QString::number(number));
+                    QStringLiteral("Archive transition state is corrupted"))
+                    .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
             }
+            const QString nextState = nextStateValue.toString();
             QStringList cellOutputs;
             if (!stringListFromJson(
                     cell.value(QStringLiteral("outputs")), &cellOutputs)) {

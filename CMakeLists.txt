@@ -45,6 +45,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 
         ui/delegates/mooredelegate.h ui/delegates/mooredelegate.cpp
         ui/delegates/mealydelegate.h ui/delegates/mealydelegate.cpp
+        ui/delegates/reactiondelegate.h ui/delegates/reactiondelegate.cpp
 
         ui/presenters/fielderrorhighlighter.h ui/presenters/fielderrorhighlighter.cpp
         ui/presenters/tablecellerrorpresenter.h ui/presenters/tablecellerrorpresenter.cpp

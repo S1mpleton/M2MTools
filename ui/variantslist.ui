@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>620</width>
+    <height>420</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,6 +21,20 @@
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
       <item row="0" column="0">
+       <layout class="QHBoxLayout" name="sortLayout">
+        <item>
+         <widget class="QLabel" name="sortLabel">
+          <property name="text">
+           <string>Sort by</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="variantSortComboBox"/>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
        <widget class="QTableWidget" name="variantsTableWidget"/>
       </item>
      </layout>
