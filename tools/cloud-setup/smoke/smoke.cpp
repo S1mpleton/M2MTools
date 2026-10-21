@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QRect>
 #include <QScrollArea>
+#include <QShortcut>
 #include <QSqlQuery>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -285,6 +286,24 @@ int main(int argc, char** argv) {
                         "modern main window controls");
                 require(editMode->currentIndex() == 1,
                         "reaction editor is selected on startup");
+                auto* russianAction = window.findChild<QAction*>("actionSetLangRu");
+                auto* englishAction = window.findChild<QAction*>("actionSetLangEn");
+                auto* addTactButton =
+                    window.findChild<QPushButton*>("addReactionStepButton");
+                require(russianAction && englishAction && addTactButton,
+                        "language actions and dynamic reaction controls");
+                const QString englishTitle = window.windowTitle();
+                const QString englishAddTact = addTactButton->text();
+                russianAction->trigger();
+                QApplication::processEvents();
+                require(window.windowTitle() != englishTitle &&
+                        addTactButton->text() != englishAddTact,
+                        "Russian catalog translates dynamic controls");
+                englishAction->trigger();
+                QApplication::processEvents();
+                require(window.windowTitle() == englishTitle &&
+                        addTactButton->text() == englishAddTact,
+                        "English remains the untranslated base language");
                 require(!window.findChild<QAction*>("actionTypeSoft") &&
                         !window.findChild<QAction*>("actionTypeStrict"),
                         "legacy soft and strict checks are removed");
@@ -328,6 +347,21 @@ int main(int argc, char** argv) {
                 reactionTable->item(0, 0)->setText("s0");
                 require(reactionTable->item(0, 0)->text() == "s1",
                         "reaction cannot start outside the selected initial state");
+                auto* enterShortcut = window.findChild<QShortcut*>(
+                    "insertReactionStepReturnShortcut");
+                require(enterShortcut, "reaction Enter shortcut exists");
+                reactionTable->setCurrentCell(1, 0);
+                const int tactCount = reactionTable->columnCount();
+                const QString precedingNextState = reactionTable->item(2, 0)->text();
+                require(QMetaObject::invokeMethod(enterShortcut, "activated"),
+                        "reaction Enter shortcut activates");
+                QApplication::processEvents();
+                require(reactionTable->columnCount() == tactCount + 1 &&
+                        reactionTable->currentColumn() == 1,
+                        "Enter inserts a tact after the selected column");
+                require(reactionTable->item(0, 1) &&
+                        reactionTable->item(0, 1)->text() == precedingNextState,
+                        "inserted tact continues from the preceding next state");
                 for (QPushButton* button : {exportArchive, importArchive}) {
                     const QRect buttonRect(
                         button->mapTo(window.centralWidget(), QPoint(0, 0)),

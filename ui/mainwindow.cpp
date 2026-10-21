@@ -25,6 +25,7 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTableWidget>
@@ -71,6 +72,8 @@ MainWindow::MainWindow(VariantService* service, QWidget *parent)
     refreshData();
     refreshTable();
     syncReactionFromData();
+    Logger::info(QStringLiteral("Main window initialized; reaction editor is active"),
+                 ResultCategory::Ui);
 }
 
 MainWindow::~MainWindow() {
@@ -78,7 +81,6 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::setupModernUi() {
-    setWindowTitle(QStringLiteral("M2MTools — редактор эквивалентных автоматов"));
     resize(1100, 720);
     setMinimumSize(900, 620);
 
@@ -88,30 +90,11 @@ void MainWindow::setupModernUi() {
     ui->verticalLayout->setContentsMargins(8, 6, 8, 6);
     ui->verticalLayout->setSpacing(6);
 
-    ui->groupBox->setTitle(QStringLiteral("Вариант"));
     ui->groupBox->setMinimumHeight(58);
     ui->groupBox->setMaximumHeight(72);
-    ui->groupBox_2->setTitle(QStringLiteral("Обозначения автомата"));
-    ui->groupBox_3->setTitle(QStringLiteral("Описание автомата"));
-    ui->label->setText(QStringLiteral("Номер варианта"));
-    ui->label_2->setText(QStringLiteral("Преобразование"));
-    ui->label_3->setText(QStringLiteral("Состояния A"));
-    ui->label_4->setText(QStringLiteral("Входные сигналы X"));
-    ui->label_5->setText(QStringLiteral("Выходные сигналы Y"));
-    ui->variantTypeComboBox->setItemText(0, QStringLiteral("Мили → Мура"));
-    ui->variantTypeComboBox->setItemText(1, QStringLiteral("Мура → Мили"));
     ui->numberVariantSpinBox->setMaximum(999999);
-    ui->stateNamesLineEdit->setPlaceholderText(QStringLiteral("Например: a0, a1, a2"));
-    ui->InputSignalNamesLineEdit->setPlaceholderText(QStringLiteral("Например: x1, x2"));
-    ui->OutputSignalNamesLineEdit->setPlaceholderText(QStringLiteral("Например: y1, y2"));
-    ui->menuMain->setTitle(QStringLiteral("Файл"));
-    ui->menuSettings->setTitle(QStringLiteral("Настройки"));
-    ui->actionSaveVariant->setText(QStringLiteral("Сохранить вариант"));
-    ui->actionLoadVariant->setText(QStringLiteral("Открыть варианты"));
-    ui->actionShowLogger->setText(QStringLiteral("Журнал событий"));
-    ui->actionExit->setText(QStringLiteral("Выход"));
 
-    m_newVariantButton = new QPushButton(QStringLiteral("Новый вариант"), ui->groupBox);
+    m_newVariantButton = new QPushButton(ui->groupBox);
     m_newVariantButton->setObjectName(QStringLiteral("newVariantButton"));
     ui->gridLayout_2->removeWidget(ui->label_2);
     ui->gridLayout_2->removeWidget(ui->variantTypeComboBox);
@@ -120,10 +103,10 @@ void MainWindow::setupModernUi() {
     ui->gridLayout_2->addWidget(m_newVariantButton, 0, 4);
     ui->gridLayout_2->setColumnStretch(3, 1);
 
-    auto* initialStateLabel = new QLabel(QStringLiteral("Начальное состояние"), ui->groupBox_2);
+    m_initialStateLabel = new QLabel(ui->groupBox_2);
     m_initialStateComboBox = new QComboBox(ui->groupBox_2);
     m_initialStateComboBox->setObjectName(QStringLiteral("initialStateComboBox"));
-    ui->gridLayout_3->addWidget(initialStateLabel, 3, 0);
+    ui->gridLayout_3->addWidget(m_initialStateLabel, 3, 0);
     ui->gridLayout_3->addWidget(m_initialStateComboBox, 3, 1);
 
     m_imagePanel = new VariantImagePanel(centralWidget());
@@ -141,19 +124,15 @@ void MainWindow::setupModernUi() {
     ui->label_6->hide();
     ui->gridLayout_4->removeWidget(ui->transitionTableWidget);
     auto* modeLayout = new QHBoxLayout;
-    auto* modeLabel = new QLabel(QStringLiteral("Редактировать по:"), ui->groupBox_3);
+    m_editModeLabel = new QLabel(ui->groupBox_3);
     m_editModeComboBox = new QComboBox(ui->groupBox_3);
     m_editModeComboBox->setObjectName(QStringLiteral("editModeComboBox"));
-    m_editModeComboBox->addItems({
-        QStringLiteral("Таблице переходов"),
-        QStringLiteral("Реакции автомата")
-    });
-    auto* modeHint = new QLabel(
-        QStringLiteral("Обе формы обновляются автоматически"), ui->groupBox_3);
-    modeLayout->addWidget(modeLabel);
+    m_editModeComboBox->addItems({QString(), QString()});
+    m_editModeHintLabel = new QLabel(ui->groupBox_3);
+    modeLayout->addWidget(m_editModeLabel);
     modeLayout->addWidget(m_editModeComboBox);
     modeLayout->addStretch();
-    modeLayout->addWidget(modeHint);
+    modeLayout->addWidget(m_editModeHintLabel);
     ui->gridLayout_4->addLayout(modeLayout, 0, 0);
 
     m_editorStack = new QStackedWidget(ui->groupBox_3);
@@ -170,19 +149,11 @@ void MainWindow::setupModernUi() {
     auto* reactionPage = new QWidget(m_editorStack);
     auto* reactionLayout = new QVBoxLayout(reactionPage);
     reactionLayout->setContentsMargins(0, 0, 0, 0);
-    auto* reactionHint = new QLabel(
-        QStringLiteral(
-            "Один столбец — один такт: A + X → A′ / Y. "
-            "Имена заполняются автоматически."),
-        reactionPage);
-    reactionHint->setWordWrap(true);
-    reactionLayout->addWidget(reactionHint);
+    m_reactionHintLabel = new QLabel(reactionPage);
+    m_reactionHintLabel->setWordWrap(true);
+    reactionLayout->addWidget(m_reactionHintLabel);
     m_reactionTable = new QTableWidget(4, 1, reactionPage);
     m_reactionTable->setObjectName(QStringLiteral("reactionTableWidget"));
-    m_reactionTable->setVerticalHeaderLabels({
-        QStringLiteral("Состояние"), QStringLiteral("Вход X"),
-        QStringLiteral("След. состояние"), QStringLiteral("Выход Y")
-    });
     m_reactionTable->setHorizontalHeaderLabels({QStringLiteral("t1")});
     m_reactionTable->horizontalHeader()->setDefaultSectionSize(150);
     m_reactionTable->horizontalHeader()->setMinimumSectionSize(110);
@@ -191,9 +162,9 @@ void MainWindow::setupModernUi() {
     m_reactionTable->setMinimumHeight(145);
     reactionLayout->addWidget(m_reactionTable);
     auto* reactionButtons = new QHBoxLayout;
-    m_addReactionStepButton = new QPushButton(QStringLiteral("+ Добавить такт"), reactionPage);
+    m_addReactionStepButton = new QPushButton(reactionPage);
     m_addReactionStepButton->setObjectName(QStringLiteral("addReactionStepButton"));
-    m_removeReactionStepButton = new QPushButton(QStringLiteral("Удалить такт"), reactionPage);
+    m_removeReactionStepButton = new QPushButton(reactionPage);
     m_removeReactionStepButton->setObjectName(QStringLiteral("removeReactionStepButton"));
     reactionButtons->addWidget(m_addReactionStepButton);
     reactionButtons->addWidget(m_removeReactionStepButton);
@@ -211,16 +182,12 @@ void MainWindow::setupModernUi() {
     ui->verticalLayout->insertWidget(
         ui->verticalLayout->count() - 1, m_validationLabel);
 
-    ui->savePushButton->setText(QStringLiteral("Сохранить вариант"));
     ui->savePushButton->setObjectName(QStringLiteral("primaryButton"));
     ui->savePushButton->setDefault(true);
-    ui->loadVariantPushButton->setText(QStringLiteral("Открыть варианты"));
-    m_importArchiveButton =
-        new QPushButton(QStringLiteral("Открыть BazaVar…"), this);
+    m_importArchiveButton = new QPushButton(this);
     m_importArchiveButton->setObjectName(
         QStringLiteral("importArchiveButton"));
-    m_exportArchiveButton =
-        new QPushButton(QStringLiteral("Экспорт BazaVar…"), this);
+    m_exportArchiveButton = new QPushButton(this);
     m_exportArchiveButton->setObjectName(
         QStringLiteral("exportArchiveButton"));
     ui->horizontalLayout->addWidget(m_importArchiveButton);
@@ -228,6 +195,47 @@ void MainWindow::setupModernUi() {
 
     m_editModeComboBox->setCurrentIndex(1);
     m_editorStack->setCurrentIndex(1);
+    retranslateDynamicUi();
+}
+
+void MainWindow::retranslateDynamicUi() {
+    setWindowTitle(tr("M2MTools — Equivalent Automata Editor"));
+    ui->groupBox->setTitle(tr("Variant"));
+    ui->groupBox_2->setTitle(tr("Automaton Symbols"));
+    ui->groupBox_3->setTitle(tr("Automaton Definition"));
+    ui->label->setText(tr("Variant number"));
+    ui->label_2->setText(tr("Conversion"));
+    ui->label_3->setText(tr("States A"));
+    ui->label_4->setText(tr("Input signals X"));
+    ui->label_5->setText(tr("Output signals Y"));
+    ui->variantTypeComboBox->setItemText(0, tr("Mealy → Moore"));
+    ui->variantTypeComboBox->setItemText(1, tr("Moore → Mealy"));
+    ui->stateNamesLineEdit->setPlaceholderText(tr("For example: a0, a1, a2"));
+    ui->InputSignalNamesLineEdit->setPlaceholderText(tr("For example: x1, x2"));
+    ui->OutputSignalNamesLineEdit->setPlaceholderText(tr("For example: y1, y2"));
+    ui->menuMain->setTitle(tr("File"));
+    ui->menuSettings->setTitle(tr("Settings"));
+    ui->actionSaveVariant->setText(tr("Save variant"));
+    ui->actionLoadVariant->setText(tr("Open variants"));
+    ui->actionShowLogger->setText(tr("Event log"));
+    ui->actionExit->setText(tr("Exit"));
+    m_newVariantButton->setText(tr("New variant"));
+    m_initialStateLabel->setText(tr("Initial state"));
+    m_editModeLabel->setText(tr("Edit using:"));
+    m_editModeComboBox->setItemText(0, tr("Transition table"));
+    m_editModeComboBox->setItemText(1, tr("Automaton reaction"));
+    m_editModeHintLabel->setText(tr("Both forms update automatically"));
+    m_reactionHintLabel->setText(tr(
+        "One column is one tact: A + X → A′ / Y. Names are added automatically. "
+        "Press Enter to insert a tact after the selected column."));
+    m_reactionTable->setVerticalHeaderLabels({
+        tr("State"), tr("Input X"), tr("Next state"), tr("Output Y")});
+    m_addReactionStepButton->setText(tr("+ Add tact"));
+    m_removeReactionStepButton->setText(tr("Remove tact"));
+    ui->savePushButton->setText(tr("Save variant"));
+    ui->loadVariantPushButton->setText(tr("Open variants"));
+    m_importArchiveButton->setText(tr("Open BazaVar…"));
+    m_exportArchiveButton->setText(tr("Export BazaVar…"));
 }
 
 void MainWindow::setupPresenters() {
@@ -277,6 +285,22 @@ void MainWindow::setupConnections() {
     connect(m_removeReactionStepButton, &QPushButton::clicked,
             this, &MainWindow::onRemoveReactionStep);
 
+    const auto addInsertShortcut = [this](const QKeySequence& key,
+                                          const QString& objectName) {
+        auto* shortcut = new QShortcut(key, m_reactionTable);
+        shortcut->setObjectName(objectName);
+        shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(shortcut, &QShortcut::activated, this, [this] {
+            const int selectedColumn = m_reactionTable->currentColumn();
+            m_reactionTable->setFocus(Qt::ShortcutFocusReason);
+            insertReactionStepAfter(selectedColumn);
+        });
+    };
+    addInsertShortcut(QKeySequence(Qt::Key_Return),
+                      QStringLiteral("insertReactionStepReturnShortcut"));
+    addInsertShortcut(QKeySequence(Qt::Key_Enter),
+                      QStringLiteral("insertReactionStepEnterShortcut"));
+
     connect(ui->savePushButton, &QPushButton::clicked,
             this, &MainWindow::onSavePushButtonClicked);
     connect(ui->loadVariantPushButton, &QPushButton::clicked,
@@ -307,8 +331,11 @@ void MainWindow::setupLanguageGroup() {
 }
 
 void MainWindow::changeEvent(QEvent *event) {
-    if (event->type() == QEvent::LanguageChange)
+    if (event->type() == QEvent::LanguageChange) {
         ui->retranslateUi(this);
+        retranslateDynamicUi();
+        refreshTable();
+    }
     QMainWindow::changeEvent(event);
 }
 
@@ -316,8 +343,8 @@ void MainWindow::onLanguageSelected(QAction* action) {
     const QString locale = action == ui->actionSetLangEn
         ? QStringLiteral("en") : QStringLiteral("ru_RU");
     Result result = m_translator->setLocale(locale);
+    Logger::log(result);
     if (!result.ok()) ResultMessenger::show(this, result);
-    refreshTable();
 }
 
 void MainWindow::onShowLogClicked() {
@@ -340,6 +367,9 @@ void MainWindow::onVariantTypeChanged(int index) {
     refreshTable();
     syncReactionFromData();
     updateSummary();
+    Logger::info(QStringLiteral("Automaton conversion changed to %1")
+                     .arg(variantTypeToString(m_data.getType())),
+                 ResultCategory::Ui);
 }
 
 void MainWindow::onVariantNumberChanged(int number) {
@@ -349,6 +379,7 @@ void MainWindow::onVariantNumberChanged(int number) {
 void MainWindow::onInitialStateChanged(const QString& state) {
     if (m_updatingUi || state.isEmpty()) return;
     const Result result = m_data.setInitialState(state);
+    Logger::log(result);
     if (!result.ok()) {
         showInlineMessage(translateResult(result));
         return;
@@ -426,6 +457,10 @@ void MainWindow::onTableCellChanged(int row, int col) {
 void MainWindow::onEditModeChanged(int index) {
     m_editorStack->setCurrentIndex(index);
     if (index == 1) syncReactionFromData();
+    Logger::info(index == 1
+                     ? QStringLiteral("Editor mode changed to automaton reaction")
+                     : QStringLiteral("Editor mode changed to transition table"),
+                 ResultCategory::Ui);
 }
 
 void MainWindow::onReactionCellChanged(int row, int column) {
@@ -436,10 +471,13 @@ void MainWindow::onReactionCellChanged(int row, int column) {
                 != m_data.getInitialState()) {
             const QSignalBlocker blocker(m_reactionTable);
             firstState->setText(m_data.getInitialState());
-            showInlineMessage(QStringLiteral(
-                "Первый такт должен начинаться с выбранного "
-                "начального состояния «%1».")
+            showInlineMessage(tr(
+                "The first tact must start with the selected initial state '%1'.")
                 .arg(m_data.getInitialState()));
+            Logger::warning(QStringLiteral(
+                "Rejected a reaction edit that changed the first tact away "
+                "from initial state '%1'").arg(m_data.getInitialState()),
+                ResultCategory::Validation);
             return;
         }
     }
@@ -468,21 +506,38 @@ void MainWindow::onReactionCellChanged(int row, int column) {
 }
 
 void MainWindow::onAddReactionStep() {
+    insertReactionStepAfter(m_reactionTable->currentColumn());
+}
+
+void MainWindow::insertReactionStepAfter(int column) {
+    const int existingCount = m_reactionTable->columnCount();
+    const int boundedColumn = qBound(-1, column, existingCount - 1);
+    const int insertionColumn = boundedColumn + 1;
     m_updatingReaction = true;
-    const int column = m_reactionTable->columnCount();
-    m_reactionTable->insertColumn(column);
-    m_reactionTable->setHorizontalHeaderItem(
-        column, new QTableWidgetItem(QStringLiteral("t%1").arg(column + 1)));
+    m_reactionTable->insertColumn(insertionColumn);
     for (int row = 0; row < 4; ++row)
-        m_reactionTable->setItem(row, column, new QTableWidgetItem);
-    if (column > 0) {
+        m_reactionTable->setItem(row, insertionColumn, new QTableWidgetItem);
+    if (insertionColumn > 0) {
         const QTableWidgetItem* previousNext =
-            m_reactionTable->item(2, column - 1);
+            m_reactionTable->item(2, insertionColumn - 1);
         if (previousNext)
-            m_reactionTable->item(0, column)->setText(previousNext->text());
+            m_reactionTable->item(0, insertionColumn)->setText(previousNext->text());
     }
-    m_reactionTable->setCurrentCell(0, column);
+    renumberReactionSteps();
+    m_reactionTable->setCurrentCell(0, insertionColumn);
     m_updatingReaction = false;
+    Logger::info(QStringLiteral("Inserted reaction tact t%1 after column %2")
+                     .arg(insertionColumn + 1)
+                     .arg(boundedColumn + 1),
+                 ResultCategory::Ui);
+    syncDataFromReaction();
+}
+
+void MainWindow::renumberReactionSteps() {
+    for (int i = 0; i < m_reactionTable->columnCount(); ++i) {
+        m_reactionTable->setHorizontalHeaderItem(
+            i, new QTableWidgetItem(QStringLiteral("t%1").arg(i + 1)));
+    }
 }
 
 void MainWindow::onRemoveReactionStep() {
@@ -491,9 +546,7 @@ void MainWindow::onRemoveReactionStep() {
     m_updatingReaction = true;
     if (m_reactionTable->columnCount() > 1) {
         m_reactionTable->removeColumn(column);
-        for (int i = 0; i < m_reactionTable->columnCount(); ++i)
-            m_reactionTable->setHorizontalHeaderItem(
-                i, new QTableWidgetItem(QStringLiteral("t%1").arg(i + 1)));
+        renumberReactionSteps();
     } else {
         for (int row = 0; row < 4; ++row) {
             if (!m_reactionTable->item(row, 0))
@@ -502,6 +555,9 @@ void MainWindow::onRemoveReactionStep() {
         }
     }
     m_updatingReaction = false;
+    Logger::info(QStringLiteral("Removed reaction tact at column %1")
+                     .arg(column + 1),
+                 ResultCategory::Ui);
     onReactionCellChanged(0, 0);
 }
 
@@ -518,7 +574,7 @@ void MainWindow::onLoadVariantPushButton() {
         refreshTable();
         syncReactionFromData();
         showInlineMessage(
-            QStringLiteral("Открытый вариант удалён. Поля очищены."), false);
+            tr("The open variant was deleted. The fields have been cleared."), false);
     });
     connect(&dialog, &VariantsList::variantsSwapped, this,
             [this](int first, int second) {
@@ -553,7 +609,7 @@ void MainWindow::onLoadVariantPushButton() {
     syncReactionFromData();
     clearInlineMessage();
     ui->statusbar->showMessage(
-        QStringLiteral("Вариант №%1 загружен").arg(number), 3000);
+        tr("Variant #%1 loaded").arg(number), 3000);
 }
 
 void MainWindow::onSavePushButtonClicked() {
@@ -568,9 +624,8 @@ void MainWindow::onSavePushButtonClicked() {
     if (exists) {
         const bool replace = ResultMessenger::askConfirm(
             this,
-            QStringLiteral("Заменить вариант №%1?").arg(m_data.getVariantNumber()),
-            QStringLiteral(
-                "Вариант с таким номером уже существует. Его данные будут заменены."));
+            tr("Replace variant #%1?").arg(m_data.getVariantNumber()),
+            tr("A variant with this number already exists. Its data will be replaced."));
         if (!replace) return;
     }
 
@@ -584,7 +639,7 @@ void MainWindow::onSavePushButtonClicked() {
     }
     clearInlineMessage();
     ui->statusbar->showMessage(
-        QStringLiteral("Вариант №%1 сохранён").arg(m_data.getVariantNumber()),
+        tr("Variant #%1 saved").arg(m_data.getVariantNumber()),
         3500);
 }
 
@@ -601,7 +656,7 @@ void MainWindow::onNewVariantClicked() {
             ui->numberVariantSpinBox->setStyleSheet(
                 QStringLiteral("border: 2px solid #dc2626;"));
             showInlineMessage(
-                QStringLiteral("Вариант №%1 уже существует. Выберите другой номер.")
+                tr("Variant #%1 already exists. Choose another number.")
                     .arg(requested));
             return;
         }
@@ -621,14 +676,18 @@ void MainWindow::onNewVariantClicked() {
     syncReactionFromData();
     clearInlineMessage();
     ui->stateNamesLineEdit->setFocus();
+    Logger::info(QStringLiteral("Created a new in-memory variant #%1")
+                     .arg(number), ResultCategory::Ui);
 }
 
 void MainWindow::onRemoveImageClicked() {
     m_data.clearDiagramImage();
     refreshImagePreview();
     showInlineMessage(
-        QStringLiteral("Изображение удалено. Загрузите новое перед сохранением."),
+        tr("The image was removed. Load a new one before saving."),
         false);
+    Logger::info(QStringLiteral("Removed the current variant image"),
+                 ResultCategory::Ui);
 }
 
 void MainWindow::onExportArchiveClicked() {
@@ -650,9 +709,8 @@ void MainWindow::onExportArchiveClicked() {
         }
     }
     if (gap > 0 && ResultMessenger::askConfirm(
-            this, QStringLiteral("Перенумеровать варианты?"),
-            QStringLiteral(
-                "Вариант №%1 пустой. Сдвинуть следующие номера перед экспортом?")
+            this, tr("Renumber variants?"),
+            tr("Variant #%1 is empty. Shift subsequent numbers before export?")
                 .arg(gap))) {
         int newCurrentNumber = m_data.getVariantNumber();
         for (int i = 0; i < rows.size(); ++i) {
@@ -671,26 +729,28 @@ void MainWindow::onExportArchiveClicked() {
     }
 
     QString path = QFileDialog::getSaveFileName(
-        this, QStringLiteral("Сохранить зашифрованную базу"),
+        this, tr("Save encrypted database"),
         QStringLiteral("BazaVar.m2m"),
-        QStringLiteral("Архив M2MTools (*.m2m);;Все файлы (*)"));
+        tr("M2MTools archive (*.m2m);;All files (*)"));
     if (path.isEmpty()) return;
     if (QFileInfo(path).suffix().isEmpty())
         path += QStringLiteral(".m2m");
 
     bool accepted = false;
     const QString password = QInputDialog::getText(
-        this, QStringLiteral("Пароль BazaVar"),
-        QStringLiteral("Введите пароль (не менее 8 символов):"),
+        this, tr("BazaVar password"),
+        tr("Enter a password (at least 8 characters):"),
         QLineEdit::Password, QString(), &accepted);
     if (!accepted) return;
     const QString confirmation = QInputDialog::getText(
-        this, QStringLiteral("Подтверждение пароля"),
-        QStringLiteral("Повторите пароль:"),
+        this, tr("Confirm password"),
+        tr("Repeat the password:"),
         QLineEdit::Password, QString(), &accepted);
     if (!accepted) return;
     if (password != confirmation) {
-        showInlineMessage(QStringLiteral("Пароли не совпадают."));
+        showInlineMessage(tr("Passwords do not match."));
+        Logger::warning(QStringLiteral("Archive export cancelled: password confirmation mismatch"),
+                        ResultCategory::Ui);
         return;
     }
 
@@ -698,30 +758,29 @@ void MainWindow::onExportArchiveClicked() {
     Logger::log(result);
     if (!result.ok()) {
         ResultMessenger::show(this, result);
-        showInlineMessage(result.message());
+        showInlineMessage(translateResult(result));
         return;
     }
     clearInlineMessage();
     ui->statusbar->showMessage(
-        QStringLiteral("Зашифрованный архив BazaVar сохранён."), 4000);
+        tr("The encrypted BazaVar archive was saved."), 4000);
 }
 
 void MainWindow::onImportArchiveClicked() {
     const QString path = QFileDialog::getOpenFileName(
-        this, QStringLiteral("Открыть зашифрованную базу"), QString(),
-        QStringLiteral("Архив M2MTools (*.m2m);;Все файлы (*)"));
+        this, tr("Open encrypted database"), QString(),
+        tr("M2MTools archive (*.m2m);;All files (*)"));
     if (path.isEmpty()) return;
 
     bool accepted = false;
     const QString password = QInputDialog::getText(
-        this, QStringLiteral("Пароль BazaVar"),
-        QStringLiteral("Введите пароль архива:"),
+        this, tr("BazaVar password"),
+        tr("Enter the archive password:"),
         QLineEdit::Password, QString(), &accepted);
     if (!accepted) return;
     if (!ResultMessenger::askConfirm(
-            this, QStringLiteral("Открыть BazaVar?"),
-            QStringLiteral(
-                "Текущая база вариантов будет заменена содержимым архива."))) {
+            this, tr("Open BazaVar?"),
+            tr("The current variant database will be replaced by the archive contents."))) {
         return;
     }
 
@@ -729,7 +788,7 @@ void MainWindow::onImportArchiveClicked() {
     Logger::log(result);
     if (!result.ok()) {
         ResultMessenger::show(this, result);
-        showInlineMessage(result.message());
+        showInlineMessage(translateResult(result));
         return;
     }
 
@@ -752,7 +811,7 @@ void MainWindow::onImportArchiveClicked() {
     syncReactionFromData();
     clearInlineMessage();
     ui->statusbar->showMessage(
-        QStringLiteral("Архив BazaVar открыт."), 4000);
+        tr("The BazaVar archive was opened."), 4000);
 }
 
 void MainWindow::refreshTable() {
@@ -788,17 +847,17 @@ void MainWindow::refreshTable() {
 
     if (m_data.getType() == VariantType::MooreToMealy) {
         auto* outputCorner =
-            new QTableWidgetItem(QStringLiteral("Выход Y"));
+            new QTableWidgetItem(tr("Output Y"));
         outputCorner->setFlags(
             outputCorner->flags() & ~Qt::ItemIsEditable);
         tableWidget->setItem(0, 0, outputCorner);
         auto* stateCorner =
-            new QTableWidgetItem(QStringLiteral("Состояние"));
+            new QTableWidgetItem(tr("State"));
         stateCorner->setFlags(
             stateCorner->flags() & ~Qt::ItemIsEditable);
         tableWidget->setItem(1, 0, stateCorner);
     } else {
-        auto* corner = new QTableWidgetItem(QStringLiteral("Состояние"));
+        auto* corner = new QTableWidgetItem(tr("State"));
         corner->setFlags(corner->flags() & ~Qt::ItemIsEditable);
         tableWidget->setItem(0, 0, corner);
     }
@@ -984,7 +1043,9 @@ bool MainWindow::validateBeforeSave() {
     if (!m_data.hasDiagramImage()) {
         m_imagePanel->setInvalid(true);
         showInlineMessage(
-            QStringLiteral("Добавьте изображение задания для варианта."));
+            tr("Add the task image for this variant."));
+        Logger::warning(QStringLiteral("Variant validation failed: task image is missing"),
+                        ResultCategory::Validation);
         return false;
     }
     const Result result = m_data.validate();
@@ -1031,26 +1092,33 @@ void MainWindow::presentAutomatonValidation(const Result& result) {
 bool MainWindow::loadImageFromPath(const QString& path) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        showInlineMessage(
-            QStringLiteral("Не удалось открыть файл изображения."));
+        showInlineMessage(tr("Could not open the image file."));
+        Logger::error(QStringLiteral("Failed to open image '%1': %2")
+                          .arg(path, file.errorString()),
+                      ResultCategory::Ui);
         return false;
     }
     if (file.size() <= 0 || file.size() > kMaximumImageSize) {
-        showInlineMessage(
-            QStringLiteral(
-                "Размер изображения должен быть не больше 10 МБ."));
+        showInlineMessage(tr("The image size must not exceed 10 MB."));
+        Logger::warning(QStringLiteral("Rejected image '%1' with size %2 bytes")
+                            .arg(path).arg(file.size()),
+                        ResultCategory::Validation);
         return false;
     }
     const QByteArray data = file.readAll();
     QImage image;
     if (!image.loadFromData(data)) {
-        showInlineMessage(QStringLiteral(
-            "Выбранный файл не является поддерживаемым изображением."));
+        showInlineMessage(tr("The selected file is not a supported image."));
+        Logger::warning(QStringLiteral("Rejected unsupported image file '%1'").arg(path),
+                        ResultCategory::Validation);
         return false;
     }
     m_data.setDiagramImage(data, QFileInfo(path).fileName());
     refreshImagePreview();
     clearInlineMessage();
+    Logger::info(QStringLiteral("Loaded image '%1' (%2 bytes)")
+                     .arg(QFileInfo(path).fileName()).arg(data.size()),
+                 ResultCategory::Ui);
     return true;
 }
 

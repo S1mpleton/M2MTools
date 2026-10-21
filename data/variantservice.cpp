@@ -241,14 +241,16 @@ Result VariantService::exportArchive(
         if (!data.hasDiagramImage()) {
             return Result::error(
                 QStringLiteral(
-                    "Вариант №%1 не заполнен: отсутствует изображение.")
+                    "Variant #%1 is incomplete: the image is missing")
                     .arg(row.number),
-                ResultCategory::Validation);
+                ResultCategory::Validation)
+                .withCode(ErrorCode::VariantMissingImage)
+                .withOffender(QString::number(row.number));
         }
         Result validation = data.validate();
         if (!validation.ok()) {
             return Result::error(
-                QStringLiteral("Вариант №%1 не заполнен: %2")
+                QStringLiteral("Variant #%1 is incomplete: %2")
                     .arg(row.number).arg(validation.message()),
                 ResultCategory::Validation)
                 .withCode(validation.code())
@@ -283,13 +285,13 @@ Result VariantService::importArchive(
     QString error;
     if (!transaction.commit(&error)) {
         return Result::error(
-            QStringLiteral("Не удалось применить архив BazaVar."),
+            QStringLiteral("Failed to apply the BazaVar archive"),
             ResultCategory::Database)
             .withCode(ErrorCode::DatabaseCommitFailed)
             .withDetails(error);
     }
     return Result::success(
-        QStringLiteral("Загружено вариантов: %1").arg(variants.size()));
+        QStringLiteral("Imported %1 variants from the archive").arg(variants.size()));
 }
 
 Result VariantService::loadVariant(int variantNumber) {
@@ -324,7 +326,11 @@ Result VariantService::isExist(int variantNumber) {
     }
 
     const bool exists = findResult.hasPayload();
-    return Result::success().withPayload(exists);
+    return Result::success(QStringLiteral("Variant #%1 existence check completed: %2")
+                               .arg(variantNumber)
+                               .arg(exists ? QStringLiteral("exists")
+                                           : QStringLiteral("not found")))
+        .withPayload(exists);
 }
 
 Result VariantService::findAllVariants() const {
@@ -354,7 +360,8 @@ Result VariantService::insertStates(int variantId,
         if (!r.ok()) return r;
         stateIds[name] = r.payloadAs<int>();
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Inserted %1 states for variant id=%2")
+                               .arg(names.size()).arg(variantId));
 }
 
 Result VariantService::insertInputs(int variantId, const QStringList& names, QHash<QString, int>& inputIds) {
@@ -363,7 +370,8 @@ Result VariantService::insertInputs(int variantId, const QStringList& names, QHa
         if (!r.ok()) return r;
         inputIds[name] = r.payloadAs<int>();
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Inserted %1 inputs for variant id=%2")
+                               .arg(names.size()).arg(variantId));
 }
 
 Result VariantService::insertOutputs(int variantId,
@@ -374,7 +382,8 @@ Result VariantService::insertOutputs(int variantId,
         if (!r.ok()) return r;
         outputIds[name] = r.payloadAs<int>();
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Inserted %1 outputs for variant id=%2")
+                               .arg(names.size()).arg(variantId));
 }
 
 Result VariantService::saveMoore(
@@ -436,7 +445,8 @@ Result VariantService::saveMoore(
         }
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Saved Moore data for variant id=%1")
+                               .arg(variantId));
 }
 
 Result VariantService::saveMealy(
@@ -497,7 +507,8 @@ Result VariantService::saveMealy(
         }
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Saved Mealy data for variant id=%1")
+                               .arg(variantId));
 }
 
 
@@ -602,7 +613,7 @@ Result VariantService::loadMoore(int variantId, int variantNumber) {
     const QList<MooreStateOutputRow> mooreOutputs =
         mooreResult.payloadAs<QList<MooreStateOutputRow>>();
 
-    // state_id → список output_id
+    // state_id to output_id list
     QHash<int, QList<int>> outputsByState;
     for (const auto& row : mooreOutputs)
         outputsByState[row.stateId].append(row.outputId);

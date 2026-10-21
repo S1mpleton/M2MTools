@@ -77,7 +77,8 @@ QJsonObject automatonToJson(const AutomatonData& data) {
 Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
     if (!value.isObject() || !data) {
         return Result::error(
-            QStringLiteral("Архив содержит некорректную запись варианта."));
+            QStringLiteral("Archive contains an invalid variant entry"))
+            .withCode(ErrorCode::ArchiveInvalidEntry);
     }
     const QJsonObject object = value.toObject();
     const int number = object.value(QStringLiteral("number")).toInt(-1);
@@ -86,7 +87,8 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
         (typeName != QStringLiteral("MealyToMoore") &&
          typeName != QStringLiteral("MooreToMealy"))) {
         return Result::error(
-            QStringLiteral("В архиве указан некорректный номер или тип варианта."));
+            QStringLiteral("Archive contains an invalid variant number or type"))
+            .withCode(ErrorCode::ArchiveInvalidMetadata);
     }
 
     QStringList states;
@@ -96,7 +98,8 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
         !stringListFromJson(object.value(QStringLiteral("inputs")), &inputs) ||
         !stringListFromJson(object.value(QStringLiteral("outputs")), &outputs)) {
         return Result::error(
-            QStringLiteral("Архив содержит некорректные списки обозначений."));
+            QStringLiteral("Archive contains invalid symbol lists"))
+            .withCode(ErrorCode::ArchiveInvalidSymbols);
     }
 
     AutomatonData candidate;
@@ -120,27 +123,32 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
         object.value(QStringLiteral("transitions"));
     if (!transitionsValue.isArray()) {
         return Result::error(
-            QStringLiteral("В архиве отсутствует таблица переходов."));
+            QStringLiteral("Archive does not contain a transition table"))
+            .withCode(ErrorCode::ArchiveMissingTransitionTable);
     }
     const QJsonArray transitions = transitionsValue.toArray();
     if (transitions.size() != inputs.size()) {
         return Result::error(
-            QStringLiteral("Размер таблицы переходов в архиве не совпадает с X."));
+            QStringLiteral("Archive transition table size does not match X"))
+            .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
     }
     for (int inputIndex = 0; inputIndex < inputs.size(); ++inputIndex) {
         if (!transitions[inputIndex].isArray()) {
             return Result::error(
-                QStringLiteral("Строка таблицы переходов в архиве повреждена."));
+                QStringLiteral("Archive transition table row is corrupted"))
+                .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
         }
         const QJsonArray row = transitions[inputIndex].toArray();
         if (row.size() != states.size()) {
             return Result::error(
-                QStringLiteral("Размер строки переходов в архиве не совпадает с A."));
+                QStringLiteral("Archive transition row size does not match A"))
+                .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
         }
         for (int stateIndex = 0; stateIndex < states.size(); ++stateIndex) {
             if (!row[stateIndex].isObject()) {
                 return Result::error(
-                    QStringLiteral("Ячейка таблицы переходов в архиве повреждена."));
+                    QStringLiteral("Archive transition table cell is corrupted"))
+                    .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
             }
             const QJsonObject cell = row[stateIndex].toObject();
             const QString nextState =
@@ -148,14 +156,17 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
             if (nextState.isEmpty()) {
                 return Result::error(
                     QStringLiteral(
-                        "Вариант №%1 в архиве содержит незаполненный переход.")
-                        .arg(number));
+                        "Variant #%1 in the archive contains an incomplete transition")
+                        .arg(number))
+                    .withCode(ErrorCode::ArchiveCorruptedTransitionTable)
+                    .withOffender(QString::number(number));
             }
             QStringList cellOutputs;
             if (!stringListFromJson(
                     cell.value(QStringLiteral("outputs")), &cellOutputs)) {
                 return Result::error(
-                    QStringLiteral("Выходы перехода в архиве повреждены."));
+                    QStringLiteral("Archive transition outputs are corrupted"))
+                    .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
             }
             const QString cellText =
                 candidate.getType() == VariantType::MealyToMoore
@@ -175,15 +186,18 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
             object.value(QStringLiteral("mooreOutputs"));
         if (!mooreValue.isObject()) {
             return Result::error(
-                QStringLiteral("Выходы автомата Мура в архиве повреждены."));
+                QStringLiteral("Archive Moore automaton outputs are corrupted"))
+                .withCode(ErrorCode::ArchiveCorruptedTransitionTable);
         }
         const QJsonObject mooreOutputs = mooreValue.toObject();
         for (const QString& state : states) {
             QStringList stateOutputs;
             if (!stringListFromJson(mooreOutputs.value(state), &stateOutputs)) {
                 return Result::error(
-                    QStringLiteral("Выход состояния «%1» в архиве повреждён.")
-                        .arg(state));
+                    QStringLiteral("Archive output for state '%1' is corrupted")
+                        .arg(state))
+                    .withCode(ErrorCode::ArchiveCorruptedTransitionTable)
+                    .withOffender(state);
             }
             result = candidate.setMooreOutputCellByName(
                 state, stateOutputs.isEmpty()
@@ -198,15 +212,16 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
         object.value(QStringLiteral("imageData")).toString().toLatin1());
     if (imageName.isEmpty() || imageData.isEmpty()) {
         return Result::error(
-            QStringLiteral("Вариант №%1 в архиве не содержит изображения.")
-                .arg(number));
+            QStringLiteral("Variant #%1 in the archive has no image").arg(number))
+            .withCode(ErrorCode::ArchiveMissingImage)
+            .withOffender(QString::number(number));
     }
     candidate.setDiagramImage(imageData, imageName);
 
     result = candidate.validate();
     if (!result.ok()) {
         return Result::error(
-            QStringLiteral("Вариант №%1 в архиве не прошёл проверку: %2")
+            QStringLiteral("Variant #%1 in the archive failed validation: %2")
                 .arg(number).arg(result.message()),
             ResultCategory::Validation)
             .withCode(result.code())
@@ -215,7 +230,8 @@ Result automatonFromJson(const QJsonValue& value, AutomatonData* data) {
     }
 
     *data = candidate;
-    return Result::success();
+    return Result::success(QStringLiteral("Archive variant #%1 parsed successfully")
+                               .arg(number));
 }
 
 bool deriveKey(const QString& password, const QByteArray& salt,
@@ -350,8 +366,9 @@ Result VariantArchive::save(const QString& path,
                             const QString& password) {
     if (password.size() < 8) {
         return Result::error(
-            QStringLiteral("Пароль архива должен содержать не менее 8 символов."),
-            ResultCategory::Validation);
+            QStringLiteral("Archive password must contain at least 8 characters"),
+            ResultCategory::Validation)
+            .withCode(ErrorCode::ArchivePasswordTooShort);
     }
 
     QJsonArray variantArray;
@@ -370,24 +387,27 @@ Result VariantArchive::save(const QString& path,
     QByteArray cipherText;
     if (!encrypt(plainText, password, &salt, &nonce, &tag, &cipherText)) {
         return Result::error(
-            QStringLiteral("Не удалось зашифровать архив BazaVar."));
+            QStringLiteral("Failed to encrypt the BazaVar archive"))
+            .withCode(ErrorCode::ArchiveEncryptionFailed);
     }
 
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         return Result::error(
-            QStringLiteral("Не удалось открыть файл «%1» для записи.")
+            QStringLiteral("Failed to open file '%1' for writing")
                 .arg(QFileInfo(path).fileName()))
+            .withCode(ErrorCode::ArchiveFileOpenFailed)
             .withDetails(file.errorString());
     }
     const QByteArray archive = kMagic + salt + nonce + tag + cipherText;
     if (file.write(archive) != archive.size() || !file.commit()) {
         return Result::error(
-            QStringLiteral("Не удалось сохранить архив BazaVar."))
+            QStringLiteral("Failed to save the BazaVar archive"))
+            .withCode(ErrorCode::ArchiveSaveFailed)
             .withDetails(file.errorString());
     }
     return Result::success(
-        QStringLiteral("Архив содержит вариантов: %1").arg(variants.size()));
+        QStringLiteral("Saved %1 variants to the archive").arg(variants.size()));
 }
 
 Result VariantArchive::load(const QString& path,
@@ -395,12 +415,14 @@ Result VariantArchive::load(const QString& path,
                             QList<AutomatonData>* variants) {
     if (!variants) {
         return Result::error(
-            QStringLiteral("Не указан получатель данных архива."));
+            QStringLiteral("Archive data destination was not provided"))
+            .withCode(ErrorCode::ArchiveInvalidTarget);
     }
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         return Result::error(
-            QStringLiteral("Не удалось открыть архив BazaVar."))
+            QStringLiteral("Failed to open the BazaVar archive"))
+            .withCode(ErrorCode::ArchiveFileOpenFailed)
             .withDetails(file.errorString());
     }
     const QByteArray archive = file.readAll();
@@ -408,7 +430,8 @@ Result VariantArchive::load(const QString& path,
         kMagic.size() + kSaltSize + kNonceSize + kTagSize;
     if (archive.size() <= prefixSize || !archive.startsWith(kMagic)) {
         return Result::error(
-            QStringLiteral("Файл не является архивом M2MTools."));
+            QStringLiteral("The file is not an M2MTools archive"))
+            .withCode(ErrorCode::ArchiveInvalidFormat);
     }
 
     int offset = kMagic.size();
@@ -424,8 +447,9 @@ Result VariantArchive::load(const QString& path,
     if (!decrypt(cipherText, password, salt, nonce, tag, &plainText)) {
         return Result::error(
             QStringLiteral(
-                "Не удалось расшифровать BazaVar: неверный пароль "
-                "или файл был изменён."));
+                "Failed to decrypt BazaVar: the password is incorrect "
+                "or the file was modified"))
+            .withCode(ErrorCode::ArchiveDecryptionFailed);
     }
 
     QJsonParseError parseError;
@@ -434,7 +458,8 @@ Result VariantArchive::load(const QString& path,
     if (parseError.error != QJsonParseError::NoError ||
         !document.isObject()) {
         return Result::error(
-            QStringLiteral("Расшифрованные данные архива повреждены."));
+            QStringLiteral("Decrypted archive data is corrupted"))
+            .withCode(ErrorCode::ArchiveCorruptedPayload);
     }
     const QJsonObject root = document.object();
     if (root.value(QStringLiteral("format")).toString() !=
@@ -442,7 +467,8 @@ Result VariantArchive::load(const QString& path,
         root.value(QStringLiteral("version")).toInt() != 1 ||
         !root.value(QStringLiteral("variants")).isArray()) {
         return Result::error(
-            QStringLiteral("Версия или формат архива BazaVar не поддерживается."));
+            QStringLiteral("BazaVar archive version or format is not supported"))
+            .withCode(ErrorCode::ArchiveUnsupportedVersion);
     }
 
     QList<AutomatonData> loaded;
@@ -454,13 +480,15 @@ Result VariantArchive::load(const QString& path,
         if (!result.ok()) return result;
         if (numbers.contains(data.getVariantNumber())) {
             return Result::error(
-                QStringLiteral("Архив содержит повтор номера варианта №%1.")
-                    .arg(data.getVariantNumber()));
+                QStringLiteral("Archive contains duplicate variant number #%1")
+                    .arg(data.getVariantNumber()))
+                .withCode(ErrorCode::ArchiveDuplicateVariantNumber)
+                .withOffender(QString::number(data.getVariantNumber()));
         }
         numbers.insert(data.getVariantNumber());
         loaded.append(data);
     }
     *variants = loaded;
     return Result::success(
-        QStringLiteral("Архив содержит вариантов: %1").arg(loaded.size()));
+        QStringLiteral("Loaded %1 variants from the archive").arg(loaded.size()));
 }

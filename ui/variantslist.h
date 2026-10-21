@@ -39,7 +39,7 @@ private:
     Ui::VariantsList *ui;
     VariantService* m_service;
 
-    // Храним выбор
+    // Current selection
     int m_selectedNumber = 0;
     VariantType m_selectedType = VariantType::MooreToMealy;
     bool m_hasSelection = false;

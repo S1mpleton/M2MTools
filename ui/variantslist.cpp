@@ -49,7 +49,7 @@ void VariantsList::configureTable() {
     auto* table = ui->variantsTableWidget;
     ui->variantsTableWidget->setColumnCount(3);
     table->setHorizontalHeaderLabels({
-        tr("Number"), tr("Type"), QStringLiteral("Изображение")});
+        tr("Number"), tr("Type"), tr("Image")});
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setSelectionMode(QAbstractItemView::SingleSelection);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -58,7 +58,7 @@ void VariantsList::configureTable() {
 }
 
 void VariantsList::configureSwapControls() {
-    auto* group = new QGroupBox(QStringLiteral("Поменять варианты местами"), this);
+    auto* group = new QGroupBox(tr("Swap variants"), this);
     auto* layout = new QFormLayout(group);
     m_swapFirst = new QComboBox(group);
     m_swapSecond = new QComboBox(group);
@@ -67,14 +67,14 @@ void VariantsList::configureSwapControls() {
         combo->setInsertPolicy(QComboBox::NoInsert);
         combo->setValidator(new QIntValidator(1, 999999, combo));
         combo->setCurrentIndex(-1);
-        combo->setPlaceholderText(QStringLiteral("Введите номер"));
+        combo->setPlaceholderText(tr("Enter a number"));
     }
     m_swapFirst->setObjectName(QStringLiteral("swapFirstComboBox"));
     m_swapSecond->setObjectName(QStringLiteral("swapSecondComboBox"));
-    m_swapButton = new QPushButton(QStringLiteral("Поменять"), group);
+    m_swapButton = new QPushButton(tr("Swap"), group);
     m_swapButton->setObjectName(QStringLiteral("swapVariantsButton"));
-    layout->addRow(QStringLiteral("Первый номер"), m_swapFirst);
-    layout->addRow(QStringLiteral("Второй номер"), m_swapSecond);
+    layout->addRow(tr("First number"), m_swapFirst);
+    layout->addRow(tr("Second number"), m_swapSecond);
     layout->addRow(m_swapButton);
     ui->gridLayout->addWidget(group, 1, 1);
 }
@@ -109,7 +109,7 @@ void VariantsList::populateTable() {
         table->setItem(i, 1, typeItem);
 
         auto* imageItem = new QTableWidgetItem(
-            v.imageName.isEmpty() ? QStringLiteral("Нет") : QStringLiteral("Да"));
+            v.imageName.isEmpty() ? tr("No") : tr("Yes"));
         imageItem->setToolTip(v.imageName);
         table->setItem(i, 2, imageItem);
     }
@@ -167,7 +167,7 @@ void VariantsList::onDeleteClicked() {
     auto ref = variantRefAt(row);
     if (!ref) return;
 
-    bool isOk = ResultMessenger::askConfirm(this, tr("Do you want delete varinat №%1?")
+    bool isOk = ResultMessenger::askConfirm(this, tr("Do you want to delete variant #%1?")
                                         .arg(ref->number));
 
     if (!isOk) return;
@@ -202,8 +202,8 @@ void VariantsList::onDeleteClicked() {
     }
     if (gap > 0 && ResultMessenger::askConfirm(
             this,
-            QStringLiteral("Перенумеровать варианты?"),
-            QStringLiteral("Вариант №%1 пустой. Сдвинуть следующие номера?").arg(gap))) {
+            tr("Renumber variants?"),
+            tr("Variant #%1 is empty. Shift subsequent numbers?").arg(gap))) {
         Result compactResult = m_service->compactVariantNumbers();
         Logger::log(compactResult);
         if (!compactResult.ok())
@@ -222,14 +222,14 @@ void VariantsList::onSwapClicked() {
     const int second = m_swapSecond->currentText().trimmed().toInt(&secondOk);
     if (!firstOk || !secondOk) {
         ResultMessenger::showWarning(
-            this, QStringLiteral("Поле № варианта не заполнено."));
+            this, tr("The variant number field is empty."));
         if (!firstOk) m_swapFirst->setFocus();
         else m_swapSecond->setFocus();
         return;
     }
     if (first == second) {
         ResultMessenger::showWarning(
-            this, QStringLiteral("Укажите два разных номера вариантов."));
+            this, tr("Specify two different variant numbers."));
         return;
     }
 
@@ -242,8 +242,8 @@ void VariantsList::onSwapClicked() {
     emit variantsSwapped(first, second);
     populateTable();
     QMessageBox::information(
-        this, QStringLiteral("Варианты"),
-        QStringLiteral("Номера №%1 и №%2 успешно поменяны.").arg(first).arg(second));
+        this, tr("Variants"),
+        tr("Numbers #%1 and #%2 were swapped successfully.").arg(first).arg(second));
 }
 
 

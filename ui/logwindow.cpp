@@ -1,6 +1,7 @@
 #include "logwindow.h"
 #include "infrastructure/logger.h"
 #include "ui/dialogs/resultmessenger.h"
+#include "ui/translateresult.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -122,17 +123,7 @@ void LogWindow::appendResult(const Result& result) {
                        .arg(timestamp,
                             resultSeverityToString(result.severity()).toHtmlEscaped(),
                             resultCategoryToString(result.category()).toHtmlEscaped(),
-                            result.message().toHtmlEscaped());
-
-    if (!result.offender().isEmpty()) {
-        text += QStringLiteral(" <i>(%1: %2)</i>")
-        .arg("offender", result.offender().toHtmlEscaped());
-    }
-
-    if (!result.details().isEmpty()) {
-        text += QStringLiteral("<br/><span style='color:#666666;'>    %1</span>")
-        .arg(result.details().toHtmlEscaped());
-    }
+                            TranslateResult::forLog(result).toHtmlEscaped());
 
     const QString html = QStringLiteral(
                              "<span style='color:%1; white-space: pre;'>%2</span>")

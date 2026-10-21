@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     SchemaManager schemaManager(db);
     QString schemaError;
     if (!schemaManager.createSchema(&schemaError)) {
-        QMessageBox::critical(nullptr, "Ошибка схемы", schemaError);
+        QMessageBox::critical(nullptr, "Schema error", schemaError);
         return 1;
     }
 

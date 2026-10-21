@@ -14,7 +14,7 @@
 #include <QVBoxLayout>
 
 VariantImagePanel::VariantImagePanel(QWidget* parent)
-    : QGroupBox(QStringLiteral("Изображение задания и состав"), parent)
+    : QGroupBox(parent)
 {
     setObjectName(QStringLiteral("diagramGroup"));
 
@@ -35,32 +35,30 @@ VariantImagePanel::VariantImagePanel(QWidget* parent)
 
     auto* actions = new QVBoxLayout;
     actions->setSpacing(5);
-    m_fileLabel = new QLabel(QStringLiteral("Файл не выбран"), this);
+    m_fileLabel = new QLabel(this);
     m_fileLabel->setObjectName(QStringLiteral("imageFileLabel"));
     m_fileLabel->setWordWrap(true);
     m_countsLabel = new QLabel(this);
     m_countsLabel->setWordWrap(true);
 
-    auto* loadButton = new QPushButton(
-        QStringLiteral("Загрузить изображение"), this);
-    loadButton->setObjectName(QStringLiteral("loadImageButton"));
-    m_removeButton = new QPushButton(
-        QStringLiteral("Удалить изображение"), this);
+    m_loadButton = new QPushButton(this);
+    m_loadButton->setObjectName(QStringLiteral("loadImageButton"));
+    m_removeButton = new QPushButton(this);
     m_removeButton->setObjectName(QStringLiteral("removeImageButton"));
 
     actions->addWidget(m_fileLabel);
     actions->addWidget(m_countsLabel);
     actions->addStretch();
-    actions->addWidget(loadButton);
+    actions->addWidget(m_loadButton);
     actions->addWidget(m_removeButton);
     layout->addLayout(actions, 2);
 
-    connect(loadButton, &QPushButton::clicked,
+    connect(m_loadButton, &QPushButton::clicked,
             this, &VariantImagePanel::chooseImage);
     connect(m_removeButton, &QPushButton::clicked,
             this, &VariantImagePanel::removeRequested);
 
-    refreshPreview();
+    retranslateUi();
 }
 
 void VariantImagePanel::setImage(
@@ -72,9 +70,17 @@ void VariantImagePanel::setImage(
 }
 
 void VariantImagePanel::setCounts(int states, int inputs, int outputs) {
-    m_countsLabel->setText(
-        QStringLiteral("Состояний: %1  ·  Входов: %2  ·  Выходов: %3")
-            .arg(states).arg(inputs).arg(outputs));
+    m_stateCount = states;
+    m_inputCount = inputs;
+    m_outputCount = outputs;
+    m_countsLabel->setText(tr("States: %1  ·  Inputs: %2  ·  Outputs: %3")
+                               .arg(states).arg(inputs).arg(outputs));
+}
+
+void VariantImagePanel::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+    QGroupBox::changeEvent(event);
 }
 
 void VariantImagePanel::setInvalid(bool invalid) {
@@ -117,18 +123,16 @@ bool VariantImagePanel::eventFilter(QObject* watched, QEvent* event) {
 
 void VariantImagePanel::chooseImage() {
     const QString path = QFileDialog::getOpenFileName(
-        this, QStringLiteral("Выберите изображение задания"), QString(),
-        QStringLiteral(
-            "Изображения (*.png *.jpg *.jpeg *.bmp *.webp);;Все файлы (*)"));
+        this, tr("Select the task image"), QString(),
+        tr("Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)"));
     if (!path.isEmpty()) emit imagePathSelected(path);
 }
 
 void VariantImagePanel::refreshPreview() {
     if (m_imageData.isEmpty()) {
         m_preview->setPixmap(QPixmap());
-        m_preview->setText(QStringLiteral(
-            "Перетащите изображение сюда\nили нажмите для выбора файла"));
-        m_fileLabel->setText(QStringLiteral("Файл не выбран"));
+        m_preview->setText(tr("Drag an image here\nor click to select a file"));
+        m_fileLabel->setText(tr("No file selected"));
         m_removeButton->setEnabled(false);
         return;
     }
@@ -140,8 +144,16 @@ void VariantImagePanel::refreshPreview() {
     m_preview->setPixmap(
         image.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_fileLabel->setText(
-        QStringLiteral("%1 · %2 КБ")
+        tr("%1 · %2 KB")
             .arg(m_fileName)
             .arg(m_imageData.size() / 1024));
     m_removeButton->setEnabled(true);
+}
+
+void VariantImagePanel::retranslateUi() {
+    setTitle(tr("Task Image and Composition"));
+    m_loadButton->setText(tr("Load image"));
+    m_removeButton->setText(tr("Remove image"));
+    setCounts(m_stateCount, m_inputCount, m_outputCount);
+    refreshPreview();
 }

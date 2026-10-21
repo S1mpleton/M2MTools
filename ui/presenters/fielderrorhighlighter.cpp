@@ -20,7 +20,7 @@ void FieldErrorHighlighter::show(const Result& result) {
     m_field->setStyleSheet(QString::fromLatin1(kErrorStyle));
     m_field->setToolTip(translateResult(result));
 
-    // Иконку добавляем только один раз
+    // Add the icon only once.
     if (!m_field->findChild<QAction*>(kErrorIconId)) {
         auto* icon = m_field->addAction(QIcon(kIconPath), QLineEdit::LeadingPosition);
         icon->setObjectName(kErrorIconId);

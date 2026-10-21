@@ -64,8 +64,10 @@ QString variantTypeToString(VariantType variantType) {
 
 QString variantTypeDisplayName(VariantType variantType) {
     switch (variantType) {
-        case VariantType::MealyToMoore: return QStringLiteral("Мили → Мура");
-        case VariantType::MooreToMealy: return QStringLiteral("Мура → Мили");
+        case VariantType::MealyToMoore:
+            return QCoreApplication::translate("VariantTypeDisplay", "Mealy → Moore");
+        case VariantType::MooreToMealy:
+            return QCoreApplication::translate("VariantTypeDisplay", "Moore → Mealy");
     }
 
     Logger::error(QString("function 'variantTypeDisplayName'. Do not defined field"));
@@ -127,13 +129,15 @@ Result AutomatonData::setVariantNumber(int n){
             .withCode(ErrorCode::ADInvalidVariantNumber);
     }
 
-    return Result::success();
+    return Result::success(
+        QStringLiteral("Variant number set to %1").arg(n));
 
 }
 
 Result AutomatonData::setVariantType(VariantType t){
     m_type = t;
-    return Result::success();
+    return Result::success(QStringLiteral("Variant type set to %1")
+                               .arg(variantTypeToString(t)));
 }
 
 // Set name lists
@@ -145,7 +149,7 @@ Result AutomatonData::setStateNames(const QStringList& names) {
     if (!validInvariant.ok()) return validInvariant;
 
     if (m_stateNames == names) {
-        return Result::success();
+        return Result::success(QStringLiteral("State names were unchanged"));
     }
 
     QMap<QString, int> oldIndex;
@@ -177,7 +181,8 @@ Result AutomatonData::setStateNames(const QStringList& names) {
             ? QString() : m_stateNames.first();
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("State names updated (%1 total)")
+                               .arg(names.size()));
 }
 
 Result AutomatonData::setInputSignalNames(const QStringList& names) {
@@ -188,7 +193,7 @@ Result AutomatonData::setInputSignalNames(const QStringList& names) {
 
     if (!validInvariant.ok()) return validInvariant;
     if (m_inputSignalNames == names) {
-        return Result::success();
+        return Result::success(QStringLiteral("Input signal names were unchanged"));
     }
 
     QMap<QString, int> oldIndex;
@@ -211,7 +216,8 @@ Result AutomatonData::setInputSignalNames(const QStringList& names) {
     m_inputSignalNames = names;
     m_transitionTable = newTable;
 
-    return Result::success();
+    return Result::success(QStringLiteral("Input signal names updated (%1 total)")
+                               .arg(names.size()));
 }
 
 Result AutomatonData::setOutputSignalNames(const QStringList& names) {
@@ -222,12 +228,13 @@ Result AutomatonData::setOutputSignalNames(const QStringList& names) {
 
     if (!validInvariant.ok()) return validInvariant;
     if (m_outputSignalNames == names) {
-        return Result::success();
+        return Result::success(QStringLiteral("Output signal names were unchanged"));
     }
 
     m_outputSignalNames = names;
 
-    return Result::success();
+    return Result::success(QStringLiteral("Output signal names updated (%1 total)")
+                               .arg(names.size()));
 }
 
 Result AutomatonData::setInitialState(const QString& name) {
@@ -240,7 +247,7 @@ Result AutomatonData::setInitialState(const QString& name) {
             .withOffender(name);
 
     m_initialState = name;
-    return Result::success();
+    return Result::success(QStringLiteral("Initial state set to '%1'").arg(name));
 }
 
 // Set tabel cell
@@ -266,7 +273,8 @@ Result AutomatonData::setMooreOutputCell(int col, const QString& text) {
     }
 
     m_mooreOutputs[m_stateNames[stateIndex]] = outputs;
-    return Result::success();
+    return Result::success(QStringLiteral("Moore output cell updated for state '%1'")
+                               .arg(m_stateNames[stateIndex]));
 }
 
 Result AutomatonData::setMooreOutputCellByName(const QString& stateName, const QString& text) {
@@ -337,7 +345,8 @@ Result AutomatonData::setTransitionCell(int row, int col, const QString& text) {
     }
 
     m_transitionTable[inputIndex][stateIndex] = cell;
-    return Result::success();
+    return Result::success(QStringLiteral("Transition cell (%1,%2) updated")
+                               .arg(row).arg(col));
 }
 
 Result AutomatonData::setTransitionCellByName(const QString& inputName, const QString& stateName, const QString& text) {
@@ -426,7 +435,7 @@ Result AutomatonData::checkInvariant(const QStringList& candidate, FieldType fie
         }
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Name-list invariant is valid"));
 }
 
 Result AutomatonData::validateName(const QString& name) const {
@@ -461,7 +470,7 @@ Result AutomatonData::validateName(const QString& name) const {
             .withOffender(name);
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Name '%1' is valid").arg(name));
 
 }
 
@@ -471,7 +480,7 @@ Result AutomatonData::validateNameList(const QStringList& names) const {
         if (!nameValid.ok()) return nameValid;
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("All %1 names are valid").arg(names.size()));
 
 }
 
@@ -488,7 +497,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
     const QString trimmed = text.trimmed();
 
     if (trimmed.isEmpty() || trimmed == "—" || trimmed == "-") {
-        return Result::success();
+        return Result::success(QStringLiteral("Empty cell content is valid"));
     }
 
     switch (kind) {
@@ -519,7 +528,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
             }
             seen.insert(name);
         }
-        return Result::success();
+        return Result::success(QStringLiteral("Moore output cell content is valid"));
     }
 
     case CellKind::Transition: {
@@ -535,7 +544,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
                     .withOffender(trimmed);
             }
 
-            return Result::success();
+            return Result::success(QStringLiteral("Moore transition cell content is valid"));
         }
 
         const int slashPos = trimmed.indexOf('/');
@@ -595,7 +604,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
                 seen.insert(name);
             }
         }
-        return Result::success();
+        return Result::success(QStringLiteral("Mealy transition cell content is valid"));
     }
 
     default:
@@ -658,19 +667,19 @@ Result AutomatonData::validate() const {
     if (Result r = validateInputUsage(); !r.ok()) return r;
     if (Result r = validateOutputUsage(); !r.ok()) return r;
 
-    return Result::success();
+    return Result::success(QStringLiteral("Automaton validation completed successfully"));
 }
 
 Result AutomatonData::validateClosedStateTransitions() const {
     if (m_initialState.isEmpty()) {
         return Result::error(
-                   QStringLiteral("Начальное состояние не задано."),
+                   QStringLiteral("Initial state is not set"),
                    ResultCategory::Validation)
             .withCode(ErrorCode::ADInitialStateNotSet);
     }
     if (!m_stateNames.contains(m_initialState)) {
         return Result::error(
-                    QStringLiteral("Начальное состояние «%1» отсутствует в списке.")
+                    QStringLiteral("Initial state '%1' is not in the state list")
                         .arg(m_initialState),
                     ResultCategory::Validation)
             .withCode(ErrorCode::ADInitialStateNotFound)
@@ -696,7 +705,7 @@ Result AutomatonData::validateClosedStateTransitions() const {
         if (!hasIncoming[stateIndex]) {
             return Result::error(
                         QStringLiteral(
-                            "Состояние «%1» не имеет входящего перехода.")
+                            "State '%1' has no incoming transition")
                             .arg(state),
                         ResultCategory::Validation)
                 .withCode(ErrorCode::ADStateWithoutIncomingTransition)
@@ -705,14 +714,15 @@ Result AutomatonData::validateClosedStateTransitions() const {
         if (!hasOutgoing[stateIndex]) {
             return Result::error(
                         QStringLiteral(
-                            "Состояние «%1» не имеет исходящего перехода.")
+                            "State '%1' has no outgoing transition")
                             .arg(state),
                         ResultCategory::Validation)
                 .withCode(ErrorCode::ADStateWithoutOutgoingTransition)
                 .withOffender(state);
         }
     }
-    return Result::success();
+    return Result::success(
+        QStringLiteral("Every state has at least one incoming and outgoing transition"));
 }
 
 Result AutomatonData::validateInputUsage() const {
@@ -734,7 +744,7 @@ Result AutomatonData::validateInputUsage() const {
                 .withOffender(m_inputSignalNames[i]);
         }
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Every input signal is used"));
 }
 
 Result AutomatonData::validateOutputUsage() const {
@@ -767,6 +777,6 @@ Result AutomatonData::validateOutputUsage() const {
                 .withOffender(out);
         }
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Every output signal is used"));
 }
 

@@ -2,10 +2,33 @@
 
 #include "core/namelistparser.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QSet>
 
 namespace {
+[[maybe_unused]] const char* const kReactionTranslationSources[] = {
+    QT_TRANSLATE_NOOP("ReactionSynchronizer",
+                      "Invalid name '%1': use letters and digits, starting with a letter"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer",
+                      "Name '%1' is specified more than once"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer",
+                      "Name '%1' is already used in another symbol group"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer", "Unknown state '%1'"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer", "Unknown input signal '%1'"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer", "Unknown output signal '%1'"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer",
+                      "Fill in the state, input and next state"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer",
+                      "Conflict: different transitions are specified for %1 + %2"),
+    QT_TRANSLATE_NOOP("ReactionSynchronizer",
+                      "Conflict: state %1 is assigned different outputs"),
+};
+
+QString trReaction(const char* text) {
+    return QCoreApplication::translate("ReactionSynchronizer", text);
+}
+
 QString normalizedName(const QString& value) {
     const QString result = value.trimmed();
     return (result == QStringLiteral("—") || result == QStringLiteral("-"))
@@ -37,21 +60,21 @@ void addIssue(QVector<ReactionIssue>& issues, int column, int row,
 QString friendlyValidationMessage(const Result& result) {
     switch (result.code()) {
     case ErrorCode::ADInvalidName:
-        return QStringLiteral(
-            "Некорректное имя «%1»: используйте буквы и цифры, начиная с буквы")
+        return trReaction(
+            "Invalid name '%1': use letters and digits, starting with a letter")
             .arg(result.offender());
     case ErrorCode::ADDuplicateNameInList:
-        return QStringLiteral("Имя «%1» указано повторно").arg(result.offender());
+        return trReaction("Name '%1' is specified more than once").arg(result.offender());
     case ErrorCode::ADDuplicateNameInAllList:
-        return QStringLiteral(
-            "Имя «%1» уже используется в другой группе обозначений")
+        return trReaction(
+            "Name '%1' is already used in another symbol group")
             .arg(result.offender());
     case ErrorCode::ADUnknownState:
-        return QStringLiteral("Неизвестное состояние «%1»").arg(result.offender());
+        return trReaction("Unknown state '%1'").arg(result.offender());
     case ErrorCode::ADUnknownInput:
-        return QStringLiteral("Неизвестный входной сигнал «%1»").arg(result.offender());
+        return trReaction("Unknown input signal '%1'").arg(result.offender());
     case ErrorCode::ADUnknownOutput:
-        return QStringLiteral("Неизвестный выходной сигнал «%1»").arg(result.offender());
+        return trReaction("Unknown output signal '%1'").arg(result.offender());
     default:
         return result.message();
     }
@@ -159,15 +182,15 @@ ReactionSyncReport ReactionSynchronizer::buildAutomaton(
 
         if (current.isEmpty() || input.isEmpty() || next.isEmpty()) {
             addIssue(report.issues, column, -1, ReactionIssueSeverity::Incomplete,
-                     QStringLiteral("Заполните состояние, вход и следующее состояние"));
+                     trReaction("Fill in the state, input and next state"));
             continue;
         }
 
         const QString key = transitionKey(current, input);
         const QString value = transitionValue(next, stepOutputs, base.getType());
         if (transitions.contains(key) && transitions.value(key) != value) {
-            const QString message = QStringLiteral(
-                "Противоречие: для пары %1 + %2 указаны разные переходы")
+            const QString message = trReaction(
+                "Conflict: different transitions are specified for %1 + %2")
                 .arg(current, input);
             addIssue(report.issues, firstTransitionColumn.value(key), -1,
                      ReactionIssueSeverity::Error, message);
@@ -183,8 +206,8 @@ ReactionSyncReport ReactionSynchronizer::buildAutomaton(
             sortedOutputs.sort(Qt::CaseSensitive);
             const QString outputValue = sortedOutputs.join(QChar(0x1e));
             if (mooreOutputs.contains(next) && mooreOutputs.value(next) != outputValue) {
-                const QString message = QStringLiteral(
-                    "Противоречие: состоянию %1 назначены разные выходы").arg(next);
+                const QString message = trReaction(
+                    "Conflict: state %1 is assigned different outputs").arg(next);
                 addIssue(report.issues, firstMooreColumn.value(next), 3,
                          ReactionIssueSeverity::Error, message);
                 addIssue(report.issues, column, 3, ReactionIssueSeverity::Error, message);

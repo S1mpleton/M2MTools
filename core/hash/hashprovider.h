@@ -8,13 +8,13 @@ class HashProvider {
 public:
     virtual ~HashProvider() = default;
 
-    // Подписать канонические данные. Возвращает hex-строку.
+    // Sign canonical data and return a hexadecimal string.
     virtual QString sign(const QByteArray& canonicalData) const = 0;
 
-    // Проверить, что signature соответствует canonicalData.
+    // Verify that signature matches canonicalData.
     virtual bool verify(const QByteArray& canonicalData, const QString& signature) const = 0;
 
-    // Короткое имя алгоритма — для отладки и логов.
+    // Short algorithm name for diagnostics and logs.
     virtual QString algorithmName() const = 0;
 };
 

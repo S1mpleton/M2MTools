@@ -15,6 +15,7 @@ namespace Ui { class MainWindow; }
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QShortcut;
 class QStackedWidget;
 class QTableWidget;
 QT_END_NAMESPACE
@@ -77,6 +78,10 @@ private:
     QTableWidget* m_reactionTable = nullptr;
     VariantImagePanel* m_imagePanel = nullptr;
     QLabel* m_validationLabel = nullptr;
+    QLabel* m_initialStateLabel = nullptr;
+    QLabel* m_editModeLabel = nullptr;
+    QLabel* m_editModeHintLabel = nullptr;
+    QLabel* m_reactionHintLabel = nullptr;
     QPushButton* m_newVariantButton = nullptr;
     QPushButton* m_addReactionStepButton = nullptr;
     QPushButton* m_removeReactionStepButton = nullptr;
@@ -87,6 +92,7 @@ private:
     void setupPresenters();
     void setupConnections();
     void setupLanguageGroup();
+    void retranslateDynamicUi();
 
     void refreshTable();
     void refreshData();
@@ -98,6 +104,8 @@ private:
     ReactionSyncReport syncDataFromReaction();
     QVector<ReactionStep> reactionSteps() const;
     void applyReactionIssues(const QVector<ReactionIssue>& issues);
+    void insertReactionStepAfter(int column);
+    void renumberReactionSteps();
 
     bool validateBeforeSave();
     void presentAutomatonValidation(const Result& result);

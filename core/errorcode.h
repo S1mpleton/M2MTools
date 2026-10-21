@@ -74,9 +74,29 @@ enum class ErrorCode {
     VariantLoadFailed,
     VariantRemoveFailed,
     VariantEmptyContent,
+    VariantMissingImage,
 
     VariantUnknownState,
     VariantUnknownOutput,
+
+    // Encrypted variant archive
+    ArchiveInvalidEntry,
+    ArchiveInvalidMetadata,
+    ArchiveInvalidSymbols,
+    ArchiveMissingTransitionTable,
+    ArchiveCorruptedTransitionTable,
+    ArchiveMissingImage,
+    ArchiveInvalidVariant,
+    ArchivePasswordTooShort,
+    ArchiveEncryptionFailed,
+    ArchiveFileOpenFailed,
+    ArchiveSaveFailed,
+    ArchiveInvalidTarget,
+    ArchiveInvalidFormat,
+    ArchiveDecryptionFailed,
+    ArchiveCorruptedPayload,
+    ArchiveUnsupportedVersion,
+    ArchiveDuplicateVariantNumber,
 
 
 
