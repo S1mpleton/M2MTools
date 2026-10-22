@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools Sql)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools Sql)
+find_package(OpenSSL 1.1.1 REQUIRED COMPONENTS Crypto)
 
 
 set(TS_FILES M2MTools_ru_RU.ts)
@@ -29,6 +30,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
         core/automatondata.h core/automatondata.cpp
+        core/reactionsynchronizer.h core/reactionsynchronizer.cpp
+        core/variantarchive.h core/variantarchive.cpp
         core/namelistparser.h core/namelistparser.cpp
 
 
@@ -42,11 +45,15 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 
         ui/delegates/mooredelegate.h ui/delegates/mooredelegate.cpp
         ui/delegates/mealydelegate.h ui/delegates/mealydelegate.cpp
+        ui/delegates/reactiondelegate.h ui/delegates/reactiondelegate.cpp
 
         ui/presenters/fielderrorhighlighter.h ui/presenters/fielderrorhighlighter.cpp
         ui/presenters/tablecellerrorpresenter.h ui/presenters/tablecellerrorpresenter.cpp
         ui/presenters/ierrorpresenter.h
         ui/presenters/errorpresenterfactory.h ui/presenters/errorpresenterfactory.cpp
+
+        ui/widgets/variantimagepanel.h ui/widgets/variantimagepanel.cpp
+        ui/feedbackstyle.h
 
         resources.qrc
         data/sqlrequests.h
@@ -104,6 +111,7 @@ endif()
 target_link_libraries(M2MTools PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Sql
+    OpenSSL::Crypto
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

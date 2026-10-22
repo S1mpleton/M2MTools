@@ -110,6 +110,6 @@ Result TranslationManager::loadTranslation(const QString& locale) {
         m_qtTranslator = std::move(qtTranslator);
     }
 
-    return Result::success()
+    return Result::success(QStringLiteral("Translation '%1' loaded").arg(locale))
         .withDetails(QStringLiteral("Loaded translation for '%1'").arg(locale));
 }

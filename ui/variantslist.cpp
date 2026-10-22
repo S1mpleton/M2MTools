@@ -6,6 +6,52 @@
 #include "ui/dialogs/resultmessenger.h"
 
 #include <QMessageBox>
+#include <QComboBox>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QIntValidator>
+#include <QPushButton>
+
+#include <algorithm>
+
+namespace {
+enum class VariantSort {
+    NumberAscending,
+    NumberDescending,
+};
+
+enum class VariantTypeFilter {
+    All,
+    MealyToMoore,
+    MooreToMealy,
+};
+
+QList<VariantRow> sortedVariants(QList<VariantRow> variants,
+                                 VariantSort sort) {
+    std::stable_sort(
+        variants.begin(), variants.end(),
+        [sort](const VariantRow& left, const VariantRow& right) {
+            return sort == VariantSort::NumberAscending
+                ? left.number < right.number
+                : left.number > right.number;
+        });
+    return variants;
+}
+
+QList<VariantRow> filteredVariants(
+    const QList<VariantRow>& variants, VariantTypeFilter filter) {
+    if (filter == VariantTypeFilter::All) return variants;
+
+    const VariantType expected = filter == VariantTypeFilter::MealyToMoore
+        ? VariantType::MealyToMoore : VariantType::MooreToMealy;
+    QList<VariantRow> filtered;
+    for (const VariantRow& variant : variants) {
+        if (variantTypeStringToType(variant.conversion) == expected)
+            filtered.append(variant);
+    }
+    return filtered;
+}
+}
 
 VariantsList::VariantsList(VariantService *service, QWidget *parent)
     : QDialog(parent)
@@ -17,6 +63,7 @@ VariantsList::VariantsList(VariantService *service, QWidget *parent)
 
 
     configureTable();
+    configureSwapControls();
     populateTable();
 
     connect(ui->loadPushButton,   &QPushButton::clicked,
@@ -25,6 +72,12 @@ VariantsList::VariantsList(VariantService *service, QWidget *parent)
             this, &VariantsList::onDeleteClicked);
     connect(ui->variantsTableWidget, &QTableWidget::itemSelectionChanged,
             this, &VariantsList::onSelectionChanged);
+    connect(ui->variantSortComboBox, &QComboBox::currentIndexChanged,
+            this, [this] { populateTable(); });
+    connect(ui->variantTypeFilterComboBox, &QComboBox::currentIndexChanged,
+            this, [this] { populateTable(); });
+    connect(m_swapButton, &QPushButton::clicked,
+            this, &VariantsList::onSwapClicked);
 
     ui->loadPushButton->setEnabled(false);
     ui->deletePushButton->setEnabled(false);
@@ -38,13 +91,52 @@ VariantsList::~VariantsList()
 
 void VariantsList::configureTable() {
     auto* table = ui->variantsTableWidget;
-    ui->variantsTableWidget->setColumnCount(2);
-    table->setHorizontalHeaderLabels({tr("Number"), tr("Type")});
+    ui->variantsTableWidget->setColumnCount(3);
+    table->setHorizontalHeaderLabels({
+        tr("Number"), tr("Type"), tr("Image")});
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setSelectionMode(QAbstractItemView::SingleSelection);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->horizontalHeader()->setStretchLastSection(true);
     table->verticalHeader()->setVisible(false);
+
+    ui->variantSortComboBox->addItem(
+        tr("Variant number: ascending"),
+        static_cast<int>(VariantSort::NumberAscending));
+    ui->variantSortComboBox->addItem(
+        tr("Variant number: descending"),
+        static_cast<int>(VariantSort::NumberDescending));
+
+    ui->variantTypeFilterComboBox->addItem(
+        tr("All types"), static_cast<int>(VariantTypeFilter::All));
+    ui->variantTypeFilterComboBox->addItem(
+        tr("Mealy → Moore"),
+        static_cast<int>(VariantTypeFilter::MealyToMoore));
+    ui->variantTypeFilterComboBox->addItem(
+        tr("Moore → Mealy"),
+        static_cast<int>(VariantTypeFilter::MooreToMealy));
+}
+
+void VariantsList::configureSwapControls() {
+    auto* group = new QGroupBox(tr("Swap variants"), this);
+    auto* layout = new QFormLayout(group);
+    m_swapFirst = new QComboBox(group);
+    m_swapSecond = new QComboBox(group);
+    for (QComboBox* combo : {m_swapFirst, m_swapSecond}) {
+        combo->setEditable(true);
+        combo->setInsertPolicy(QComboBox::NoInsert);
+        combo->setValidator(new QIntValidator(1, 999999, combo));
+        combo->setCurrentIndex(-1);
+        combo->setPlaceholderText(tr("Enter a number"));
+    }
+    m_swapFirst->setObjectName(QStringLiteral("swapFirstComboBox"));
+    m_swapSecond->setObjectName(QStringLiteral("swapSecondComboBox"));
+    m_swapButton = new QPushButton(tr("Swap"), group);
+    m_swapButton->setObjectName(QStringLiteral("swapVariantsButton"));
+    layout->addRow(tr("First number"), m_swapFirst);
+    layout->addRow(tr("Second number"), m_swapSecond);
+    layout->addRow(m_swapButton);
+    ui->gridLayout->addWidget(group, 1, 1);
 }
 
 void VariantsList::populateTable() {
@@ -61,7 +153,14 @@ void VariantsList::populateTable() {
         return;
     }
 
-    const auto variants = r.payloadAs<QList<VariantRow>>();
+    const QList<VariantRow> allVariants =
+        r.payloadAs<QList<VariantRow>>();
+    const auto sort = static_cast<VariantSort>(
+        ui->variantSortComboBox->currentData().toInt());
+    const auto filter = static_cast<VariantTypeFilter>(
+        ui->variantTypeFilterComboBox->currentData().toInt());
+    const auto variants = sortedVariants(
+        filteredVariants(allVariants, filter), sort);
     table->setRowCount(variants.size());
 
     for (int i = 0; i < variants.size(); ++i) {
@@ -75,7 +174,28 @@ void VariantsList::populateTable() {
         auto* typeItem = new QTableWidgetItem(
             variantTypeDisplayName(variantTypeStringToType(v.conversion)));
         table->setItem(i, 1, typeItem);
+
+        auto* imageItem = new QTableWidgetItem(
+            v.imageName.isEmpty() ? tr("No") : tr("Yes"));
+        imageItem->setToolTip(v.imageName);
+        table->setItem(i, 2, imageItem);
     }
+    populateSwapControls(allVariants);
+}
+
+void VariantsList::populateSwapControls(const QList<VariantRow>& variants) {
+    const QString firstText = m_swapFirst->currentText();
+    const QString secondText = m_swapSecond->currentText();
+    const QList<VariantRow> variantsByNumber = sortedVariants(
+        variants, VariantSort::NumberAscending);
+    for (QComboBox* combo : {m_swapFirst, m_swapSecond}) {
+        combo->clear();
+        for (const VariantRow& variant : variantsByNumber)
+            combo->addItem(QString::number(variant.number));
+        combo->setCurrentIndex(-1);
+    }
+    m_swapFirst->setEditText(firstText);
+    m_swapSecond->setEditText(secondText);
 }
 
 void VariantsList::onSelectionChanged() {
@@ -116,7 +236,7 @@ void VariantsList::onDeleteClicked() {
     auto ref = variantRefAt(row);
     if (!ref) return;
 
-    bool isOk = ResultMessenger::askConfirm(this, tr("Do you want delete varinat №%1?")
+    bool isOk = ResultMessenger::askConfirm(this, tr("Do you want to delete variant #%1?")
                                         .arg(ref->number));
 
     if (!isOk) return;
@@ -130,7 +250,39 @@ void VariantsList::onDeleteClicked() {
         return;
     }
 
+    emit variantDeleted(ref->number);
     populateTable();
+}
+
+void VariantsList::onSwapClicked() {
+    bool firstOk = false;
+    bool secondOk = false;
+    const int first = m_swapFirst->currentText().trimmed().toInt(&firstOk);
+    const int second = m_swapSecond->currentText().trimmed().toInt(&secondOk);
+    if (!firstOk || !secondOk) {
+        ResultMessenger::showWarning(
+            this, tr("The variant number field is empty."));
+        if (!firstOk) m_swapFirst->setFocus();
+        else m_swapSecond->setFocus();
+        return;
+    }
+    if (first == second) {
+        ResultMessenger::showWarning(
+            this, tr("Specify two different variant numbers."));
+        return;
+    }
+
+    Result result = m_service->swapVariants(first, second);
+    Logger::log(result);
+    if (!result.ok()) {
+        ResultMessenger::show(this, result);
+        return;
+    }
+    emit variantsSwapped(first, second);
+    populateTable();
+    QMessageBox::information(
+        this, tr("Variants"),
+        tr("Numbers #%1 and #%2 were swapped successfully.").arg(first).arg(second));
 }
 
 

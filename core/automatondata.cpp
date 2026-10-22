@@ -3,22 +3,9 @@
 #include "infrastructure/logger.h"
 
 #include <QSet>
-#include <QQueue>
 #include <QRegularExpression>
-#include <QJsonArray>
 #include <QCoreApplication>
-
-
-// ValidateLevel
-QString validationLevelToString(ValidationLevel fieldType) {
-    switch (fieldType) {
-    case ValidationLevel::Soft: return QStringLiteral("Soft");
-    case ValidationLevel::Strict: return QStringLiteral("Strict");
-    }
-
-    Logger::error(QString("function 'validationLevelToString'. Do not defined field"));
-    return QStringLiteral("Soft");
-}
+#include <utility>
 
 // FieldType
 FieldType fieldTypeStringToType(QString fieldTypeString) {
@@ -77,8 +64,10 @@ QString variantTypeToString(VariantType variantType) {
 
 QString variantTypeDisplayName(VariantType variantType) {
     switch (variantType) {
-        case VariantType::MealyToMoore: return QStringLiteral("MealyToMoore");
-        case VariantType::MooreToMealy: return QStringLiteral("MooreToMealy");
+        case VariantType::MealyToMoore:
+            return QCoreApplication::translate("VariantTypeDisplay", "Mealy → Moore");
+        case VariantType::MooreToMealy:
+            return QCoreApplication::translate("VariantTypeDisplay", "Moore → Mealy");
     }
 
     Logger::error(QString("function 'variantTypeDisplayName'. Do not defined field"));
@@ -86,9 +75,16 @@ QString variantTypeDisplayName(VariantType variantType) {
 }
 
 // AutomatonData
-AutomatonData::AutomatonData() {
-    setStateUsageChecker(ValidationLevel::Soft);
+AutomatonData::AutomatonData() = default;
 
+void AutomatonData::setDiagramImage(const QByteArray& data, const QString& fileName) {
+    m_diagramImage = data;
+    m_diagramFileName = fileName;
+}
+
+void AutomatonData::clearDiagramImage() {
+    m_diagramImage.clear();
+    m_diagramFileName.clear();
 }
 
 CellKind AutomatonData::cellKind(int row, int col) const  {
@@ -133,13 +129,15 @@ Result AutomatonData::setVariantNumber(int n){
             .withCode(ErrorCode::ADInvalidVariantNumber);
     }
 
-    return Result::success();
+    return Result::success(
+        QStringLiteral("Variant number set to %1").arg(n));
 
 }
 
 Result AutomatonData::setVariantType(VariantType t){
     m_type = t;
-    return Result::success();
+    return Result::success(QStringLiteral("Variant type set to %1")
+                               .arg(variantTypeToString(t)));
 }
 
 // Set name lists
@@ -151,7 +149,7 @@ Result AutomatonData::setStateNames(const QStringList& names) {
     if (!validInvariant.ok()) return validInvariant;
 
     if (m_stateNames == names) {
-        return Result::success();
+        return Result::success(QStringLiteral("State names were unchanged"));
     }
 
     QMap<QString, int> oldIndex;
@@ -178,9 +176,13 @@ Result AutomatonData::setStateNames(const QStringList& names) {
             ++it;
     }
 
-    setInitialState(m_stateNames.isEmpty() ? QString("") : m_stateNames.first()); // hotfix
+    if (!m_stateNames.contains(m_initialState)) {
+        m_initialState = m_stateNames.isEmpty()
+            ? QString() : m_stateNames.first();
+    }
 
-    return Result::success();
+    return Result::success(QStringLiteral("State names updated (%1 total)")
+                               .arg(names.size()));
 }
 
 Result AutomatonData::setInputSignalNames(const QStringList& names) {
@@ -191,7 +193,7 @@ Result AutomatonData::setInputSignalNames(const QStringList& names) {
 
     if (!validInvariant.ok()) return validInvariant;
     if (m_inputSignalNames == names) {
-        return Result::success();
+        return Result::success(QStringLiteral("Input signal names were unchanged"));
     }
 
     QMap<QString, int> oldIndex;
@@ -214,7 +216,8 @@ Result AutomatonData::setInputSignalNames(const QStringList& names) {
     m_inputSignalNames = names;
     m_transitionTable = newTable;
 
-    return Result::success();
+    return Result::success(QStringLiteral("Input signal names updated (%1 total)")
+                               .arg(names.size()));
 }
 
 Result AutomatonData::setOutputSignalNames(const QStringList& names) {
@@ -225,12 +228,13 @@ Result AutomatonData::setOutputSignalNames(const QStringList& names) {
 
     if (!validInvariant.ok()) return validInvariant;
     if (m_outputSignalNames == names) {
-        return Result::success();
+        return Result::success(QStringLiteral("Output signal names were unchanged"));
     }
 
     m_outputSignalNames = names;
 
-    return Result::success();
+    return Result::success(QStringLiteral("Output signal names updated (%1 total)")
+                               .arg(names.size()));
 }
 
 Result AutomatonData::setInitialState(const QString& name) {
@@ -243,7 +247,7 @@ Result AutomatonData::setInitialState(const QString& name) {
             .withOffender(name);
 
     m_initialState = name;
-    return Result::success();
+    return Result::success(QStringLiteral("Initial state set to '%1'").arg(name));
 }
 
 // Set tabel cell
@@ -269,7 +273,8 @@ Result AutomatonData::setMooreOutputCell(int col, const QString& text) {
     }
 
     m_mooreOutputs[m_stateNames[stateIndex]] = outputs;
-    return Result::success();
+    return Result::success(QStringLiteral("Moore output cell updated for state '%1'")
+                               .arg(m_stateNames[stateIndex]));
 }
 
 Result AutomatonData::setMooreOutputCellByName(const QString& stateName, const QString& text) {
@@ -340,7 +345,8 @@ Result AutomatonData::setTransitionCell(int row, int col, const QString& text) {
     }
 
     m_transitionTable[inputIndex][stateIndex] = cell;
-    return Result::success();
+    return Result::success(QStringLiteral("Transition cell (%1,%2) updated")
+                               .arg(row).arg(col));
 }
 
 Result AutomatonData::setTransitionCellByName(const QString& inputName, const QString& stateName, const QString& text) {
@@ -429,7 +435,7 @@ Result AutomatonData::checkInvariant(const QStringList& candidate, FieldType fie
         }
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Name-list invariant is valid"));
 }
 
 Result AutomatonData::validateName(const QString& name) const {
@@ -464,7 +470,7 @@ Result AutomatonData::validateName(const QString& name) const {
             .withOffender(name);
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Name '%1' is valid").arg(name));
 
 }
 
@@ -474,7 +480,7 @@ Result AutomatonData::validateNameList(const QStringList& names) const {
         if (!nameValid.ok()) return nameValid;
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("All %1 names are valid").arg(names.size()));
 
 }
 
@@ -491,7 +497,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
     const QString trimmed = text.trimmed();
 
     if (trimmed.isEmpty() || trimmed == "—" || trimmed == "-") {
-        return Result::success();
+        return Result::success(QStringLiteral("Empty cell content is valid"));
     }
 
     switch (kind) {
@@ -522,7 +528,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
             }
             seen.insert(name);
         }
-        return Result::success();
+        return Result::success(QStringLiteral("Moore output cell content is valid"));
     }
 
     case CellKind::Transition: {
@@ -538,7 +544,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
                     .withOffender(trimmed);
             }
 
-            return Result::success();
+            return Result::success(QStringLiteral("Moore transition cell content is valid"));
         }
 
         const int slashPos = trimmed.indexOf('/');
@@ -598,7 +604,7 @@ Result AutomatonData::validateCellContent(int row, int col, const QString& text)
                 seen.insert(name);
             }
         }
-        return Result::success();
+        return Result::success(QStringLiteral("Mealy transition cell content is valid"));
     }
 
     default:
@@ -656,43 +662,67 @@ Result AutomatonData::validate() const {
         }
     }
 
-    // 3. Usage validate
-    if (Result r = validateStateUsage(); !r.ok()) return r;
+    // 3. Every state of a closed automaton has an incoming and outgoing edge.
+    if (Result r = validateClosedStateTransitions(); !r.ok()) return r;
     if (Result r = validateInputUsage(); !r.ok()) return r;
     if (Result r = validateOutputUsage(); !r.ok()) return r;
 
-    return Result::success();
+    return Result::success(QStringLiteral("Automaton validation completed successfully"));
 }
 
-Result AutomatonData::setStateUsageChecker(ValidationLevel level) {
-    if (level == ValidationLevel::Soft){
-        m_stateUsageChecker = std::move([](const AutomatonData& d) {
-            return d.validateStateUsageSoft();
-        });
-
-    } else if (level == ValidationLevel::Strict) {
-        m_stateUsageChecker = std::move([](const AutomatonData& d) {
-            return d.validateStateUsageStrict();
-        });
-    } else {
-        return Result::error("Invalid usage checker", ResultCategory::Validation)
-            .withCode(ErrorCode::ADUnknownChecker);
+Result AutomatonData::validateClosedStateTransitions() const {
+    if (m_initialState.isEmpty()) {
+        return Result::error(
+                   QStringLiteral("Initial state is not set"),
+                   ResultCategory::Validation)
+            .withCode(ErrorCode::ADInitialStateNotSet);
+    }
+    if (!m_stateNames.contains(m_initialState)) {
+        return Result::error(
+                    QStringLiteral("Initial state '%1' is not in the state list")
+                        .arg(m_initialState),
+                    ResultCategory::Validation)
+            .withCode(ErrorCode::ADInitialStateNotFound)
+            .withOffender(m_initialState);
     }
 
-    m_validationLevel = level;
-    return Result::success(QStringLiteral("Level checker has been update."))
-        .withDetails(QStringLiteral("New level: %1").arg(validationLevelToString(level)));
-}
+    QVector<bool> hasIncoming(m_stateNames.size(), false);
+    QVector<bool> hasOutgoing(m_stateNames.size(), false);
+    for (const auto& row : m_transitionTable) {
+        for (int stateIndex = 0; stateIndex < row.size(); ++stateIndex) {
+            const QString nextState = row[stateIndex].nextState.trimmed();
+            if (nextState.isEmpty() || nextState == QStringLiteral("—"))
+                continue;
 
-Result AutomatonData::validateStateUsage() const {
-    if (m_stateUsageChecker) {
-        return m_stateUsageChecker(*this);
+            hasOutgoing[stateIndex] = true;
+            const int nextIndex = m_stateNames.indexOf(nextState);
+            if (nextIndex >= 0) hasIncoming[nextIndex] = true;
+        }
     }
 
-    return Result::error(
-                QStringLiteral("The check has not been established."),
-                ResultCategory::Validation)
-        .withCode(ErrorCode::ADDisableChecker);
+    for (int stateIndex = 0; stateIndex < m_stateNames.size(); ++stateIndex) {
+        const QString& state = m_stateNames[stateIndex];
+        if (!hasIncoming[stateIndex]) {
+            return Result::error(
+                        QStringLiteral(
+                            "State '%1' has no incoming transition")
+                            .arg(state),
+                        ResultCategory::Validation)
+                .withCode(ErrorCode::ADStateWithoutIncomingTransition)
+                .withOffender(state);
+        }
+        if (!hasOutgoing[stateIndex]) {
+            return Result::error(
+                        QStringLiteral(
+                            "State '%1' has no outgoing transition")
+                            .arg(state),
+                        ResultCategory::Validation)
+                .withCode(ErrorCode::ADStateWithoutOutgoingTransition)
+                .withOffender(state);
+        }
+    }
+    return Result::success(
+        QStringLiteral("Every state has at least one incoming and outgoing transition"));
 }
 
 Result AutomatonData::validateInputUsage() const {
@@ -714,7 +744,7 @@ Result AutomatonData::validateInputUsage() const {
                 .withOffender(m_inputSignalNames[i]);
         }
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Every input signal is used"));
 }
 
 Result AutomatonData::validateOutputUsage() const {
@@ -747,94 +777,6 @@ Result AutomatonData::validateOutputUsage() const {
                 .withOffender(out);
         }
     }
-    return Result::success();
+    return Result::success(QStringLiteral("Every output signal is used"));
 }
-
-Result AutomatonData::validateStateUsageStrict() const {
-    // 1. We check that the initial state is set.
-    if (m_initialState.isEmpty()) {
-        return Result::error(
-                   QStringLiteral("Initial state is not set"),
-                   ResultCategory::Validation)
-            .withCode(ErrorCode::ADInitialStateNotSet);
-    }
-
-    if (!m_stateNames.contains(m_initialState)) {
-        return Result::error(
-                    QStringLiteral("Initial state '%1' is not in the state list")
-                        .arg(m_initialState),
-                    ResultCategory::Validation)
-            .withCode(ErrorCode::ADInitialStateNotFound)
-            .withOffender(m_initialState);
-    }
-
-    // 2. BFS from the initial state
-    QSet<QString> reachable;
-    QQueue<QString> queue;
-    queue.enqueue(m_initialState);
-
-    while (!queue.isEmpty()) {
-        const QString state = queue.dequeue();
-        if (reachable.contains(state)) continue;
-        reachable.insert(state);
-
-        const int stateIdx = m_stateNames.indexOf(state);
-        if (stateIdx < 0) continue;
-
-        for (int i = 0; i < m_inputSignalNames.size(); ++i) {
-            const CellData& cell = m_transitionTable[i][stateIdx];
-            if (!cell.nextState.isEmpty() && cell.nextState != "—")
-                queue.enqueue(cell.nextState);
-        }
-    }
-
-    // 3. All states must be achievable.
-    for (const QString& state : m_stateNames) {
-        if (!reachable.contains(state)) {
-            return Result::error(
-                        QStringLiteral("State '%1' is not reachable from '%2'")
-                            .arg(state, m_initialState),
-                        ResultCategory::Validation)
-                .withCode(ErrorCode::ADUnreachableState)
-                .withOffender(state);
-        }
-    }
-
-    return Result::success();
-}
-
-Result AutomatonData::validateStateUsageSoft() const {
-    QSet<QString> usedStates;
-
-    if (!m_initialState.isEmpty())
-        usedStates.insert(m_initialState);
-
-    for (int i = 0; i < m_transitionTable.size(); ++i) {
-        for (int j = 0; j < m_transitionTable[i].size(); ++j) {
-            const CellData& cell = m_transitionTable[i][j];
-
-            if (j < m_stateNames.size()) {
-                usedStates.insert(m_stateNames[j]);
-            }
-
-            if (!cell.nextState.isEmpty() && cell.nextState != "—") {
-                usedStates.insert(cell.nextState);
-            }
-        }
-    }
-
-    for (const QString& state : m_stateNames) {
-        if (!usedStates.contains(state)) {
-            return Result::error(
-                        QStringLiteral("State '%1' is not used in any transition")
-                            .arg(state),
-                        ResultCategory::Validation)
-                .withCode(ErrorCode::ADUnusedState)
-                .withOffender(state);
-        }
-    }
-
-    return Result::success();
-}
-
 

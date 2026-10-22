@@ -35,7 +35,8 @@ QString resultSeverityDisplayName(ResultSeverity resultSeverity);
 class Result
 {
 public:
-    static Result success(const QString& message = "Ok") {
+    static Result success(
+        const QString& message = QStringLiteral("Operation completed successfully")) {
         return Result(ResultSeverity::Success, ResultCategory::General, message);
     }
 

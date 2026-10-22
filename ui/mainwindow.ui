@@ -17,9 +17,7 @@
    <string>M2MTools</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="0">
-     <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout">
       <property name="spacing">
        <number>7</number>
       </property>
@@ -143,8 +141,6 @@
         </item>
        </layout>
       </item>
-     </layout>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -165,7 +161,9 @@
     </property>
     <addaction name="actionSaveVariant"/>
     <addaction name="actionLoadVariant"/>
-    <addaction name="actionShowLogger"/>
+    <addaction name="actionDatabaseSeparator"/>
+    <addaction name="actionImportDatabase"/>
+    <addaction name="actionExportDatabase"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
@@ -176,13 +174,6 @@
     <property name="icon">
      <iconset theme="QIcon::ThemeIcon::DocumentProperties"/>
     </property>
-    <widget class="QMenu" name="menuType_of_check">
-     <property name="title">
-      <string>Type of check</string>
-     </property>
-     <addaction name="actionTypeSoft"/>
-     <addaction name="actionTypeStrict"/>
-    </widget>
     <widget class="QMenu" name="menuLanguage">
      <property name="enabled">
       <bool>true</bool>
@@ -206,7 +197,7 @@
      <addaction name="actionSetLangRu"/>
     </widget>
     <addaction name="menuLanguage"/>
-    <addaction name="menuType_of_check"/>
+    <addaction name="actionShowLogger"/>
    </widget>
    <addaction name="menuMain"/>
    <addaction name="menuSettings"/>
@@ -236,6 +227,27 @@
     <string>Load variant</string>
    </property>
   </action>
+  <action name="actionDatabaseSeparator">
+   <property name="separator">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionImportDatabase">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentOpen"/>
+   </property>
+   <property name="text">
+    <string>Import database</string>
+   </property>
+  </action>
+  <action name="actionExportDatabase">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentSaveAs"/>
+   </property>
+   <property name="text">
+    <string>Export database</string>
+   </property>
+  </action>
   <action name="actionSetLangEn">
    <property name="checkable">
     <bool>true</bool>
@@ -259,22 +271,6 @@
    </property>
    <property name="priority">
     <enum>QAction::Priority::NormalPriority</enum>
-   </property>
-  </action>
-  <action name="actionTypeSoft">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Soft</string>
-   </property>
-  </action>
-  <action name="actionTypeStrict">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Strict</string>
    </property>
   </action>
   <action name="actionShowLogger">

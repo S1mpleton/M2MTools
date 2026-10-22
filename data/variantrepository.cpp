@@ -41,6 +41,8 @@ Result VariantRepository::findVariant(int number) const {
     row.id = q.value(0).toInt();
     row.number = q.value(1).toInt();
     row.conversion = q.value(2).toString();
+    row.imageData = q.value(3).toByteArray();
+    row.imageName = q.value(4).toString();
 
     return Result::success(
         QString("Variant '%1' found").arg(number))
@@ -61,17 +63,24 @@ Result VariantRepository::findAllVariants() const {
         row.id = q.value(0).toInt();
         row.number = q.value(1).toInt();
         row.conversion = q.value(2).toString();
+        row.imageData = q.value(3).toByteArray();
+        row.imageName = q.value(4).toString();
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 variants").arg(result.size()))
+        .withPayload(result);
 }
 
-Result VariantRepository::insertVariant(int number, const QString& conversion) {
+Result VariantRepository::insertVariant(int number, const QString& conversion,
+                                        const QByteArray& imageData,
+                                        const QString& imageName) {
     QSqlQuery q(m_db->handle());
     q.prepare(SQLRequests::INSERT_VARIANT);
     q.bindValue(":num",  number);
     q.bindValue(":conv", conversion);
+    q.bindValue(":image_data", imageData);
+    q.bindValue(":image_name", imageName);
 
     if (!q.exec()) {
         return makeDatabaseError(q,
@@ -81,6 +90,20 @@ Result VariantRepository::insertVariant(int number, const QString& conversion) {
     return Result::success(
         QStringLiteral("Variant '%1' inserted").arg(number))
         .withPayload(q.lastInsertId().toInt());
+}
+
+Result VariantRepository::updateVariantNumber(int variantId, int number) {
+    QSqlQuery q(m_db->handle());
+    q.prepare(SQLRequests::UPDATE_VARIANT_NUMBER);
+    q.bindValue(":id", variantId);
+    q.bindValue(":num", number);
+    if (!q.exec()) {
+        return makeDatabaseError(q,
+            QStringLiteral("Failed to update variant id=%1 to number=%2")
+                .arg(variantId).arg(number));
+    }
+    return Result::success(
+        QStringLiteral("Variant id=%1 renumbered to %2").arg(variantId).arg(number));
 }
 
 Result VariantRepository::removeVariant(int variantId) {
@@ -118,7 +141,9 @@ Result VariantRepository::findStates(int variantId) const {
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 states for variant id=%2")
+                               .arg(result.size()).arg(variantId))
+        .withPayload(result);
 }
 
 Result VariantRepository::findInputs(int variantId) const {
@@ -140,7 +165,9 @@ Result VariantRepository::findInputs(int variantId) const {
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 inputs for variant id=%2")
+                               .arg(result.size()).arg(variantId))
+        .withPayload(result);
 }
 
 Result VariantRepository::findOutputs(int variantId) const {
@@ -162,7 +189,9 @@ Result VariantRepository::findOutputs(int variantId) const {
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 outputs for variant id=%2")
+                               .arg(result.size()).arg(variantId))
+        .withPayload(result);
 }
 
 // States / Inputs / Outputs: write
@@ -179,7 +208,8 @@ Result VariantRepository::insertState(int variantId, const QString& name, bool i
             .withOffender(name);
     }
 
-    return Result::success()
+    return Result::success(QStringLiteral("Inserted state '%1' for variant id=%2")
+                               .arg(name).arg(variantId))
         .withPayload(q.lastInsertId().toInt());
 }
 
@@ -195,7 +225,8 @@ Result VariantRepository::insertInput(int variantId, const QString& name) {
             .withOffender(name);
     }
 
-    return Result::success()
+    return Result::success(QStringLiteral("Inserted input '%1' for variant id=%2")
+                               .arg(name).arg(variantId))
         .withPayload(q.lastInsertId().toInt());
 }
 
@@ -211,7 +242,8 @@ Result VariantRepository::insertOutput(int variantId, const QString& name) {
             .withOffender(name);
     }
 
-    return Result::success()
+    return Result::success(QStringLiteral("Inserted output '%1' for variant id=%2")
+                               .arg(name).arg(variantId))
         .withPayload(q.lastInsertId().toInt());
 }
 
@@ -243,7 +275,9 @@ Result VariantRepository::findTransitions(int variantId) const {
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 transitions for variant id=%2")
+                               .arg(result.size()).arg(variantId))
+        .withPayload(result);
 }
 
 Result VariantRepository::findMealyOutputs(int transitionId) const {
@@ -265,7 +299,9 @@ Result VariantRepository::findMealyOutputs(int transitionId) const {
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 Mealy outputs for transition id=%2")
+                               .arg(result.size()).arg(transitionId))
+        .withPayload(result);
 }
 
 Result VariantRepository::findMooreOutputs(int variantId) const {
@@ -287,7 +323,9 @@ Result VariantRepository::findMooreOutputs(int variantId) const {
         result.append(row);
     }
 
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral("Found %1 Moore outputs for variant id=%2")
+                               .arg(result.size()).arg(variantId))
+        .withPayload(result);
 }
 
 // Transitions: write
@@ -313,7 +351,9 @@ Result VariantRepository::insertTransition(int variantId,
             .arg(variantId).arg(fromStateId).arg(inputSignalId));
     }
 
-    return Result::success()
+    return Result::success(QStringLiteral(
+                               "Inserted transition for variant id=%1, state id=%2, input id=%3")
+                               .arg(variantId).arg(fromStateId).arg(inputSignalId))
         .withPayload(q.lastInsertId().toInt());
 }
 
@@ -329,7 +369,8 @@ Result VariantRepository::insertMealyOutput(int transitionId, int outputId) {
             .arg(transitionId).arg(outputId));
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Linked transition id=%1 to output id=%2")
+                               .arg(transitionId).arg(outputId));
 }
 
 Result VariantRepository::insertMooreOutput(int stateId, int outputId) {
@@ -344,7 +385,8 @@ Result VariantRepository::insertMooreOutput(int stateId, int outputId) {
             .arg(stateId).arg(outputId));
     }
 
-    return Result::success();
+    return Result::success(QStringLiteral("Linked state id=%1 to output id=%2")
+                               .arg(stateId).arg(outputId));
 }
 
 Result VariantRepository::findMealyOutputsByVariant(int variantId) const {
@@ -364,5 +406,8 @@ Result VariantRepository::findMealyOutputsByVariant(int variantId) const {
         const int outputId = q.value(1).toInt();
         result[transitionId].append(outputId);
     }
-    return Result::success().withPayload(result);
+    return Result::success(QStringLiteral(
+                               "Found Mealy output mappings for %1 transitions in variant id=%2")
+                               .arg(result.size()).arg(variantId))
+        .withPayload(result);
 }
