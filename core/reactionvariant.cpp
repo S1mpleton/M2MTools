@@ -19,6 +19,9 @@ QString variantTypeDisplayName(VariantType type) {
 }
 
 Result ReactionVariant::validate() const {
+    const auto imageValidation = image.validate();
+    if (!imageValidation.ok())
+        return imageValidation;
     auto fail = [](const QString &text) { return Result::error(text, ResultCategory::Validation); };
     if (number < 1 || number > 999999)
         return fail(QStringLiteral("Номер варианта: от 1 до 999999."));
@@ -70,11 +73,14 @@ QJsonObject ReactionVariant::toJson() const {
     for (const auto &step : reaction)
         steps.append(QJsonObject{{"input", step.input},
                                  {"outputs", QJsonArray::fromStringList(step.outputs)}});
-    return {{"number", number},
-            {"type", variantTypeToString(type)},
-            {"mealy", counts(mealy)},
-            {"moore", counts(moore)},
-            {"reaction", steps}};
+    QJsonObject object{{"number", number},
+                       {"type", variantTypeToString(type)},
+                       {"mealy", counts(mealy)},
+                       {"moore", counts(moore)},
+                       {"reaction", steps}};
+    if (!image.data.isEmpty())
+        object.insert("image", image.toJson());
+    return object;
 }
 
 Result ReactionVariant::fromJson(const QJsonObject &object, ReactionVariant *result) {
@@ -82,6 +88,13 @@ Result ReactionVariant::fromJson(const QJsonObject &object, ReactionVariant *res
     if (!result)
         return invalid();
     ReactionVariant data;
+    if (object.contains("image")) {
+        if (!object.value("image").isObject())
+            return invalid();
+        const auto loaded = VariantImage::fromJson(object.value("image").toObject(), &data.image);
+        if (!loaded.ok())
+            return loaded;
+    }
     data.number = object.value("number").toInt(-1);
     const auto type = object.value("type").toString();
     if (type != "MealyToMoore" && type != "MooreToMealy")

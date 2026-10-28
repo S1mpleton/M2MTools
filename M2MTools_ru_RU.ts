@@ -856,6 +856,14 @@
 <context>
     <name>VariantImagePanel</name>
     <message>
+        <source>Task image (optional)</source>
+        <translation>Изображение задания (необязательно)</translation>
+    </message>
+    <message>
+        <source>Task image preview</source>
+        <translation>Предпросмотр изображения задания</translation>
+    </message>
+    <message>
         <location filename="ui/widgets/variantimagepanel.cpp" line="78"/>
         <source>States: %1  ·  Inputs: %2  ·  Outputs: %3</source>
         <translation>Состояний: %1  ·  Входов: %2  ·  Выходов: %3</translation>
@@ -1131,4 +1139,19 @@ or click to select a file</source>
             <translation>Выход</translation>
         </message>
     </context>
+<context>
+    <name>VariantImage</name>
+    <message>
+        <source>Could not open the image file.</source>
+        <translation>Не удалось открыть файл изображения.</translation>
+    </message>
+    <message>
+        <source>The image size must not exceed 10 MB.</source>
+        <translation>Размер изображения не должен превышать 10 МБ.</translation>
+    </message>
+    <message>
+        <source>The selected file is not a supported image.</source>
+        <translation>Выбранный файл не является поддерживаемым изображением.</translation>
+    </message>
+</context>
 </TS>

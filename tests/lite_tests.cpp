@@ -7,9 +7,13 @@
 #include "ui/mainwindow.h"
 #include "ui/variantslist.h"
 #include "ui/widgets/reactiontable.h"
+#include "ui/widgets/variantimagepanel.h"
 #include "validation/reactionvalidator.h"
 #include <QApplication>
+#include <QBuffer>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFile>
 #include <QGroupBox>
 #include <QJsonArray>
@@ -18,11 +22,16 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
+#include <QMimeData>
+#include <QPainter>
 #include <QPalette>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
+#include <QUrl>
 #include <cstdlib>
 #include <iostream>
 
@@ -38,6 +47,22 @@ ReactionVariant sample() {
     d.mealy = {2, 3, 4};
     d.moore = {5, 3, 4};
     d.reaction = {{"x2", {"y3"}}, {"x1", {"y0", "y2"}}, {"x3", {}}, {"x2", {"y2", "y0"}}};
+    QImage picture(360, 100, QImage::Format_RGB32);
+    picture.fill(Qt::white);
+    {
+        QPainter painter(&picture);
+        painter.setPen(Qt::black);
+        const QStringList cells{"x2", "x1", "x3", "y3", "y0,y2", "—"};
+        for (int i = 0; i < cells.size(); ++i) {
+            QRect cell((i % 3) * 120, (i / 3) * 50, 119, 49);
+            painter.drawRect(cell);
+            painter.drawText(cell, Qt::AlignCenter, cells[i]);
+        }
+    }
+    QBuffer buffer(&d.image.data);
+    buffer.open(QIODevice::WriteOnly);
+    require(picture.save(&buffer, "PNG"), "create image fixture");
+    d.image.fileName = QString::fromUtf8("Задание.png");
     return d;
 }
 bool equal(const ReactionVariant &a, const ReactionVariant &b) {
@@ -51,6 +76,28 @@ int main(int argc, char **argv) {
     require(dir.isValid(), "temporary directory");
     auto data = sample();
     require(data.validate().ok(), "valid ordered reaction");
+    auto withoutImage = data;
+    withoutImage.image = {};
+    ReactionVariant decoded;
+    require(ReactionVariant::fromJson(withoutImage.toJson(), &decoded).ok() &&
+                equal(withoutImage, decoded),
+            "older JSON without an image remains readable");
+    auto badImageJson = data.toJson();
+    badImageJson.insert("image", QJsonObject{{"fileName", "task.png"}, {"data", "###"}});
+    require(!ReactionVariant::fromJson(badImageJson, &decoded).ok(),
+            "reject malformed base64 image");
+    auto brokenImage = data;
+    brokenImage.image.data = "not an image";
+    require(!brokenImage.validate().ok(), "reject undecodable attachment");
+    brokenImage.image.data = QByteArray(VariantImage::MaximumBytes + 1, 'x');
+    require(!brokenImage.validate().ok(), "reject attachment over 10 MB");
+    const auto imagePath = dir.filePath(data.image.fileName);
+    {
+        QFile imageFile(imagePath);
+        require(imageFile.open(QIODevice::WriteOnly) &&
+                    imageFile.write(data.image.data) == data.image.data.size(),
+                "write image fixture");
+    }
     auto invalid = data;
     invalid.reaction[1].input = "x10";
     require(!invalid.validate().ok(), "reject x10");
@@ -98,11 +145,21 @@ int main(int argc, char **argv) {
         require(schema.createSchema(&error), qPrintable(error));
         VariantRepository repo(db.get());
         VariantService service(db.get(), &repo);
-        require(service.saveVariant(data).ok(), "save reaction");
+        require(service.saveVariant(withoutImage).ok(), "save reaction without image");
+        require(service.exportArchive(dir.filePath("previous.m2m")).ok(), "archive without images");
+        require(db->exec("DROP TABLE VariantImages"), "simulate previous Lite schema");
+        require(schema.createSchema(&error), qPrintable(error));
+        require(equal(withoutImage, service.loadVariant(4).payloadAs<ReactionVariant>()),
+                "additive migration preserves previous variants");
+        require(schema.createSchema(&error), "migration is idempotent");
+        require(service.importArchive(dir.filePath("previous.m2m")).ok(),
+                "previous archives remain importable");
+        require(service.replaceVariant(data).ok(), "attach image to an existing variant");
         require(!service.replaceVariant(invalid).ok(), "invalid replacement refused");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "replacement did not modify reaction");
-        // Force SQLite to return unordered selects backwards; ordered reading must still work.
+        // Force SQLite to return unordered selects backwards; ordered reading must
+        // still work.
         require(db->exec("PRAGMA reverse_unordered_selects=ON"), "reverse unordered selects");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "explicit step order and output order");
@@ -110,7 +167,7 @@ int main(int argc, char **argv) {
         require(service.swapVariants(4, 8).ok(), "move variant number");
         require(service.importArchive(dir.filePath("test.m2m")).ok(), "encrypted import");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
-                "archive preserves order and counts");
+                "archive preserves order, counts and exact image bytes");
         QFile archive(dir.filePath("test.m2m"));
         require(archive.open(QIODevice::ReadWrite), "open archive for corruption");
         auto bytes = archive.readAll();
@@ -123,9 +180,11 @@ int main(int argc, char **argv) {
         require(!service.importArchive(archive.fileName()).ok(), "tampered archive refused");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "failed import leaves database intact");
-        // A valid archive that fails during insertion must roll back the old database too.
+        // A valid archive that fails during insertion must roll back the old
+        // database too.
         require(service.exportArchive(dir.filePath("rollback.m2m")).ok(), "archive for rollback");
-        require(db->exec("CREATE TRIGGER fail_import BEFORE INSERT ON ReactionSteps BEGIN SELECT "
+        require(db->exec("CREATE TRIGGER fail_import BEFORE INSERT ON "
+                         "ReactionSteps BEGIN SELECT "
                          "RAISE(ABORT,'test failure'); END"),
                 "install failure trigger");
         require(!service.importArchive(dir.filePath("rollback.m2m")).ok(),
@@ -160,6 +219,35 @@ int main(int argc, char **argv) {
         if (argc > 1)
             require(window.grab().save(QString::fromLocal8Bit(argv[1]) + ".startup.png"),
                     "startup screenshot");
+        auto *imagePanel = window.findChild<VariantImagePanel *>();
+        require(imagePanel && imagePanel->image().data.isEmpty(), "new variant has no image");
+        require(imagePanel->loadFromFile(imagePath), "load image through panel");
+        require(window.isWindowModified(), "attachment changes mark variant as unsaved");
+        QTest::mouseClick(window.findChild<QPushButton *>("removeImageButton"), Qt::LeftButton);
+        require(imagePanel->image().data.isEmpty(), "remove attachment");
+        auto *preview = window.findChild<QLabel *>("diagramDropZone");
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(imagePath)});
+        QDragEnterEvent drag(QPoint(20, 20), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(preview, &drag);
+        QDropEvent drop(QPointF(20, 20), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(preview, &drop);
+        require(drag.isAccepted() && drop.isAccepted() &&
+                    imagePanel->image().data == data.image.data,
+                "drop loads the image and preserves exact bytes");
+        require(!preview->pixmap().isNull(), "attachment has a preview");
+        require(!imagePanel->loadFromFile(dir.filePath("missing.png")) &&
+                    imagePanel->image().data == data.image.data,
+                "failed load preserves attachment");
+        {
+            QFile badFile(dir.filePath("bad.png"));
+            require(badFile.open(QIODevice::WriteOnly), "create invalid image");
+            badFile.write("not an image");
+            badFile.close();
+            require(!imagePanel->loadFromFile(badFile.fileName()) &&
+                        imagePanel->image().data == data.image.data,
+                    "invalid image preserves current attachment");
+        }
         {
             ReactionTable keyboardTable;
             keyboardTable.resize(400, 160);
@@ -267,7 +355,7 @@ int main(int argc, char **argv) {
         auto saved = data;
         saved.number = 7;
         require(equal(saved, service.loadVariant(7).payloadAs<ReactionVariant>()),
-                "UI save writes counts and ordered reaction");
+                "UI save writes counts, ordered reaction and image");
         app.processEvents();
         const auto *hint = window.findChild<QLabel *>("reactionHint");
         require(table->geometry().bottom() < hint->geometry().top(),
@@ -308,6 +396,37 @@ int main(int argc, char **argv) {
         QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
         require(table->columnCount() == 1 && table->steps().isEmpty(),
                 "New variant resets the reaction to one empty column");
+        require(imagePanel->image().data.isEmpty() && preview->pixmap().isNull(),
+                "New variant clears the image and preview");
+        QTimer::singleShot(0, [&window] {
+            auto *dialog = window.findChild<VariantsList *>();
+            require(dialog != nullptr, "variant browser opened");
+            auto *variants = dialog->findChild<QTableWidget *>("variantsTableWidget");
+            for (int row = 0; row < variants->rowCount(); ++row)
+                if (variants->item(row, 0)->text().toInt() == 7) {
+                    variants->setCurrentCell(row, 0);
+                    QTest::mouseClick(dialog->findChild<QPushButton *>("loadPushButton"),
+                                      Qt::LeftButton);
+                    return;
+                }
+            require(false, "saved variant available in browser");
+        });
+        QTest::mouseClick(window.findChild<QPushButton *>("openVariantButton"), Qt::LeftButton);
+        require(imagePanel->image().data == saved.image.data && !preview->pixmap().isNull(),
+                "opening saved variant restores image and preview");
+        QTest::mouseClick(window.findChild<QPushButton *>("removeImageButton"), Qt::LeftButton);
+        QTimer::singleShot(0, [] {
+            auto *confirm = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            require(confirm != nullptr, "replacement confirmation opened");
+            QTest::mouseClick(confirm->button(QMessageBox::Yes), Qt::LeftButton);
+        });
+        QTest::mouseClick(window.findChild<QPushButton *>("saveVariantButton"), Qt::LeftButton);
+        saved.image = {};
+        require(equal(saved, service.loadVariant(7).payloadAs<ReactionVariant>()),
+                "removed image stays removed after saving");
+        auto attachments = db->query("SELECT COUNT(*) FROM VariantImages");
+        require(attachments.next() && attachments.value(0).toInt() == 1,
+                "replace and import do not leave orphaned attachments");
     }
     data = sample();
     {
@@ -326,6 +445,6 @@ int main(int argc, char **argv) {
         SchemaManager schema(db.get());
         require(!schema.createSchema(), "full database refused without migration");
     }
-    std::cout
-        << "PASS Lite validation, ordered SQLite/archive round trips, rollback, GUI and icons\n";
+    std::cout << "PASS Lite validation, ordered SQLite/archive round trips, "
+                 "rollback, GUI and icons\n";
 }

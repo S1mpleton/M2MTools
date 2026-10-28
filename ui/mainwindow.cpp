@@ -58,6 +58,8 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     connect(m_reaction, &QTableWidget::cellChanged, this, changed);
     connect(m_reaction->model(), &QAbstractItemModel::columnsInserted, this, changed);
     connect(m_reaction->model(), &QAbstractItemModel::columnsRemoved, this, changed);
+    connect(ui->diagramGroup, &VariantImagePanel::imageChanged, this, changed);
+    connect(ui->diagramGroup, &VariantImagePanel::loadFailed, this, &MainWindow::showResult);
     setupMenus();
     refreshTexts();
     ReactionVariant initial;
@@ -149,6 +151,7 @@ ReactionVariant MainWindow::readData() const {
     data.mealy = {m_mealy[0]->value(), m_mealy[1]->value(), m_mealy[2]->value()};
     data.moore = {m_moore[0]->value(), m_moore[1]->value(), m_moore[2]->value()};
     data.reaction = m_reaction->steps();
+    data.image = ui->diagramGroup->image();
     return data;
 }
 void MainWindow::loadData(const ReactionVariant &data) {
@@ -162,6 +165,7 @@ void MainWindow::loadData(const ReactionVariant &data) {
             std::array<int, 3>{data.moore.states, data.moore.inputs, data.moore.outputs}[i]);
     }
     m_reaction->setSteps(data.reaction);
+    ui->diagramGroup->setImage(data.image);
     m_dirty = false;
     setWindowModified(false);
     m_feedback->clear();

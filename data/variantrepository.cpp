@@ -51,6 +51,12 @@ Result VariantRepository::insertVariant(const ReactionVariant &data) {
     if (!q.isActive())
         return error(q);
     const int id = q.lastInsertId().toInt();
+    if (!data.image.data.isEmpty()) {
+        q = m_db->query("INSERT INTO VariantImages(variant_id,data,file_name) VALUES(:v,:d,:f)",
+                        {{":v", id}, {":d", data.image.data}, {":f", data.image.fileName}});
+        if (!q.isActive())
+            return error(q);
+    }
     for (int i = 0; i < data.reaction.size(); ++i) {
         const auto &step = data.reaction[i];
         q = m_db->query(
@@ -101,6 +107,15 @@ Result VariantRepository::loadVariant(int number) const {
     auto valid = ReactionVariant::fromJson(object, &data);
     if (!valid.ok())
         return valid;
+    q = m_db->query("SELECT data,file_name FROM VariantImages WHERE variant_id=:v", {{":v", id}});
+    if (!q.isActive())
+        return error(q);
+    if (q.next()) {
+        data.image = {q.value(0).toByteArray(), q.value(1).toString()};
+        const auto imageValid = data.image.validate();
+        if (!imageValid.ok())
+            return imageValid;
+    }
     return Result::success().withPayload(data);
 }
 Result VariantRepository::updateVariantNumber(int id, int number) {

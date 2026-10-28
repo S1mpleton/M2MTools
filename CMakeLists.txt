@@ -8,15 +8,16 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Sql LinguistTools)
 find_package(OpenSSL 1.1.1 REQUIRED COMPONENTS Crypto)
 
 add_library(M2MCore STATIC
-    core/reactionvariant.cpp core/variantarchive.cpp core/result.cpp core/errorcode.cpp
+    core/reactionvariant.cpp core/variantimage.cpp core/variantarchive.cpp core/result.cpp core/errorcode.cpp
     data/database.cpp data/schemamanager.cpp data/transaction.cpp
     data/variantrepository.cpp data/variantservice.cpp
     infrastructure/logger.cpp)
 target_include_directories(M2MCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(M2MCore PUBLIC Qt6::Core Qt6::Sql OpenSSL::Crypto)
+target_link_libraries(M2MCore PUBLIC Qt6::Core Qt6::Gui Qt6::Sql OpenSSL::Crypto)
 
 add_library(M2MUi STATIC
     ui/mainwindow.cpp ui/mainwindow.ui ui/appicons.cpp ui/widgets/reactiontable.cpp ui/widgets/wrappinglabel.cpp
+    ui/widgets/variantimagepanel.cpp ui/widgets/variantimagepanel.ui
     ui/delegates/reactiondelegate.cpp validation/reactionvalidator.cpp
     ui/variantslist.cpp ui/variantslist.ui ui/logwindow.cpp
     ui/dialogs/resultmessenger.cpp ui/translateresult.cpp

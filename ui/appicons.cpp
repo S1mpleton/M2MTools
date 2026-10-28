@@ -91,6 +91,12 @@ class Engine : public QIconEngine {
             p->drawPolygon(
                 QPolygonF{QPointF(3, 19), QPointF(6, 10), QPointF(22, 10), QPointF(19, 19)});
             break;
+        case K::Image:
+            p->drawRoundedRect(3, 3, 18, 18, 2, 2);
+            p->drawEllipse(6, 6, 4, 4);
+            p->drawPolyline(QPolygonF{QPointF(4, 18), QPointF(10, 12), QPointF(14, 16),
+                                      QPointF(18, 10), QPointF(21, 14)});
+            break;
         case K::Import:
         case K::Export:
             p->drawEllipse(3, 3, 18, 5);

@@ -198,6 +198,9 @@
      </layout>
     </item>
     <item>
+     <widget class="VariantImagePanel" name="diagramGroup"/>
+    </item>
+    <item>
      <widget class="QGroupBox" name="reactionGroup">
       <property name="title">
        <string>Automaton reaction</string>
@@ -405,6 +408,12 @@
   </action>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>VariantImagePanel</class>
+   <extends>QGroupBox</extends>
+   <header>ui/widgets/variantimagepanel.h</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>ReactionTable</class>
    <extends>QTableWidget</extends>

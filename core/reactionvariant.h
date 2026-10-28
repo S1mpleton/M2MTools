@@ -1,5 +1,6 @@
 #pragma once
 #include "core/result.h"
+#include "core/variantimage.h"
 #include <QJsonObject>
 #include <QStringList>
 #include <QVector>
@@ -27,6 +28,7 @@ struct ReactionVariant {
     AutomatonCounts mealy;
     AutomatonCounts moore;
     QVector<ReactionStep> reaction;
+    VariantImage image;
 
     Result validate() const;
     QJsonObject toJson() const;

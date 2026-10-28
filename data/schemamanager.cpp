@@ -33,7 +33,10 @@ bool SchemaManager::createSchema(QString *error) {
         "Variants(id) ON DELETE CASCADE, "
         "position INTEGER NOT NULL CHECK(position>=0), input TEXT NOT NULL CHECK(input GLOB "
         "'x[0-9]'), "
-        "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));"};
+        "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));",
+        // Additive migration: existing Lite variants keep their reactions and have no attachment.
+        "CREATE TABLE IF NOT EXISTS VariantImages (variant_id INTEGER PRIMARY KEY REFERENCES "
+        "Variants(id) ON DELETE CASCADE, data BLOB NOT NULL, file_name TEXT NOT NULL);"};
     for (const auto &request : sql)
         if (!m_db->exec(request, {}, error))
             return false;
@@ -53,7 +56,7 @@ bool SchemaManager::dropSchema(QString *error) {
     Transaction transaction(m_db);
     if (!transaction.active())
         return false;
-    for (const auto &table : {"ReactionSteps", "Variants", "LiteMetadata"})
+    for (const auto &table : {"VariantImages", "ReactionSteps", "Variants", "LiteMetadata"})
         if (!m_db->exec(QStringLiteral("DROP TABLE IF EXISTS %1;").arg(table), {}, error))
             return false;
     return transaction.commit(error);

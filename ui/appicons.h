@@ -8,6 +8,7 @@ enum class Kind {
     New,
     Save,
     Open,
+    Image,
     Import,
     Export,
     Exit,
