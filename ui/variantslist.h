@@ -3,6 +3,7 @@
 
 #include "data/variantservice.h"
 #include <QDialog>
+#include <optional>
 
 class QComboBox;
 class QPushButton;

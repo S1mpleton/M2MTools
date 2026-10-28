@@ -312,12 +312,12 @@
         <translation>Выход</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="219"/>
-        <location filename="ui/mainwindow.cpp" line="225"/>
-        <location filename="ui/mainwindow.cpp" line="244"/>
-        <source>Save variant</source>
-        <translation>Сохранить автомат</translation>
-    </message>
+            <location filename="ui/mainwindow.ui" line="219" />
+            <location filename="ui/mainwindow.cpp" line="225" />
+            <location filename="ui/mainwindow.cpp" line="244" />
+            <source>Save variant</source>
+            <translation>Сохранить вариант</translation>
+        </message>
     <message>
         <location filename="ui/mainwindow.ui" line="256"/>
         <source>English</source>
@@ -329,10 +329,10 @@
         <translation>Русский</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="281"/>
-        <source>Show logger</source>
-        <translation>Показать журнал событий</translation>
-    </message>
+            <location filename="ui/mainwindow.ui" line="281" />
+            <source>Show logger</source>
+            <translation>Журнал событий</translation>
+        </message>
     <message>
         <location filename="ui/mainwindow.cpp" line="209"/>
         <source>M2MTools — Equivalent Automata Editor</source>
@@ -569,17 +569,17 @@
         <translation>Текущая база вариантов будет заменена содержимым архива.</translation>
     </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="240"/>
-        <location filename="ui/mainwindow.cpp" line="227"/>
-        <source>Import database</source>
-        <translation>Импорт БД</translation>
-    </message>
+            <location filename="ui/mainwindow.ui" line="240" />
+            <location filename="ui/mainwindow.cpp" line="227" />
+            <source>Import database</source>
+            <translation>Импорт базы</translation>
+        </message>
     <message>
-        <location filename="ui/mainwindow.ui" line="248"/>
-        <location filename="ui/mainwindow.cpp" line="228"/>
-        <source>Export database</source>
-        <translation>Экспорт БД</translation>
-    </message>
+            <location filename="ui/mainwindow.ui" line="248" />
+            <location filename="ui/mainwindow.cpp" line="228" />
+            <source>Export database</source>
+            <translation>Экспорт базы</translation>
+        </message>
     <message>
         <location filename="ui/mainwindow.cpp" line="782"/>
         <source>The BazaVar file was opened.</source>
@@ -605,6 +605,54 @@
         <source>The selected file is not a supported image.</source>
         <translation>Выбранный файл не является поддерживаемым изображением.</translation>
     </message>
+<message>
+            <source>States</source>
+            <translation>Состояния</translation>
+        </message>
+<message>
+            <source>Input signals</source>
+            <translation>Входные сигналы</translation>
+        </message>
+<message>
+            <source>Output signals</source>
+            <translation>Выходные сигналы</translation>
+        </message>
+<message>
+            <source>Mealy — counts</source>
+            <translation>Мили — количества</translation>
+        </message>
+<message>
+            <source>Moore — counts</source>
+            <translation>Мура — количества</translation>
+        </message>
+<message>
+            <source>One column is one step. Input: x0–x9. Outputs: y0–y9 separated by commas; empty or '-' means no output. Order is preserved.</source>
+            <translation>Один столбец — один такт. Вход: x0–x9. Выходы: y0–y9 через запятую; пустая ячейка или «-» — нет выхода. Порядок сохраняется.</translation>
+        </message>
+<message>
+            <source>Insert step after selection</source>
+            <translation>Вставить такт после выбранного</translation>
+        </message>
+<message>
+            <source>Delete selected step</source>
+            <translation>Удалить выбранный такт</translation>
+        </message>
+<message>
+            <source>Unsaved changes</source>
+            <translation>Несохранённые изменения</translation>
+        </message>
+<message>
+            <source>Save changes before continuing?</source>
+            <translation>Сохранить изменения перед продолжением?</translation>
+        </message>
+<message>
+            <source>M2MTools Lite archives (*.m2mlite)</source>
+            <translation>Архивы M2MTools Lite (*.m2mlite)</translation>
+        </message>
+<message>
+            <source>Replace the current Lite database with the archive contents?</source>
+            <translation>Заменить текущую базу Lite содержимым архива?</translation>
+        </message>
 </context>
 <context>
     <name>ReactionSynchronizer</name>
@@ -1044,6 +1092,10 @@ or click to select a file</source>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
+<message>
+            <source>Steps</source>
+            <translation>Такты</translation>
+        </message>
 </context>
 <context>
     <name>main</name>
@@ -1068,4 +1120,15 @@ or click to select a file</source>
         <translation>Не удалось инициализировать структуру базы данных.</translation>
     </message>
 </context>
+<context>
+        <name>ReactionTable</name>
+        <message>
+            <source>Input</source>
+            <translation>Вход</translation>
+        </message>
+        <message>
+            <source>Output</source>
+            <translation>Выход</translation>
+        </message>
+    </context>
 </TS>

@@ -10,7 +10,7 @@ fi
 # Install only the small setup inputs. Dependencies and builds stay outside Git.
 # Preserve existing runtime files; report differing content instead of replacing it.
 for relative_file in apt.conf debian.sources env.sh install.sh start.sh \
-    check-startup.py include/core/Result.h smoke/CMakeLists.txt smoke/smoke.cpp; do
+    check-startup.py; do
   source_path="$script_dir/$relative_file"
   destination="/workspace/.cloud-setup/$relative_file"
   if [[ -L "$destination" ]]; then

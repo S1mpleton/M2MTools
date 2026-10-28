@@ -11,11 +11,13 @@ public:
     Transaction(const Transaction&) = delete;
     Transaction& operator=(const Transaction&) = delete;
 
+    bool active() const { return m_started && !m_finished; }
     bool commit(QString* error = nullptr);
     void rollback();
 
 private:
     Database* m_db;
+    bool m_started = false;
     bool m_finished = false;
 };
 

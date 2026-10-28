@@ -1,4 +1,5 @@
 #include "logwindow.h"
+#include "ui/appicons.h"
 #include "infrastructure/logger.h"
 #include "ui/dialogs/resultmessenger.h"
 #include "ui/feedbackstyle.h"
@@ -42,6 +43,9 @@ LogWindow::LogWindow(QWidget* parent)
     m_clearButton = new QPushButton(this);
     m_saveButton = new QPushButton(this);
 
+    m_copyButton->setIcon(AppIcons::icon(AppIcons::Kind::Copy));
+    m_clearButton->setIcon(AppIcons::icon(AppIcons::Kind::Clear));
+    m_saveButton->setIcon(AppIcons::icon(AppIcons::Kind::Save));
     retranslateUi();
 
     controlsLayout->addWidget(m_showInfoBox);

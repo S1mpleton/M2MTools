@@ -1,7 +1,7 @@
 #ifndef VARIANTARCHIVE_H
 #define VARIANTARCHIVE_H
 
-#include "core/automatondata.h"
+#include "core/reactionvariant.h"
 
 #include <QList>
 #include <QString>
@@ -10,10 +10,10 @@ class VariantArchive
 {
 public:
     static Result save(const QString& path,
-                       const QList<AutomatonData>& variants);
+                       const QList<ReactionVariant>& variants);
 
     static Result load(const QString& path,
-                       QList<AutomatonData>* variants);
+                       QList<ReactionVariant>* variants);
 };
 
 #endif // VARIANTARCHIVE_H

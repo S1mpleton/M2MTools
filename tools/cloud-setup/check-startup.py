@@ -5,8 +5,7 @@ import time
 
 
 expected = {
-    "Variants", "States", "Inputs", "Outputs", "Transitions",
-    "MealyTransitionOutputs", "MooreStateOutputs",
+    "Variants", "ReactionSteps", "LiteMetadata",
 }
 for attempt in range(2):
     process = subprocess.Popen(
@@ -20,7 +19,7 @@ for attempt in range(2):
         if process.poll() is not None:
             raise RuntimeError("Application exited before startup completed")
         with sqlite3.connect(
-            "file:/workspace/.cloud-setup/run/variants.db?mode=ro", uri=True
+            "file:/workspace/.cloud-setup/run/variants-lite.db?mode=ro", uri=True
         ) as database:
             tables = {row[0] for row in database.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"

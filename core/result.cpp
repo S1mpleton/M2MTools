@@ -7,6 +7,7 @@ ResultCategory resultCategoryStringToType(QString resultCategoryString) {
     if (resultCategoryString == QString("Service")) return ResultCategory::Service;
     if (resultCategoryString == QString("Ui")) return ResultCategory::Ui;
     if (resultCategoryString == QString("Hash")) return ResultCategory::Hash;
+    if (resultCategoryString == QString("Translation")) return ResultCategory::Translation;
     if (resultCategoryString == QString("Unknown")) return ResultCategory::Unknown;
 
     qDebug() << "Error: resultCategoryString to ResultCategory - Not found";
@@ -15,6 +16,7 @@ ResultCategory resultCategoryStringToType(QString resultCategoryString) {
 
 QString resultCategoryToString(ResultCategory resultCategory) {
     switch (resultCategory) {
+    case ResultCategory::Translation: return QStringLiteral("Translation");
     case ResultCategory::General: return QStringLiteral("General");
     case ResultCategory::Validation: return QStringLiteral("Validation");
     case ResultCategory::Database: return QStringLiteral("Database");
@@ -30,6 +32,7 @@ QString resultCategoryToString(ResultCategory resultCategory) {
 
 QString resultCategoryDisplayName(ResultCategory resultCategory) {
     switch (resultCategory) {
+    case ResultCategory::Translation: return QStringLiteral("Translation");
     case ResultCategory::General: return QStringLiteral("General");
     case ResultCategory::Validation: return QStringLiteral("Validation");
     case ResultCategory::Database: return QStringLiteral("Database");

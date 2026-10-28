@@ -11,10 +11,12 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    a.setApplicationName("M2MTools Lite");
+    a.setAttribute(Qt::AA_DontShowIconsInMenus, false);
     TranslationManager translationManager(&a);
     translationManager.loadSystemLocale();
 
-    Database* db = Database::open("variants.db", &a);
+    Database* db = Database::open("variants-lite.db", &a);
     if (!db) {
         QMessageBox::critical(
             nullptr,
@@ -33,7 +35,7 @@ int main(int argc, char *argv[])
             nullptr,
             QCoreApplication::translate("main", "Schema error"),
             QCoreApplication::translate(
-                "main", "Failed to initialize the database schema."));
+                "main", "Failed to initialize the database schema.") + "\n" + schemaError);
         return 1;
     }
 

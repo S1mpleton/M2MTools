@@ -4,7 +4,6 @@ cd /workspace/M2MTools
 test "$(dpkg --print-architecture)" = amd64
 test -r /workspace/.cloud-setup/debian.sources
 test -r /workspace/.cloud-setup/apt.conf
-test -r /workspace/.cloud-setup/include/core/Result.h
 mkdir -p /workspace/.cloud-setup/apt/lists/partial \
   /workspace/.cloud-setup/apt/cache/archives/partial \
   /workspace/.cloud-setup/apt/empty.conf.d \
@@ -21,7 +20,7 @@ cd /workspace/.cloud-setup/apt/cache/archives
 apt-get download libqt6core6t64 libqt6dbus6 libqt6gui6 libqt6network6 \
   libqt6opengl6 libqt6openglwidgets6 libqt6printsupport6 libqt6sql6 \
   libqt6widgets6 libqt6xml6 libgl1 libglx0 libopengl0 libglvnd0 \
-  libssl3t64
+  libssl3t64 libqt6test6
 for package_file in /workspace/.cloud-setup/apt/cache/archives/*.deb; do
   dpkg-deb -x "$package_file" /workspace/.cloud-setup/sysroot
 done
@@ -33,13 +32,6 @@ cmake -S /workspace/M2MTools -B /workspace/.cloud-setup/build -G Ninja \
   -DOPENSSL_ROOT_DIR=/workspace/.cloud-setup/sysroot/usr \
   -DOPENSSL_CRYPTO_LIBRARY=/workspace/.cloud-setup/sysroot/usr/lib/x86_64-linux-gnu/libcrypto.so \
   -DOPENSSL_INCLUDE_DIR=/workspace/.cloud-setup/sysroot/usr/include \
-  -DCMAKE_CXX_FLAGS=-I/workspace/.cloud-setup/include
-# Avoid the lupdate target: it rewrites the tracked translation source.
-cmake --build /workspace/.cloud-setup/build --target M2MTools --parallel 2
-cmake -S /workspace/.cloud-setup/smoke -B /workspace/.cloud-setup/smoke-build \
-  -G Ninja -DCMAKE_PREFIX_PATH=/workspace/.cloud-setup/sysroot/usr \
-  -DOPENSSL_ROOT_DIR=/workspace/.cloud-setup/sysroot/usr \
-  -DOPENSSL_CRYPTO_LIBRARY=/workspace/.cloud-setup/sysroot/usr/lib/x86_64-linux-gnu/libcrypto.so \
-  -DOPENSSL_INCLUDE_DIR=/workspace/.cloud-setup/sysroot/usr/include
-cmake --build /workspace/.cloud-setup/smoke-build --parallel 2
-ctest --test-dir /workspace/.cloud-setup/smoke-build --output-on-failure
+  -DBUILD_TESTING=ON
+cmake --build /workspace/.cloud-setup/build --parallel 2
+ctest --test-dir /workspace/.cloud-setup/build --output-on-failure

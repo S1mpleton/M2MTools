@@ -2,9 +2,10 @@
 #include "ui_variantslist.h"
 
 #include "infrastructure/logger.h"
-#include "core/automatondata.h"
+#include "core/reactionvariant.h"
 #include "ui/dialogs/resultmessenger.h"
 
+#include "ui/appicons.h"
 #include <QMessageBox>
 #include <QComboBox>
 #include <QFormLayout>
@@ -62,6 +63,8 @@ VariantsList::VariantsList(VariantService *service, QWidget *parent)
     setWindowTitle(tr("Select variant"));
 
 
+    ui->loadPushButton->setIcon(AppIcons::icon(AppIcons::Kind::Open));
+    ui->deletePushButton->setIcon(AppIcons::icon(AppIcons::Kind::Remove));
     configureTable();
     configureSwapControls();
     populateTable();
@@ -93,7 +96,7 @@ void VariantsList::configureTable() {
     auto* table = ui->variantsTableWidget;
     ui->variantsTableWidget->setColumnCount(3);
     table->setHorizontalHeaderLabels({
-        tr("Number"), tr("Type"), tr("Image")});
+        tr("Number"), tr("Type"), tr("Steps")});
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setSelectionMode(QAbstractItemView::SingleSelection);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -132,6 +135,7 @@ void VariantsList::configureSwapControls() {
     m_swapFirst->setObjectName(QStringLiteral("swapFirstComboBox"));
     m_swapSecond->setObjectName(QStringLiteral("swapSecondComboBox"));
     m_swapButton = new QPushButton(tr("Swap"), group);
+    m_swapButton->setIcon(AppIcons::icon(AppIcons::Kind::Swap));
     m_swapButton->setObjectName(QStringLiteral("swapVariantsButton"));
     layout->addRow(tr("First number"), m_swapFirst);
     layout->addRow(tr("Second number"), m_swapSecond);
@@ -175,10 +179,7 @@ void VariantsList::populateTable() {
             variantTypeDisplayName(variantTypeStringToType(v.conversion)));
         table->setItem(i, 1, typeItem);
 
-        auto* imageItem = new QTableWidgetItem(
-            v.imageName.isEmpty() ? tr("No") : tr("Yes"));
-        imageItem->setToolTip(v.imageName);
-        table->setItem(i, 2, imageItem);
+        table->setItem(i,2,new QTableWidgetItem(QString::number(v.stepCount)));
     }
     populateSwapControls(allVariants);
 }
