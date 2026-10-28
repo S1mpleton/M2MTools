@@ -1,5 +1,6 @@
 #include "reactiondelegate.h"
 #include "validation/reactionvalidator.h"
+#include <QKeyEvent>
 #include <QLineEdit>
 
 ReactionDelegate::ReactionDelegate(QObject *parent) : QStyledItemDelegate(parent) {}
@@ -23,4 +24,20 @@ void ReactionDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
         value = parts.join(',');
     }
     model->setData(index, value, Qt::EditRole);
+}
+
+bool ReactionDelegate::eventFilter(QObject *object, QEvent *event) {
+    if (event->type() == QEvent::KeyPress) {
+        const auto *key = static_cast<QKeyEvent *>(event);
+        if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
+            auto *editor = qobject_cast<QLineEdit *>(object);
+            if (editor && editor->hasAcceptableInput() && !key->isAutoRepeat()) {
+                emit commitData(editor);
+                emit closeEditor(editor, QAbstractItemDelegate::NoHint);
+                emit nextStepRequested();
+            }
+            return true;
+        }
+    }
+    return QStyledItemDelegate::eventFilter(object, event);
 }

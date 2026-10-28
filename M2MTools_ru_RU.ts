@@ -626,8 +626,8 @@
             <translation>Мура — количества</translation>
         </message>
 <message>
-            <source>One column is one step. Input: x0–x9. Outputs: y0–y9 separated by commas; empty or '-' means no output. Order is preserved.</source>
-            <translation>Один столбец — один такт. Вход: x0–x9. Выходы: y0–y9 через запятую; пустая ячейка или «-» — нет выхода. Порядок сохраняется.</translation>
+            <source>One column is one step. Input: x0–x9. Outputs: y0–y9 separated by commas; empty or '-' means no output. Enter inserts a step after the current column.</source>
+            <translation>Один столбец — один такт. Вход: x0–x9. Выходы: y0–y9 через запятую; пустая ячейка или «-» — нет выхода. Enter вставляет такт после текущего столбца.</translation>
         </message>
 <message>
             <source>Insert step after selection</source>
@@ -646,8 +646,8 @@
             <translation>Сохранить изменения перед продолжением?</translation>
         </message>
 <message>
-            <source>M2MTools Lite archives (*.m2mlite)</source>
-            <translation>Архивы M2MTools Lite (*.m2mlite)</translation>
+            <source>M2M archives (*.m2m)</source>
+            <translation>Архивы M2M (*.m2m)</translation>
         </message>
 <message>
             <source>Replace the current Lite database with the archive contents?</source>

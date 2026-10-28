@@ -1,20 +1,24 @@
 #include "ui/widgets/reactiontable.h"
 #include "ui/delegates/reactiondelegate.h"
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QSignalBlocker>
+#include <QStyle>
 
 ReactionTable::ReactionTable(QWidget *parent) : QTableWidget(2, 0, parent) {
     setObjectName(QStringLiteral("reactionTable"));
-    setItemDelegate(new ReactionDelegate(this));
+    auto *delegate = new ReactionDelegate(this);
+    setItemDelegate(delegate);
+    connect(delegate, &ReactionDelegate::nextStepRequested, this, &ReactionTable::insertStep);
     setSortingEnabled(false);
     horizontalHeader()->setSectionsMovable(false);
     horizontalHeader()->setDefaultSectionSize(90);
     horizontalHeader()->setMinimumSectionSize(65);
     verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     setAlternatingRowColors(true);
-    setFixedHeight(145);
+    setMinimumHeight(minimumSizeHint().height());
     setSteps({});
-    connect(this, &QTableWidget::cellChanged, this, [this] { ensureTrailingSpace(); });
+    connect(this, &QTableWidget::cellChanged, this, [this] { clearCellFeedback(); });
     retranslate();
 }
 void ReactionTable::retranslate() {
@@ -31,13 +35,14 @@ void ReactionTable::prepareColumn(int column) {
 void ReactionTable::setSteps(const QVector<ReactionStep> &steps) {
     QSignalBlocker block(this);
     setColumnCount(0);
-    setColumnCount(qMax(12, int(steps.size()) + 1));
+    setColumnCount(qMax(1, int(steps.size())));
     for (int c = 0; c < columnCount(); ++c)
         prepareColumn(c);
     for (int c = 0; c < steps.size(); ++c) {
         item(0, c)->setText(steps[c].input);
         item(1, c)->setText(steps[c].outputs.join(','));
     }
+    setCurrentCell(0, 0);
 }
 QVector<ReactionStep> ReactionTable::steps() const {
     // Ignore only unused space at the right, never gaps inside the sequence.
@@ -58,18 +63,13 @@ QVector<ReactionStep> ReactionTable::steps() const {
     }
     return result;
 }
-void ReactionTable::ensureTrailingSpace() {
+void ReactionTable::clearCellFeedback() {
     QSignalBlocker block(this);
     for (int c = 0; c < columnCount(); ++c)
         for (int r = 0; r < 2; ++r) {
             item(r, c)->setData(Qt::DecorationRole, QVariant());
             item(r, c)->setToolTip(QString());
         }
-    const int c = columnCount() - 1;
-    if (c < 0 || !item(0, c)->text().isEmpty() || !item(1, c)->text().isEmpty()) {
-        insertColumn(columnCount());
-        prepareColumn(columnCount() - 1);
-    }
 }
 void ReactionTable::insertStep() {
     const int c = currentColumn() < 0 ? steps().size() : currentColumn() + 1;
@@ -82,7 +82,12 @@ void ReactionTable::removeStep() {
     if (currentColumn() < 0)
         return;
     removeColumn(currentColumn());
-    ensureTrailingSpace();
+    if (columnCount() == 0) {
+        setColumnCount(1);
+        prepareColumn(0);
+    }
+    setCurrentCell(0, qMax(0, currentColumn()));
+    clearCellFeedback();
 }
 void ReactionTable::markError(const QString &offender, const QString &message) {
     const auto parts = offender.split(':');
@@ -96,4 +101,29 @@ void ReactionTable::markError(const QString &offender, const QString &message) {
     setCurrentCell(r, c);
     scrollToItem(item(r, c));
     setFocus();
+}
+
+void ReactionTable::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        if (!event->isAutoRepeat())
+            insertStep();
+        event->accept();
+        return;
+    }
+    QTableWidget::keyPressEvent(event);
+}
+QSize ReactionTable::minimumSizeHint() const {
+    const int rowHeight = qMax(verticalHeader()->minimumSectionSize(), fontMetrics().height() + 12);
+    return QSize(200, 2 * rowHeight + horizontalHeader()->sizeHint().height() + 2 * frameWidth() +
+                          style()->pixelMetric(QStyle::PM_ScrollBarExtent));
+}
+QSize ReactionTable::sizeHint() const {
+    return minimumSizeHint();
+}
+void ReactionTable::changeEvent(QEvent *event) {
+    QTableWidget::changeEvent(event);
+    if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange) {
+        setMinimumHeight(minimumSizeHint().height());
+        updateGeometry();
+    }
 }

@@ -1,0 +1,421 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowTitle">
+   <string>M2MTools Lite[*]</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <property name="spacing">
+     <number>12</number>
+    </property>
+    <property name="leftMargin">
+     <number>12</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="rightMargin">
+     <number>12</number>
+    </property>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
+    <property name="sizeConstraint">
+     <enum>QLayout::SetMinimumSize</enum>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="variantLayout">
+      <item>
+       <widget class="QLabel" name="variantNumberLabel">
+        <property name="text">
+         <string>Variant number</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSpinBox" name="variantNumber">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>999999</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="conversionLabel">
+        <property name="text">
+         <string>Conversion</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="conversionType">
+        <item>
+         <property name="text">
+          <string>Mealy → Moore</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Moore → Mealy</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="countsLayout">
+      <item>
+       <widget class="QGroupBox" name="mealyGroup">
+        <property name="title">
+         <string>Mealy — counts</string>
+        </property>
+        <layout class="QFormLayout" name="mealyLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="mealyStatesLabel">
+           <property name="text">
+            <string>States</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="mealyStatesCount">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>999999</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="mealyInputsLabel">
+           <property name="text">
+            <string>Input signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="mealyInputsCount">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="mealyOutputsLabel">
+           <property name="text">
+            <string>Output signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="mealyOutputsCount">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="mooreGroup">
+        <property name="title">
+         <string>Moore — counts</string>
+        </property>
+        <layout class="QFormLayout" name="mooreLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="mooreStatesLabel">
+           <property name="text">
+            <string>States</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="mooreStatesCount">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>999999</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="mooreInputsLabel">
+           <property name="text">
+            <string>Input signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="mooreInputsCount">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="mooreOutputsLabel">
+           <property name="text">
+            <string>Output signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="mooreOutputsCount">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="reactionGroup">
+      <property name="title">
+       <string>Automaton reaction</string>
+      </property>
+      <layout class="QVBoxLayout" name="reactionLayout">
+       <property name="spacing">
+        <number>10</number>
+       </property>
+       <item>
+        <widget class="ReactionTable" name="reactionTable">
+          <property name="rowCount"><number>2</number></property>
+          <property name="columnCount"><number>1</number></property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="WrappingLabel" name="reactionHint">
+         <property name="text">
+          <string>One column is one step. Input: x0–x9. Outputs: y0–y9 separated by commas; empty or '-' means no output. Enter inserts a step after the current column.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="stepActionsLayout">
+         <item>
+          <widget class="QPushButton" name="addReactionStep">
+           <property name="text">
+            <string>Insert step after selection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeReactionStep">
+           <property name="text">
+            <string>Delete selected step</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="stepActionsSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="WrappingLabel" name="validationMessage">
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="variantActionsLayout">
+      <item>
+       <widget class="QPushButton" name="newVariantButton">
+        <property name="text">
+         <string>New variant</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="openVariantButton">
+        <property name="text">
+         <string>Variants list</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="variantActionsSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="saveVariantButton">
+        <property name="text">
+         <string>Save variant</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionNewVariant" />
+    <addaction name="actionSaveVariant" />
+    <addaction name="actionOpenVariant" />
+    <addaction name="separator" />
+    <addaction name="actionImportDatabase" />
+    <addaction name="actionExportDatabase" />
+    <addaction name="separator" />
+    <addaction name="actionExit" />
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <widget class="QMenu" name="menuLanguage">
+     <property name="title">
+      <string>Language</string>
+     </property>
+     <addaction name="actionEnglish" />
+     <addaction name="actionRussian" />
+    </widget>
+    <addaction name="menuLanguage" />
+    <addaction name="actionShowLogger" />
+   </widget>
+   <addaction name="menuFile" />
+   <addaction name="menuSettings" />
+  </widget>
+  <action name="actionNewVariant">
+   <property name="text">
+    <string>New variant</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="actionSaveVariant">
+   <property name="text">
+    <string>Save variant</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionOpenVariant">
+   <property name="text">
+    <string>Variants list</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionImportDatabase">
+   <property name="text">
+    <string>Import database</string>
+   </property>
+  </action>
+  <action name="actionExportDatabase">
+   <property name="text">
+    <string>Export database</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionEnglish">
+   <property name="text">
+    <string>English</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionRussian">
+   <property name="text">
+    <string>Russian</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionShowLogger">
+   <property name="text">
+    <string>Show logger</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ReactionTable</class>
+   <extends>QTableWidget</extends>
+   <header>ui/widgets/reactiontable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>WrappingLabel</class>
+   <extends>QLabel</extends>
+   <header>ui/widgets/wrappinglabel.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources />
+ <connections />
+</ui>

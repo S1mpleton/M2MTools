@@ -6,112 +6,47 @@
 #include "ui/translateresult.h"
 #include "ui/variantslist.h"
 #include "ui/widgets/reactiontable.h"
+#include "ui_mainwindow.h"
 #include <QActionGroup>
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QFileDialog>
-#include <QFormLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QSpinBox>
-#include <QStatusBar>
-#include <QVBoxLayout>
 
 using Icon = AppIcons::Kind;
 MainWindow::MainWindow(VariantService *service, QWidget *parent)
     : MainWindow(service, nullptr, parent) {}
 MainWindow::MainWindow(VariantService *service, TranslationManager *translator, QWidget *parent)
     : QMainWindow(parent), m_service(service), m_translator(translator) {
-    setWindowTitle(QStringLiteral("M2MTools Lite[*]"));
-    resize(1060, 600);
-    setMinimumSize(760, 560);
-    auto *central = new QWidget(this);
-    setCentralWidget(central);
-    auto *layout = new QVBoxLayout(central);
-    layout->setContentsMargins(18, 18, 18, 18);
-    layout->setSpacing(16);
-    auto *header = new QHBoxLayout;
-    m_number = new QSpinBox;
-    m_number->setRange(1, 999999);
-    m_number->setObjectName("variantNumber");
-    m_type = new QComboBox;
-    m_type->setObjectName("conversionType");
-    m_type->addItems({"", ""});
-    auto *numberLabel = new QLabel;
-    auto *typeLabel = new QLabel;
-    header->addWidget(numberLabel);
-    header->addWidget(m_number);
-    header->addSpacing(20);
-    header->addWidget(typeLabel);
-    header->addWidget(m_type, 1);
-    layout->addLayout(header);
-    auto *counts = new QHBoxLayout;
-    counts->addWidget(createCounts(true));
-    counts->addWidget(createCounts(false));
-    layout->addLayout(counts);
-    auto *reactionBox = new QGroupBox;
-    auto *reactionLayout = new QVBoxLayout(reactionBox);
-    m_reaction = new ReactionTable;
-    reactionLayout->addWidget(m_reaction);
-    auto *hint = new QLabel;
-    hint->setWordWrap(true);
-    hint->setObjectName("reactionHint");
-    hint->setMinimumHeight(hint->fontMetrics().lineSpacing() * 2 + 4);
-    reactionLayout->addWidget(hint);
-    auto *controls = new QHBoxLayout;
-    auto *add = new QPushButton(AppIcons::icon(Icon::Add), QString());
-    add->setObjectName("addReactionStep");
-    auto *remove = new QPushButton(AppIcons::icon(Icon::Remove), QString());
-    remove->setObjectName("removeReactionStep");
-    controls->addWidget(add);
-    controls->addWidget(remove);
-    controls->addStretch();
-    reactionLayout->addLayout(controls);
-    layout->addWidget(reactionBox);
-    m_feedback = new QLabel;
-    m_feedback->setWordWrap(true);
-    m_feedback->setObjectName("validationMessage");
-    layout->addWidget(m_feedback);
-    layout->addStretch();
-    auto *bottom = new QHBoxLayout;
-    auto *fresh = new QPushButton(AppIcons::icon(Icon::New), QString());
-    auto *open = new QPushButton(AppIcons::icon(Icon::Open), QString());
-    auto *store = new QPushButton(AppIcons::icon(Icon::Save), QString());
-    store->setObjectName("saveVariantButton");
-    bottom->addWidget(fresh);
-    bottom->addWidget(open);
-    bottom->addStretch();
-    bottom->addWidget(store);
-    layout->addLayout(bottom);
-    m_translations.append([=] {
-        numberLabel->setText(tr("Variant number"));
-        typeLabel->setText(tr("Conversion"));
-        m_type->setItemText(0, variantTypeDisplayName(VariantType::MealyToMoore));
-        m_type->setItemText(1, variantTypeDisplayName(VariantType::MooreToMealy));
-        reactionBox->setTitle(tr("Automaton reaction"));
-        hint->setText(tr("One column is one step. Input: x0–x9. Outputs: y0–y9 separated by "
-                         "commas; empty or '-' means no output. Order is preserved."));
-        add->setText(tr("Insert step after selection"));
-        remove->setText(tr("Delete selected step"));
-        fresh->setText(tr("New variant"));
-        open->setText(tr("Variants list"));
-        store->setText(tr("Save variant"));
-        m_reaction->retranslate();
-    });
-    connect(add, &QPushButton::clicked, m_reaction, &ReactionTable::insertStep);
-    connect(remove, &QPushButton::clicked, m_reaction, &ReactionTable::removeStep);
-    connect(store, &QPushButton::clicked, this, [this] { save(); });
-    connect(fresh, &QPushButton::clicked, this, &MainWindow::newVariant);
-    connect(open, &QPushButton::clicked, this, &MainWindow::openVariant);
+    ui = new Ui::MainWindow;
+    ui->setupUi(this);
+    m_reaction = ui->reactionTable;
+    m_number = ui->variantNumber;
+    m_type = ui->conversionType;
+    m_mealy = {ui->mealyStatesCount, ui->mealyInputsCount, ui->mealyOutputsCount};
+    m_moore = {ui->mooreStatesCount, ui->mooreInputsCount, ui->mooreOutputsCount};
+    m_feedback = ui->validationMessage;
+    ui->addReactionStep->setIcon(AppIcons::icon(Icon::Add));
+    ui->removeReactionStep->setIcon(AppIcons::icon(Icon::Remove));
+    ui->newVariantButton->setIcon(AppIcons::icon(Icon::New));
+    ui->openVariantButton->setIcon(AppIcons::icon(Icon::Open));
+    ui->saveVariantButton->setIcon(AppIcons::icon(Icon::Save));
+    connect(ui->addReactionStep, &QPushButton::clicked, m_reaction, &ReactionTable::insertStep);
+    connect(ui->removeReactionStep, &QPushButton::clicked, m_reaction, &ReactionTable::removeStep);
+    connect(ui->saveVariantButton, &QPushButton::clicked, this, [this] { save(); });
+    connect(ui->newVariantButton, &QPushButton::clicked, this, &MainWindow::newVariant);
+    connect(ui->openVariantButton, &QPushButton::clicked, this, &MainWindow::openVariant);
     auto changed = [this] {
         if (!m_loading) {
             m_dirty = true;
             setWindowModified(true);
             m_feedback->clear();
+            ui->validationMessage->refreshHeight();
         }
     };
     connect(m_number, qOverload<int>(&QSpinBox::valueChanged), this, changed);
@@ -129,74 +64,63 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     initial.number = m_service->firstAvailableVariantNumber();
     loadData(initial);
 }
-QGroupBox *MainWindow::createCounts(bool mealy) {
-    auto *group = new QGroupBox;
-    auto *form = new QFormLayout(group);
-    auto &values = mealy ? m_mealy : m_moore;
-    for (int i = 0; i < 3; ++i) {
-        values[i] = new QSpinBox;
-        values[i]->setRange(1, i == 0 ? 999999 : 10);
-        values[i]->setObjectName(
-            QStringLiteral("%1%2Count")
-                .arg(mealy ? "mealy" : "moore", QStringList{"States", "Inputs", "Outputs"}[i]));
-        auto *label = new QLabel;
-        form->addRow(label, values[i]);
-        m_translations.append([this, label, i] {
-            label->setText(i == 0   ? tr("States")
-                           : i == 1 ? tr("Input signals")
-                                    : tr("Output signals"));
-        });
-    }
-    m_translations.append([this, group, mealy] {
-        group->setTitle(mealy ? tr("Mealy — counts") : tr("Moore — counts"));
-    });
-    return group;
+MainWindow::~MainWindow() {
+    delete ui;
 }
+
+void MainWindow::showEvent(QShowEvent *event) {
+    QMainWindow::showEvent(event);
+    if (m_initialSizeApplied)
+        return;
+    m_initialSizeApplied = true;
+    // Settle height-for-width labels at the layout's minimum width.
+    for (int pass = 0; pass < 3; ++pass) {
+        ui->centralwidget->layout()->activate();
+        layout()->activate();
+        resize(minimumSizeHint().expandedTo(minimumSize()));
+        ui->reactionHint->refreshHeight();
+        ui->validationMessage->refreshHeight();
+    }
+    layout()->activate();
+    resize(minimumSize());
+}
+
 void MainWindow::setupMenus() {
     AppIcons::configureMenuBar(menuBar());
-    auto *file = menuBar()->addMenu(AppIcons::icon(Icon::File), QString());
-    auto *settings = menuBar()->addMenu(AppIcons::icon(Icon::Settings), QString());
-    auto *language = settings->addMenu(AppIcons::icon(Icon::Language), QString());
-    auto action = [this](QMenu *menu, Icon icon, const char *text, const QKeySequence &key,
-                         std::function<void()> callback) {
-        auto *a = menu->addAction(AppIcons::icon(icon), QString());
-        a->setIconVisibleInMenu(true);
-        a->setShortcut(key);
-        m_translations.append([this, a, text] { a->setText(tr(text)); });
-        connect(a, &QAction::triggered, this, callback);
-        return a;
-    };
-    action(file, Icon::New, QT_TR_NOOP("New variant"), QKeySequence::New, [this] { newVariant(); });
-    action(file, Icon::Save, QT_TR_NOOP("Save variant"), QKeySequence::Save, [this] { save(); });
-    action(file, Icon::Open, QT_TR_NOOP("Variants list"), QKeySequence::Open,
-           [this] { openVariant(); });
-    file->addSeparator();
-    action(file, Icon::Import, QT_TR_NOOP("Import database"), {}, [this] { importArchive(); });
-    action(file, Icon::Export, QT_TR_NOOP("Export database"), {}, [this] { exportArchive(); });
-    file->addSeparator();
-    action(file, Icon::Exit, QT_TR_NOOP("Exit"), QKeySequence::Quit, [this] { close(); });
-    auto *langs = new QActionGroup(this);
-    auto *en = action(language, Icon::English, QT_TR_NOOP("English"), {}, [this] {
+    const QList<QPair<QAction *, Icon>> icons = {{ui->menuFile->menuAction(), Icon::File},
+                                                 {ui->menuSettings->menuAction(), Icon::Settings},
+                                                 {ui->menuLanguage->menuAction(), Icon::Language},
+                                                 {ui->actionNewVariant, Icon::New},
+                                                 {ui->actionSaveVariant, Icon::Save},
+                                                 {ui->actionOpenVariant, Icon::Open},
+                                                 {ui->actionImportDatabase, Icon::Import},
+                                                 {ui->actionExportDatabase, Icon::Export},
+                                                 {ui->actionExit, Icon::Exit},
+                                                 {ui->actionEnglish, Icon::English},
+                                                 {ui->actionRussian, Icon::Russian},
+                                                 {ui->actionShowLogger, Icon::Log}};
+    for (const auto &entry : icons) {
+        entry.first->setIcon(AppIcons::icon(entry.second));
+        entry.first->setIconVisibleInMenu(true);
+    }
+    connect(ui->actionNewVariant, &QAction::triggered, this, &MainWindow::newVariant);
+    connect(ui->actionSaveVariant, &QAction::triggered, this, [this] { save(); });
+    connect(ui->actionOpenVariant, &QAction::triggered, this, &MainWindow::openVariant);
+    connect(ui->actionImportDatabase, &QAction::triggered, this, &MainWindow::importArchive);
+    connect(ui->actionExportDatabase, &QAction::triggered, this, &MainWindow::exportArchive);
+    connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
+    auto *languages = new QActionGroup(this);
+    languages->addAction(ui->actionEnglish);
+    languages->addAction(ui->actionRussian);
+    connect(ui->actionEnglish, &QAction::triggered, this, [this] {
         if (m_translator)
             showResult(m_translator->setLocale("en"));
     });
-    auto *ru = action(language, Icon::Russian, QT_TR_NOOP("Russian"), {}, [this] {
+    connect(ui->actionRussian, &QAction::triggered, this, [this] {
         if (m_translator)
             showResult(m_translator->setLocale("ru_RU"));
     });
-    for (auto *a : {en, ru}) {
-        a->setCheckable(true);
-        langs->addAction(a);
-    }
-    m_translations.append([this, file, settings, language, en, ru] {
-        file->setTitle(tr("File"));
-        settings->setTitle(tr("Settings"));
-        language->setTitle(tr("Language"));
-        const bool russian = m_translator && m_translator->currentLocale() == "ru_RU";
-        ru->setChecked(russian);
-        en->setChecked(!russian);
-    });
-    action(settings, Icon::Log, QT_TR_NOOP("Show logger"), {}, [this] {
+    connect(ui->actionShowLogger, &QAction::triggered, this, [this] {
         if (!m_log)
             m_log = new LogWindow(this);
         m_log->show();
@@ -204,8 +128,14 @@ void MainWindow::setupMenus() {
     });
 }
 void MainWindow::refreshTexts() {
-    for (const auto &translate : m_translations)
-        translate();
+    if (!ui)
+        return;
+    ui->retranslateUi(this);
+    m_reaction->retranslate();
+    ui->reactionHint->refreshHeight();
+    const bool russian = m_translator && m_translator->currentLocale() == "ru_RU";
+    ui->actionRussian->setChecked(russian);
+    ui->actionEnglish->setChecked(!russian);
 }
 void MainWindow::changeEvent(QEvent *event) {
     QMainWindow::changeEvent(event);
@@ -235,11 +165,13 @@ void MainWindow::loadData(const ReactionVariant &data) {
     m_dirty = false;
     setWindowModified(false);
     m_feedback->clear();
+    ui->validationMessage->refreshHeight();
     m_loading = false;
 }
 void MainWindow::showResult(const Result &result) {
     Logger::log(result);
     m_feedback->setText(translateResult(result));
+    ui->validationMessage->refreshHeight();
 }
 bool MainWindow::save() {
     m_reaction->setFocus(); // Finish editing before reading the sequence.
@@ -268,6 +200,7 @@ bool MainWindow::save() {
     m_dirty = false;
     setWindowModified(false);
     m_feedback->setText(tr("Variant #%1 saved").arg(data.number));
+    ui->validationMessage->refreshHeight();
     return true;
 }
 bool MainWindow::confirmDiscard() {
@@ -321,8 +254,8 @@ void MainWindow::openVariant() {
 void MainWindow::importArchive() {
     if (!confirmDiscard())
         return;
-    const auto path = QFileDialog::getOpenFileName(this, tr("Import database"), {},
-                                                   tr("M2MTools Lite archives (*.m2mlite)"));
+    const auto path =
+        QFileDialog::getOpenFileName(this, tr("Import database"), {}, tr("M2M archives (*.m2m)"));
     if (path.isEmpty())
         return;
     if (QMessageBox::question(this, tr("Import database"),
@@ -338,11 +271,11 @@ void MainWindow::importArchive() {
     showResult(result);
 }
 void MainWindow::exportArchive() {
-    auto path = QFileDialog::getSaveFileName(this, tr("Export database"), "BazaVar.m2mlite",
-                                             tr("M2MTools Lite archives (*.m2mlite)"));
+    auto path = QFileDialog::getSaveFileName(this, tr("Export database"), "BazaVar.m2m",
+                                             tr("M2M archives (*.m2m)"));
     if (path.isEmpty())
         return;
-    if (!path.endsWith(".m2mlite", Qt::CaseInsensitive))
-        path += ".m2mlite";
+    if (!path.endsWith(".m2m", Qt::CaseInsensitive))
+        path += ".m2m";
     showResult(m_service->exportArchive(path));
 }

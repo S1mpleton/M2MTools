@@ -3,27 +3,32 @@
 #include "data/variantservice.h"
 #include <QMainWindow>
 #include <array>
-#include <functional>
 class QComboBox;
 class QSpinBox;
 class QLabel;
-class QGroupBox;
 class QAction;
 class ReactionTable;
 class TranslationManager;
 class LogWindow;
+namespace Ui {
+class MainWindow;
+}
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
   public:
+    ~MainWindow() override;
     explicit MainWindow(VariantService *service, QWidget *parent = nullptr);
     MainWindow(VariantService *service, TranslationManager *translator, QWidget *parent);
 
   protected:
     void changeEvent(QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
   private:
+    Ui::MainWindow *ui = nullptr;
+    bool m_initialSizeApplied = false;
     VariantService *m_service;
     TranslationManager *m_translator;
     ReactionTable *m_reaction;
@@ -34,8 +39,6 @@ class MainWindow : public QMainWindow {
     LogWindow *m_log = nullptr;
     bool m_dirty = false;
     bool m_loading = false;
-    QList<std::function<void()>> m_translations;
-    QGroupBox *createCounts(bool mealy);
     void setupMenus();
     void refreshTexts();
     void loadData(const ReactionVariant &data);

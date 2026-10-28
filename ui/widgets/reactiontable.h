@@ -12,8 +12,14 @@ class ReactionTable : public QTableWidget {
     void removeStep();
     void markError(const QString &offender, const QString &message);
     void retranslate();
+    QSize minimumSizeHint() const override;
+    QSize sizeHint() const override;
+
+  protected:
+    void keyPressEvent(QKeyEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
   private:
     void prepareColumn(int column);
-    void ensureTrailingSpace();
+    void clearCellFeedback();
 };

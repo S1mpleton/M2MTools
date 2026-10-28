@@ -8,8 +8,6 @@
 #include "ui/appicons.h"
 #include <QMessageBox>
 #include <QComboBox>
-#include <QFormLayout>
-#include <QGroupBox>
 #include <QIntValidator>
 #include <QPushButton>
 
@@ -60,7 +58,7 @@ VariantsList::VariantsList(VariantService *service, QWidget *parent)
     , m_service(service)
 {
     ui->setupUi(this);
-    setWindowTitle(tr("Select variant"));
+
 
 
     ui->loadPushButton->setIcon(AppIcons::icon(AppIcons::Kind::Open));
@@ -94,53 +92,24 @@ VariantsList::~VariantsList()
 
 void VariantsList::configureTable() {
     auto* table = ui->variantsTableWidget;
-    ui->variantsTableWidget->setColumnCount(3);
-    table->setHorizontalHeaderLabels({
-        tr("Number"), tr("Type"), tr("Steps")});
-    table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table->setSelectionMode(QAbstractItemView::SingleSelection);
-    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->horizontalHeader()->setStretchLastSection(true);
     table->verticalHeader()->setVisible(false);
 
-    ui->variantSortComboBox->addItem(
-        tr("Variant number: ascending"),
-        static_cast<int>(VariantSort::NumberAscending));
-    ui->variantSortComboBox->addItem(
-        tr("Variant number: descending"),
-        static_cast<int>(VariantSort::NumberDescending));
-
-    ui->variantTypeFilterComboBox->addItem(
-        tr("All types"), static_cast<int>(VariantTypeFilter::All));
-    ui->variantTypeFilterComboBox->addItem(
-        tr("Mealy → Moore"),
-        static_cast<int>(VariantTypeFilter::MealyToMoore));
-    ui->variantTypeFilterComboBox->addItem(
-        tr("Moore → Mealy"),
-        static_cast<int>(VariantTypeFilter::MooreToMealy));
+    for (int i = 0; i < ui->variantSortComboBox->count(); ++i)
+        ui->variantSortComboBox->setItemData(i, i);
+    for (int i = 0; i < ui->variantTypeFilterComboBox->count(); ++i)
+        ui->variantTypeFilterComboBox->setItemData(i, i);
 }
 
 void VariantsList::configureSwapControls() {
-    auto* group = new QGroupBox(tr("Swap variants"), this);
-    auto* layout = new QFormLayout(group);
-    m_swapFirst = new QComboBox(group);
-    m_swapSecond = new QComboBox(group);
-    for (QComboBox* combo : {m_swapFirst, m_swapSecond}) {
-        combo->setEditable(true);
-        combo->setInsertPolicy(QComboBox::NoInsert);
+    m_swapFirst = ui->swapFirstComboBox;
+    m_swapSecond = ui->swapSecondComboBox;
+    m_swapButton = ui->swapVariantsButton;
+    for (QComboBox *combo : {m_swapFirst, m_swapSecond}) {
         combo->setValidator(new QIntValidator(1, 999999, combo));
         combo->setCurrentIndex(-1);
-        combo->setPlaceholderText(tr("Enter a number"));
     }
-    m_swapFirst->setObjectName(QStringLiteral("swapFirstComboBox"));
-    m_swapSecond->setObjectName(QStringLiteral("swapSecondComboBox"));
-    m_swapButton = new QPushButton(tr("Swap"), group);
     m_swapButton->setIcon(AppIcons::icon(AppIcons::Kind::Swap));
-    m_swapButton->setObjectName(QStringLiteral("swapVariantsButton"));
-    layout->addRow(tr("First number"), m_swapFirst);
-    layout->addRow(tr("Second number"), m_swapSecond);
-    layout->addRow(m_swapButton);
-    ui->gridLayout->addWidget(group, 1, 1);
 }
 
 void VariantsList::populateTable() {

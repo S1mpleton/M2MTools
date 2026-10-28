@@ -85,4 +85,5 @@ CMakeLists.txt.user*
 
 # Local Lite data
 variants-lite.db*
+*.m2m
 *.m2mlite

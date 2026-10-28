@@ -5,10 +5,13 @@
 #include "data/variantservice.h"
 #include "infrastructure/translationmanager.h"
 #include "ui/mainwindow.h"
+#include "ui/variantslist.h"
 #include "ui/widgets/reactiontable.h"
 #include "validation/reactionvalidator.h"
 #include <QApplication>
+#include <QComboBox>
 #include <QFile>
+#include <QGroupBox>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
@@ -103,12 +106,12 @@ int main(int argc, char **argv) {
         require(db->exec("PRAGMA reverse_unordered_selects=ON"), "reverse unordered selects");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "explicit step order and output order");
-        require(service.exportArchive(dir.filePath("test.m2mlite")).ok(), "encrypted export");
+        require(service.exportArchive(dir.filePath("test.m2m")).ok(), "encrypted export");
         require(service.swapVariants(4, 8).ok(), "move variant number");
-        require(service.importArchive(dir.filePath("test.m2mlite")).ok(), "encrypted import");
+        require(service.importArchive(dir.filePath("test.m2m")).ok(), "encrypted import");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "archive preserves order and counts");
-        QFile archive(dir.filePath("test.m2mlite"));
+        QFile archive(dir.filePath("test.m2m"));
         require(archive.open(QIODevice::ReadWrite), "open archive for corruption");
         auto bytes = archive.readAll();
         require(bytes.startsWith("M2MLITE1") && !bytes.contains("reaction"),
@@ -121,12 +124,11 @@ int main(int argc, char **argv) {
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "failed import leaves database intact");
         // A valid archive that fails during insertion must roll back the old database too.
-        require(service.exportArchive(dir.filePath("rollback.m2mlite")).ok(),
-                "archive for rollback");
+        require(service.exportArchive(dir.filePath("rollback.m2m")).ok(), "archive for rollback");
         require(db->exec("CREATE TRIGGER fail_import BEFORE INSERT ON ReactionSteps BEGIN SELECT "
                          "RAISE(ABORT,'test failure'); END"),
                 "install failure trigger");
-        require(!service.importArchive(dir.filePath("rollback.m2mlite")).ok(),
+        require(!service.importArchive(dir.filePath("rollback.m2m")).ok(),
                 "insertion failure detected");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "transaction rolls back failed import");
@@ -153,6 +155,64 @@ int main(int argc, char **argv) {
                 icons.insert(pixels);
             }
         auto *table = window.findChild<ReactionTable *>();
+        require(table->columnCount() == 1, "startup has one reaction column");
+        require(window.size() == window.minimumSize(), "window opens at minimum permissible size");
+        if (argc > 1)
+            require(window.grab().save(QString::fromLocal8Bit(argv[1]) + ".startup.png"),
+                    "startup screenshot");
+        {
+            ReactionTable keyboardTable;
+            keyboardTable.resize(400, 160);
+            keyboardTable.show();
+            app.processEvents();
+            keyboardTable.item(0, 0)->setText("x2");
+            require(keyboardTable.columnCount() == 1, "typing alone does not append a step");
+            keyboardTable.setCurrentCell(0, 0);
+            QTest::keyClick(&keyboardTable, Qt::Key_Return);
+            require(keyboardTable.columnCount() == 2 && keyboardTable.currentColumn() == 1,
+                    "Enter after selection inserts exactly one step");
+            auto activeEditor = [&keyboardTable]() -> QLineEdit * {
+                for (auto *line : keyboardTable.findChildren<QLineEdit *>("reactionCellEditor"))
+                    if (line->isVisible())
+                        return line;
+                return nullptr;
+            };
+            auto *line = activeEditor();
+            require(line != nullptr, "new step is ready to edit");
+            QTest::keyClicks(line, "x");
+            QTest::keyClick(line, Qt::Key_Return);
+            require(keyboardTable.columnCount() == 2, "incomplete signal does not advance");
+            QTest::keyClicks(line, "9");
+            QTest::keyClick(line, Qt::Key_Enter);
+            require(keyboardTable.columnCount() == 3 && keyboardTable.item(0, 1)->text() == "x9",
+                    "keypad Enter commits and inserts one step");
+            if (auto *current = activeEditor())
+                QTest::keyClick(current, Qt::Key_Escape);
+            keyboardTable.setSteps(data.reaction);
+            keyboardTable.setCurrentCell(1, 1);
+            QTest::keyClick(&keyboardTable, Qt::Key_Return);
+            require(keyboardTable.columnCount() == 5 && keyboardTable.item(0, 3)->text() == "x3",
+                    "Enter in the middle preserves later steps and their order");
+            if (auto *current = activeEditor())
+                QTest::keyClick(current, Qt::Key_Escape);
+            keyboardTable.setSteps({});
+            keyboardTable.removeStep();
+            require(keyboardTable.columnCount() == 1, "last column cannot leave an empty table");
+        }
+        {
+            VariantsList variants(&service);
+            if (argc > 1) {
+                variants.show();
+                app.processEvents();
+                require(variants.grab().save(QString::fromLocal8Bit(argv[1]) + ".variants.png"),
+                        "variant list screenshot");
+            }
+            require(variants.findChild<QGroupBox *>("swapGroup") &&
+                        variants.findChild<QComboBox *>("swapFirstComboBox"),
+                    "variant browser swap controls are present from Designer form");
+        }
+        window.activateWindow();
+        window.setFocus();
         table->setSteps(data.reaction);
         require(table->rowCount() == 2 && table->steps()[3].outputs == QStringList({"y2", "y0"}),
                 "two-row UI retains sequence");
@@ -166,15 +226,17 @@ int main(int argc, char **argv) {
         require(table->steps().size() == 3 && table->steps()[1].input == "x3",
                 "delete preserves remaining order");
         table->setSteps(data.reaction);
-        table->setCurrentCell(0,0);
+        table->setCurrentCell(0, 0);
         table->insertStep();
-        auto *insertEditor=table->findChild<QLineEdit*>("reactionCellEditor");
-        require(insertEditor!=nullptr,"inserted column is editable");
-        QTest::keyClick(insertEditor,Qt::Key_Escape);
-        require(table->steps().size()==5 && table->steps()[1].input.isEmpty() &&
-                table->steps()[2].input=="x1", "insertion retains step positions");
-        table->markError("0:1","Missing input");
-        require(table->item(0,1)->toolTip()=="Missing input","validation tooltip stays visible");
+        auto *insertEditor = table->findChild<QLineEdit *>("reactionCellEditor");
+        require(insertEditor != nullptr, "inserted column is editable");
+        QTest::keyClick(insertEditor, Qt::Key_Escape);
+        require(table->steps().size() == 5 && table->steps()[1].input.isEmpty() &&
+                    table->steps()[2].input == "x1",
+                "insertion retains step positions");
+        table->markError("0:1", "Missing input");
+        require(table->item(0, 1)->toolTip() == "Missing input",
+                "validation tooltip stays visible");
         table->setSteps(data.reaction);
         for (auto *spin : window.findChildren<QSpinBox *>()) {
             const auto name = spin->objectName();
@@ -192,8 +254,9 @@ int main(int argc, char **argv) {
         table->editItem(table->item(1, 3));
         app.processEvents();
         auto *editor = [table]() -> QLineEdit * {
-            for(auto *cellEditor:table->findChildren<QLineEdit *>("reactionCellEditor"))
-                if(cellEditor->isVisible()) return cellEditor;
+            for (auto *cellEditor : table->findChildren<QLineEdit *>("reactionCellEditor"))
+                if (cellEditor->isVisible())
+                    return cellEditor;
             return nullptr;
         }();
         require(editor != nullptr, "delegate opens editor");
@@ -209,22 +272,42 @@ int main(int argc, char **argv) {
         const auto *hint = window.findChild<QLabel *>("reactionHint");
         require(table->geometry().bottom() < hint->geometry().top(),
                 "reaction hint does not overlap the table scrollbar");
+        // Regression: wrapped hints must stay below the table at narrow widths
+        // and with the larger fonts used by Windows display scaling.
+        const QFont originalFont = window.font();
+        QFont larger = originalFont;
+        larger.setPointSizeF(qMax(10.0, originalFont.pointSizeF()) * 1.5);
+        window.setFont(larger);
+        window.resize(window.minimumSizeHint());
+        app.processEvents();
+        require(table->geometry().bottom() < hint->geometry().top() &&
+                    hint->height() >= hint->heightForWidth(hint->width()),
+                "large-font wrapped text stays fully outside the table");
+        window.setFont(originalFont);
+        app.processEvents();
+        window.resize(window.minimumSize());
+        app.processEvents();
         if (argc > 1) {
             require(window.grab().save(QString::fromLocal8Bit(argv[1])), "screenshot");
             QPalette dark = app.palette();
-            dark.setColor(QPalette::Window, QColor(38,38,38));
+            dark.setColor(QPalette::Window, QColor(38, 38, 38));
             dark.setColor(QPalette::WindowText, Qt::white);
-            dark.setColor(QPalette::Base, QColor(30,30,30));
-            dark.setColor(QPalette::AlternateBase, QColor(48,48,48));
+            dark.setColor(QPalette::Base, QColor(30, 30, 30));
+            dark.setColor(QPalette::AlternateBase, QColor(48, 48, 48));
             dark.setColor(QPalette::Text, Qt::white);
-            dark.setColor(QPalette::Button, QColor(50,50,50));
+            dark.setColor(QPalette::Button, QColor(50, 50, 50));
             dark.setColor(QPalette::ButtonText, Qt::white);
             dark.setColor(QPalette::HighlightedText, Qt::white);
             app.setPalette(dark);
             QTest::qWait(20);
-            require(table->item(1,3)->text()==QStringLiteral("y2,y0,y3"), "theme change preserves edited cell");
-            require(window.grab().save(QString::fromLocal8Bit(argv[1])+".dark.png"), "dark screenshot");
+            require(table->item(1, 3)->text() == QStringLiteral("y2,y0,y3"),
+                    "theme change preserves edited cell");
+            require(window.grab().save(QString::fromLocal8Bit(argv[1]) + ".dark.png"),
+                    "dark screenshot");
         }
+        QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
+        require(table->columnCount() == 1 && table->steps().isEmpty(),
+                "New variant resets the reaction to one empty column");
     }
     data = sample();
     {
