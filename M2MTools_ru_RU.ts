@@ -284,10 +284,6 @@
             <translation>M2MTools[*]</translation>
         </message>
         <message>
-            <source>Task image (required)</source>
-            <translation>Изображение задания (обязательно)</translation>
-        </message>
-        <message>
             <source>Task image preview</source>
             <translation>Предпросмотр изображения задания</translation>
         </message>
@@ -318,6 +314,10 @@
         <message>
             <source>Replace the current database with the archive contents?</source>
             <translation>Заменить текущую базу данными из архива?</translation>
+        </message>
+        <message>
+            <source>Task image</source>
+            <translation>Изображение задания</translation>
         </message>
     </context>
     <context>
@@ -484,10 +484,6 @@
             <translation>Такт %1: введите выходы y0–y9 через запятую, без повторов.</translation>
         </message>
         <message>
-            <source>The reaction uses more distinct signals than declared for Mealy or Moore.</source>
-            <translation>В реакции больше различных сигналов, чем указано в количествах Мили или Мура.</translation>
-        </message>
-        <message>
             <source>The variant data is corrupted.</source>
             <translation>Данные варианта повреждены.</translation>
         </message>
@@ -578,6 +574,14 @@
         <message>
             <source>Translation '%1' loaded</source>
             <translation>Перевод «%1» загружен</translation>
+        </message>
+        <message>
+            <source>Mealy signal counts must match the reaction: inputs — %1 declared, %2 used; outputs — %3 declared, %4 used.</source>
+            <translation>Количество сигналов Мили должно совпадать с реакцией: входы — указано %1, введено %2; выходы — указано %3, введено %4.</translation>
+        </message>
+        <message>
+            <source>Moore signal counts must match the reaction: inputs — %1 declared, %2 used; outputs — %3 declared, %4 used.</source>
+            <translation>Количество сигналов Мура должно совпадать с реакцией: входы — указано %1, введено %2; выходы — указано %3, введено %4.</translation>
         </message>
     </context>
     <context>

@@ -1,64 +1,56 @@
-#ifndef FEEDBACKSTYLE_H
-#define FEEDBACKSTYLE_H
-
+#pragma once
+#include <QApplication>
 #include <QColor>
+#include <QPalette>
 #include <QString>
 
-enum class UiFeedbackLevel {
-    Error,
-    Warning,
-    Success,
-};
+enum class UiFeedbackLevel { Error, Warning, Success };
 
 namespace UiFeedbackStyle {
-
+inline bool darkPalette() {
+    return QApplication::palette().color(QPalette::Window).lightness() < 128;
+}
 inline QColor background(UiFeedbackLevel level) {
+    const bool dark = darkPalette();
     switch (level) {
-    case UiFeedbackLevel::Error: return QColor(QStringLiteral("#FDECEC"));
-    case UiFeedbackLevel::Warning: return QColor(QStringLiteral("#FFF6D8"));
-    case UiFeedbackLevel::Success: return QColor(QStringLiteral("#E8F5E9"));
+    case UiFeedbackLevel::Error:
+        return QColor(dark ? "#472e30" : "#f8e9e8");
+    case UiFeedbackLevel::Warning:
+        return QColor(dark ? "#443e28" : "#fbf3dc");
+    case UiFeedbackLevel::Success:
+        return QColor(dark ? "#263c30" : "#e9f3ed");
     }
-    return QColor();
+    return {};
 }
-
 inline QColor foreground(UiFeedbackLevel level) {
+    const bool dark = darkPalette();
     switch (level) {
-    case UiFeedbackLevel::Error: return QColor(QStringLiteral("#8A1C13"));
-    case UiFeedbackLevel::Warning: return QColor(QStringLiteral("#714B00"));
-    case UiFeedbackLevel::Success: return QColor(QStringLiteral("#1B5E20"));
+    case UiFeedbackLevel::Error:
+        return QColor(dark ? "#efb7b2" : "#8e3632");
+    case UiFeedbackLevel::Warning:
+        return QColor(dark ? "#e9d38b" : "#735812");
+    case UiFeedbackLevel::Success:
+        return QColor(dark ? "#b6dec3" : "#285d3e");
     }
-    return QColor();
+    return {};
 }
-
 inline QColor border(UiFeedbackLevel level) {
+    const bool dark = darkPalette();
     switch (level) {
-    case UiFeedbackLevel::Error: return QColor(QStringLiteral("#D92D20"));
-    case UiFeedbackLevel::Warning: return QColor(QStringLiteral("#D99A00"));
-    case UiFeedbackLevel::Success: return QColor(QStringLiteral("#2E7D32"));
+    case UiFeedbackLevel::Error:
+        return QColor(dark ? "#ae716e" : "#bd7873");
+    case UiFeedbackLevel::Warning:
+        return QColor(dark ? "#9e884b" : "#b69a50");
+    case UiFeedbackLevel::Success:
+        return QColor(dark ? "#597d65" : "#769e83");
     }
-    return QColor();
+    return {};
 }
-
-inline QString fieldStyle(UiFeedbackLevel level, int alpha = 255) {
-    QColor fill = background(level);
-    QColor outline = border(level);
-    fill.setAlpha(alpha);
-    outline.setAlpha(alpha);
-    return QStringLiteral(
-        "background-color: rgba(%1, %2, %3, %4); "
-        "border: 1px solid rgba(%5, %6, %7, %8); color: %9;")
-        .arg(fill.red()).arg(fill.green()).arg(fill.blue()).arg(fill.alpha())
-        .arg(outline.red()).arg(outline.green()).arg(outline.blue()).arg(outline.alpha())
-        .arg(foreground(level).name());
-}
-
-inline QString bannerStyle(UiFeedbackLevel level) {
-    return QStringLiteral(
-        "background-color: %1; color: %2; border: 1px solid %3; "
-        "border-radius: 3px; padding: 5px 8px;")
+inline QString fieldStyle(UiFeedbackLevel level) {
+    return QStringLiteral("background-color: %1; color: %2; border: 1px solid %3;")
         .arg(background(level).name(), foreground(level).name(), border(level).name());
 }
-
+inline QString bannerStyle(UiFeedbackLevel level) {
+    return fieldStyle(level) + "border-radius: 4px; padding: 5px 8px;";
+}
 } // namespace UiFeedbackStyle
-
-#endif // FEEDBACKSTYLE_H

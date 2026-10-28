@@ -67,6 +67,9 @@ void ReactionTable::clearCellFeedback() {
     QSignalBlocker block(this);
     for (int c = 0; c < columnCount(); ++c)
         for (int r = 0; r < 2; ++r) {
+            if (!item(r, c))
+                continue;
+            item(r, c)->setData(ReactionDelegate::ErrorRole, QVariant());
             item(r, c)->setData(Qt::DecorationRole, QVariant());
             item(r, c)->setToolTip(QString());
         }
@@ -98,9 +101,18 @@ void ReactionTable::markError(const QString &offender, const QString &message) {
         return;
     QSignalBlocker block(this);
     item(r, c)->setToolTip(message);
+    item(r, c)->setData(ReactionDelegate::ErrorRole, true);
     setCurrentCell(r, c);
     scrollToItem(item(r, c));
     setFocus();
+}
+
+void ReactionTable::markRowError(int row, const QString &message) {
+    QSignalBlocker block(this);
+    for (int c = 0; c < columnCount(); ++c) {
+        item(row, c)->setData(ReactionDelegate::ErrorRole, true);
+        item(row, c)->setToolTip(message);
+    }
 }
 
 void ReactionTable::keyPressEvent(QKeyEvent *event) {

@@ -18,6 +18,7 @@ target_link_libraries(M2MCore PUBLIC Qt6::Core Qt6::Gui Qt6::Sql OpenSSL::Crypto
 add_library(M2MUi STATIC
     ui/mainwindow.cpp ui/mainwindow.ui ui/appicons.cpp ui/widgets/reactiontable.cpp ui/widgets/wrappinglabel.cpp
     ui/widgets/variantimagepanel.cpp
+    ui/widgets/feedbacklabel.cpp ui/fieldfeedback.cpp
     ui/delegates/reactiondelegate.cpp validation/reactionvalidator.cpp
     ui/variantslist.cpp ui/variantslist.ui ui/logwindow.cpp ui/logwindow.ui
     ui/dialogs/resultmessenger.cpp ui/translateresult.cpp

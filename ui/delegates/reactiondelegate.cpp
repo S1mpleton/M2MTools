@@ -1,9 +1,29 @@
 #include "reactiondelegate.h"
+#include "ui/feedbackstyle.h"
 #include "validation/reactionvalidator.h"
 #include <QKeyEvent>
 #include <QLineEdit>
+#include <QStyle>
 
 ReactionDelegate::ReactionDelegate(QObject *parent) : QStyledItemDelegate(parent) {}
+void ReactionDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
+                             const QModelIndex &index) const {
+    auto styled = option;
+    if (index.data(ErrorRole).toBool()) {
+        initStyleOption(&styled, index);
+        const auto fill = UiFeedbackStyle::background(UiFeedbackLevel::Error);
+        const auto ink = UiFeedbackStyle::foreground(UiFeedbackLevel::Error);
+        styled.backgroundBrush = fill;
+        styled.palette.setColor(QPalette::Text, ink);
+        styled.palette.setColor(QPalette::Highlight, fill);
+        styled.palette.setColor(QPalette::HighlightedText, ink);
+        const auto *widget = option.widget;
+        auto *style = widget ? widget->style() : QApplication::style();
+        style->drawControl(QStyle::CE_ItemViewItem, &styled, painter, widget);
+        return;
+    }
+    QStyledItemDelegate::paint(painter, styled, index);
+}
 QWidget *ReactionDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &,
                                         const QModelIndex &index) const {
     auto *editor = new QLineEdit(parent);

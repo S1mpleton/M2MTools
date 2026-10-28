@@ -12,6 +12,8 @@ class ReactionTable;
 class TranslationManager;
 class LogWindow;
 class VariantImagePanel;
+class FeedbackLabel;
+class FieldFeedback;
 namespace Ui {
 class MainWindow;
 }
@@ -37,7 +39,8 @@ class MainWindow : public QMainWindow {
     QSpinBox *m_number;
     QComboBox *m_type;
     std::array<QSpinBox *, 3> m_mealy, m_moore;
-    QLabel *m_feedback;
+    FeedbackLabel *m_feedback;
+    FieldFeedback *m_fieldFeedback;
     LogWindow *m_log = nullptr;
     ReactionVariant m_baseline;
     std::optional<Result> m_lastResult;
@@ -48,6 +51,8 @@ class MainWindow : public QMainWindow {
     void loadData(const ReactionVariant &data);
     ReactionVariant readData() const;
     void showResult(const Result &result);
+    void markValidationError(const Result &result);
+    void clearValidationFeedback();
     void updateModified();
     bool confirmDiscard(QWidget *parent = nullptr);
     bool save();

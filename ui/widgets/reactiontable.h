@@ -11,6 +11,8 @@ class ReactionTable : public QTableWidget {
     void insertStep();
     void removeStep();
     void markError(const QString &offender, const QString &message);
+    void markRowError(int row, const QString &message);
+    void clearCellFeedback();
     void retranslate();
     QSize minimumSizeHint() const override;
     QSize sizeHint() const override;
@@ -21,5 +23,4 @@ class ReactionTable : public QTableWidget {
 
   private:
     void prepareColumn(int column);
-    void clearCellFeedback();
 };

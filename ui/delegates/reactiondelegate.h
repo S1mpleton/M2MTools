@@ -7,6 +7,9 @@ class ReactionDelegate : public QStyledItemDelegate {
     Q_OBJECT
   public:
     explicit ReactionDelegate(QObject *parent = nullptr);
+    static constexpr int ErrorRole = Qt::UserRole + 1;
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override;
 
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                           const QModelIndex &index) const override;

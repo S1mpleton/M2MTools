@@ -5,10 +5,12 @@
 #include "data/variantservice.h"
 #include "infrastructure/logger.h"
 #include "infrastructure/translationmanager.h"
+#include "ui/delegates/reactiondelegate.h"
 #include "ui/logwindow.h"
 #include "ui/mainwindow.h"
 #include "ui/translateresult.h"
 #include "ui/variantslist.h"
+#include "ui/widgets/feedbacklabel.h"
 #include "ui/widgets/reactiontable.h"
 #include "ui/widgets/variantimagepanel.h"
 #include "validation/reactionvalidator.h"
@@ -17,7 +19,9 @@
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QElapsedTimer>
 #include <QFile>
+#include <QGraphicsOpacityEffect>
 #include <QGroupBox>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -31,7 +35,9 @@
 #include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QSpinBox>
+#include <QStyle>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -48,8 +54,8 @@ void require(bool ok, const char *text) {
 ReactionVariant sample() {
     ReactionVariant d;
     d.number = 4;
-    d.mealy = {2, 3, 4};
-    d.moore = {5, 3, 4};
+    d.mealy = {2, 3, 3};
+    d.moore = {5, 3, 3};
     d.reaction = {{"x2", {"y3"}}, {"x1", {"y0", "y2"}}, {"x3", {}}, {"x2", {"y2", "y0"}}};
     QImage picture(360, 100, QImage::Format_RGB32);
     picture.fill(Qt::white);
@@ -71,6 +77,128 @@ ReactionVariant sample() {
 }
 bool equal(const ReactionVariant &a, const ReactionVariant &b) {
     return a.toJson() == b.toJson();
+}
+
+void testSourceCounts() {
+    auto data = sample();
+    data.moore = {900, 8, 9};
+    require(data.validateForSave().ok(),
+            "Mealy source ignores target counts and state count relation");
+    data.mealy.inputs = 4;
+    require(!data.validateForSave().ok(), "fewer distinct inputs than declared are rejected");
+    data.mealy.inputs = 2;
+    require(data.validateForSave().fields() == QStringList{"mealy.inputs"},
+            "excess inputs identify source input field");
+    data.mealy.inputs = 3;
+    data.mealy.outputs = 4;
+    require(data.validateForSave().fields() == QStringList{"mealy.outputs"},
+            "missing outputs identify source output field");
+    data.type = VariantType::MooreToMealy;
+    data.moore.inputs = data.moore.outputs = 3;
+    data.mealy = {700, 1, 10};
+    require(data.validateForSave().ok(), "Moore source ignores Mealy target counts");
+    data.moore.inputs = 4;
+    data.moore.outputs = 2;
+    require(data.validateForSave().fields() == QStringList({"moore.inputs", "moore.outputs"}),
+            "both mismatched Moore signal fields are reported");
+    ReactionVariant legacy;
+    require(ReactionVariant::fromJson(data.toJson(), &legacy).ok() &&
+                !legacy.validateForSave().ok(),
+            "older mismatched counts can be read for correction, but cannot be saved");
+    data.moore.inputs = data.moore.outputs = 1;
+    data.reaction = {{"x9", {"y9"}}, {"x9", {"y9"}}, {"x9", {}}};
+    require(data.validateForSave().ok(), "distinct signals counted once; suffixes are not indexes");
+}
+
+void testFeedbackTiming() {
+    FeedbackLabel feedback;
+    feedback.resize(420, 80);
+    feedback.show();
+    auto *effect = qobject_cast<QGraphicsOpacityEffect *>(feedback.graphicsEffect());
+    QSignalSpy expired(&feedback, &FeedbackLabel::expired);
+    feedback.showMessage("Saved", UiFeedbackLevel::Success);
+    const auto successStyle = feedback.styleSheet();
+    QTest::qWait(120);
+    require(effect && effect->opacity() > 0 && effect->opacity() < 1, "feedback fades in smoothly");
+    QTest::qWait(200);
+    require(effect->opacity() == 1, "feedback is fully visible after fade-in");
+    feedback.showMessage("Warning", UiFeedbackLevel::Warning);
+    require(successStyle != feedback.styleSheet(), "warning uses its own accent");
+    feedback.showMessage("Error", UiFeedbackLevel::Error);
+    QElapsedTimer lifetime;
+    lifetime.start();
+    QTest::qWait(300);
+    require(feedback.text() == "Error" && effect->opacity() == 1,
+            "new message replaces and restarts previous animation");
+    QTest::qWait(3800);
+    require(feedback.text() == "Error" && effect->opacity() == 1,
+            "message stays opaque throughout four-second hold");
+    require(expired.wait(1000), "feedback expires after hold and fade-out");
+    require(lifetime.elapsed() >= 4400 && expired.count() == 1 && feedback.text().isEmpty() &&
+                effect->opacity() == 0,
+            "old timers cannot shorten the new message lifecycle");
+}
+
+void testValidationHighlights(VariantService &service, const QString &imagePath,
+                              const QString &screenshotPath) {
+    const QPalette originalPalette = qApp->palette();
+    if (!screenshotPath.isEmpty())
+        qApp->setPalette(qApp->style()->standardPalette());
+    MainWindow window(&service);
+    window.show();
+    qApp->processEvents();
+    auto *table = window.findChild<ReactionTable *>();
+    auto *sourceInputs = window.findChild<QSpinBox *>("mealyInputsCount");
+    auto *targetInputs = window.findChild<QSpinBox *>("mooreInputsCount");
+    auto *preview = window.findChild<QLabel *>("diagramDropZone");
+    table->setSteps({{"x2", {"y0"}}});
+    sourceInputs->setValue(2);
+    qApp->processEvents();
+    auto save = [&window] {
+        QTest::mouseClick(window.findChild<QPushButton *>("saveVariantButton"), Qt::LeftButton);
+    };
+    save();
+    require(sourceInputs->property("feedbackInvalid").toBool() &&
+                !targetInputs->property("feedbackInvalid").toBool() &&
+                table->item(0, 0)->data(ReactionDelegate::ErrorRole).toBool() &&
+                !table->item(1, 0)->data(ReactionDelegate::ErrorRole).toBool(),
+            "count error highlights only the source field and corresponding row");
+    if (!screenshotPath.isEmpty()) {
+        QTest::qWait(300);
+        require(window.grab().save(screenshotPath + ".counts.png"), "count error screenshot");
+        qApp->setPalette(originalPalette);
+        qApp->processEvents();
+        require(sourceInputs->styleSheet().contains(UiFeedbackStyle::background(UiFeedbackLevel::Error).name()) &&
+                    window.findChild<FeedbackLabel *>()->styleSheet().contains(UiFeedbackStyle::background(UiFeedbackLevel::Error).name()),
+                "visible error accents adapt to palette changes");
+        require(window.grab().save(screenshotPath + ".counts-dark.png"), "count error after palette change");
+    }
+    sourceInputs->setValue(1);
+    require(!sourceInputs->property("feedbackInvalid").toBool(),
+            "editing restores normal field style");
+    save();
+    require(preview->property("feedbackInvalid").toBool(), "missing image highlights image field");
+    if (!screenshotPath.isEmpty()) {
+        QTest::qWait(300);
+        require(window.grab().save(screenshotPath + ".missing-image.png"),
+                "image error screenshot");
+    }
+    require(window.findChild<VariantImagePanel *>()->loadFromFile(imagePath),
+            "attach required image");
+    require(!preview->property("feedbackInvalid").toBool(), "adding image clears its error accent");
+    save();
+    require(!window.isWindowModified(), "corrected counts and image allow save");
+    QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
+    window.findChild<QComboBox *>("conversionType")->setCurrentIndex(1);
+    table->setSteps({{"x2", {"y0"}}});
+    sourceInputs->setValue(9);
+    auto *sourceOutputs = window.findChild<QSpinBox *>("mooreOutputsCount");
+    sourceOutputs->setValue(2);
+    qApp->processEvents();
+    save();
+    require(sourceOutputs->property("feedbackInvalid").toBool() &&
+                !sourceInputs->property("feedbackInvalid").toBool(),
+            "direction switch validates and highlights Moore fields only");
 }
 
 // Fail immediately on unexpected modal questions instead of hanging the test.
@@ -165,6 +293,7 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
     click("newVariantButton");
 
     table->item(0, 0)->setText("x2");
+    table->item(1, 0)->setText("y0");
     QTimer::singleShot(0, &window, [] {
         auto *dialog = qobject_cast<VariantsList *>(QApplication::activeModalWidget());
         require(dialog != nullptr, "dirty draft does not block browsing");
@@ -227,6 +356,8 @@ int main(int argc, char **argv) {
     QTemporaryDir dir;
     require(dir.isValid(), "temporary directory");
     auto data = sample();
+    testSourceCounts();
+    testFeedbackTiming();
     require(data.validate().ok(), "valid ordered reaction");
     auto withoutImage = data;
     withoutImage.image = {};
@@ -264,16 +395,17 @@ int main(int argc, char **argv) {
     require(!invalid.validate().ok(), "reject y10");
     invalid = data;
     invalid.mealy.inputs = 2;
-    require(!invalid.validate().ok(), "declared counts checked");
+    require(!invalid.validateForSave().ok(), "source input count checked");
     invalid = data;
-    invalid.moore.outputs = 2;
-    require(!invalid.validate().ok(), "both count blocks checked");
+    invalid.mealy.outputs = 2;
+    require(!invalid.validateForSave().ok(), "source output count checked");
     auto boundary = data;
     boundary.mealy.inputs = boundary.moore.inputs = 10;
+    boundary.mealy.outputs = boundary.moore.outputs = 1;
     boundary.reaction.clear();
     for (int i = 0; i < 10; ++i)
-        boundary.reaction.append({QString("x%1").arg(i), {}});
-    require(boundary.validate().ok(), "all ten inputs accepted");
+        boundary.reaction.append({QString("x%1").arg(i), {"y9"}});
+    require(boundary.validateForSave().ok(), "all ten inputs accepted");
     ReactionValidator input(false), output(true);
     int pos = 0;
     for (auto text : QStringList{"x0", "x9"})
@@ -488,7 +620,7 @@ int main(int argc, char **argv) {
             else if (name.endsWith("InputsCount"))
                 spin->setValue(3);
             else if (name.endsWith("OutputsCount"))
-                spin->setValue(4);
+                spin->setValue(3);
             else
                 spin->setValue(name.startsWith("mealy") ? 2 : 5);
         }
@@ -582,6 +714,8 @@ int main(int argc, char **argv) {
         require(attachments.next() && attachments.value(0).toInt() == 2,
                 "replace and import do not leave orphaned attachments");
         testVariantNavigation(service, translator, imagePath, dir.filePath("localized.m2m"));
+        testValidationHighlights(service, imagePath,
+                                 argc > 1 ? QString::fromLocal8Bit(argv[1]) : QString());
     }
     data = sample();
     {

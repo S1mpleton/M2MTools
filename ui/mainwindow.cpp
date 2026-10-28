@@ -2,6 +2,7 @@
 #include "infrastructure/logger.h"
 #include "infrastructure/translationmanager.h"
 #include "ui/appicons.h"
+#include "ui/fieldfeedback.h"
 #include "ui/logwindow.h"
 #include "ui/translateresult.h"
 #include "ui/variantslist.h"
@@ -33,6 +34,8 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     m_mealy = {ui->mealyStatesCount, ui->mealyInputsCount, ui->mealyOutputsCount};
     m_moore = {ui->mooreStatesCount, ui->mooreInputsCount, ui->mooreOutputsCount};
     m_feedback = ui->validationMessage;
+    m_fieldFeedback = new FieldFeedback(this);
+    connect(m_feedback, &FeedbackLabel::expired, this, [this] { m_lastResult.reset(); });
     m_imagePanel = new VariantImagePanel(ui->diagramGroup, ui->diagramDropZone, ui->imageFileLabel,
                                          ui->loadImageButton, ui->removeImageButton);
     ui->addReactionStep->setIcon(AppIcons::icon(Icon::Add));
@@ -48,9 +51,7 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     auto changed = [this] {
         if (!m_loading) {
             updateModified();
-            m_lastResult.reset();
-            m_feedback->clear();
-            ui->validationMessage->refreshHeight();
+            clearValidationFeedback();
         }
     };
     connect(m_number, qOverload<int>(&QSpinBox::valueChanged), this, changed);
@@ -68,7 +69,10 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     connect(m_reaction->model(), &QAbstractItemModel::columnsInserted, this, columnsChanged);
     connect(m_reaction->model(), &QAbstractItemModel::columnsRemoved, this, columnsChanged);
     connect(m_imagePanel, &VariantImagePanel::imageChanged, this, changed);
-    connect(m_imagePanel, &VariantImagePanel::loadFailed, this, &MainWindow::showResult);
+    connect(m_imagePanel, &VariantImagePanel::loadFailed, this, [this](const Result &result) {
+        showResult(result);
+        m_fieldFeedback->mark(ui->loadImageButton, translateResult(result));
+    });
     setupMenus();
     refreshTexts();
     ReactionVariant initial;
@@ -145,8 +149,7 @@ void MainWindow::refreshTexts() {
     m_reaction->retranslate();
     ui->reactionHint->refreshHeight();
     if (m_lastResult) {
-        m_feedback->setText(translateResult(*m_lastResult));
-        ui->validationMessage->refreshHeight();
+        m_feedback->updateMessageText(translateResult(*m_lastResult));
     }
     const bool russian = m_translator && m_translator->currentLocale() == "ru_RU";
     ui->actionRussian->setChecked(russian);
@@ -182,25 +185,50 @@ void MainWindow::loadData(const ReactionVariant &data) {
     m_baseline = readData();
     m_lastResult.reset();
     setWindowModified(false);
-    m_feedback->clear();
-    ui->validationMessage->refreshHeight();
+    m_feedback->clearMessage();
+    clearValidationFeedback();
     m_loading = false;
 }
 void MainWindow::showResult(const Result &result) {
     m_lastResult = result;
     Logger::log(result);
-    m_feedback->setText(translateResult(result));
-    ui->validationMessage->refreshHeight();
+    m_feedback->showMessage(translateResult(result), result.isError() ? UiFeedbackLevel::Error
+                                                     : result.isWarning()
+                                                         ? UiFeedbackLevel::Warning
+                                                         : UiFeedbackLevel::Success);
+}
+void MainWindow::clearValidationFeedback() {
+    m_fieldFeedback->clear();
+    m_reaction->clearCellFeedback();
+}
+void MainWindow::markValidationError(const Result &result) {
+    const auto message = translateResult(result);
+    const QHash<QString, QWidget *> fields{
+        {"number", m_number},          {"type", m_type},
+        {"reaction", m_reaction},      {"image", ui->diagramDropZone},
+        {"mealy.states", m_mealy[0]},  {"mealy.inputs", m_mealy[1]},
+        {"mealy.outputs", m_mealy[2]}, {"moore.states", m_moore[0]},
+        {"moore.inputs", m_moore[1]},  {"moore.outputs", m_moore[2]}};
+    for (const auto &field : result.fields()) {
+        if (fields.contains(field))
+            m_fieldFeedback->mark(fields.value(field), message);
+        if (field.endsWith(".inputs"))
+            m_reaction->markRowError(0, message);
+        if (field.endsWith(".outputs"))
+            m_reaction->markRowError(1, message);
+    }
+    m_reaction->markError(result.offender(), message);
+    if (result.fields().contains("image"))
+        ui->loadImageButton->setFocus();
 }
 bool MainWindow::save() {
     m_reaction->setFocus(); // Finish editing before reading the sequence.
+    clearValidationFeedback();
     const auto data = readData();
     const auto valid = data.validateForSave();
     if (!valid.ok()) {
         showResult(valid);
-        m_reaction->markError(valid.offender(), translateResult(valid));
-        if (valid.code() == ErrorCode::VariantMissingImage)
-            ui->loadImageButton->setFocus();
+        markValidationError(valid);
         return false;
     }
     const auto exists = m_service->isExist(data.number);

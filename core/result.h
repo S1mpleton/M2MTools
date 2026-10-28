@@ -91,6 +91,13 @@ class Result {
     QString offender() const {
         return m_offender;
     }
+    QStringList fields() const {
+        return m_fields;
+    }
+    Result &withFields(const QStringList &fields) {
+        m_fields = fields;
+        return *this;
+    }
 
     ErrorCode code() const {
         return m_code;
@@ -151,6 +158,7 @@ class Result {
     QString m_message;
     QString m_details;
     QString m_offender;
+    QStringList m_fields;
     QDateTime m_timestamp;
 
     ErrorCode m_code = ErrorCode::None;

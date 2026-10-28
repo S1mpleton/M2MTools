@@ -200,7 +200,7 @@
     <item>
      <widget class="QGroupBox" name="diagramGroup">
       <property name="title">
-       <string>Task image (required)</string>
+       <string>Task image</string>
       </property>
       <layout class="QHBoxLayout" name="imageLayout">
        <property name="spacing">
@@ -357,7 +357,7 @@
      </widget>
     </item>
     <item>
-     <widget class="WrappingLabel" name="validationMessage">
+     <widget class="FeedbackLabel" name="validationMessage">
       <property name="wordWrap">
        <bool>true</bool>
       </property>
@@ -499,6 +499,11 @@
   </action>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>FeedbackLabel</class>
+   <extends>QLabel</extends>
+   <header>ui/widgets/feedbacklabel.h</header>
+  </customwidget>
   <customwidget>
    <class>ReactionTable</class>
    <extends>QTableWidget</extends>

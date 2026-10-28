@@ -21,15 +21,17 @@ QString variantTypeDisplayName(VariantType type) {
 Result ReactionVariant::validate() const {
     const auto imageValidation = image.validate();
     if (!imageValidation.ok())
-        return imageValidation;
+        return Result(imageValidation).withFields({"image"});
     auto fail = [](const char *source, const QStringList &arguments = {}) {
         return Result::errorMessage(source, arguments, ResultCategory::Validation);
     };
     if (number < 1 || number > 999999)
-        return fail(
-            QT_TRANSLATE_NOOP("ResultMessage", "Variant number must be between 1 and 999999."));
+        return fail(QT_TRANSLATE_NOOP("ResultMessage",
+                                      "Variant number must be between 1 and 999999."))
+            .withFields({"number"});
     if (type != VariantType::MealyToMoore && type != VariantType::MooreToMealy)
-        return fail(QT_TRANSLATE_NOOP("ResultMessage", "Unknown conversion direction."));
+        return fail(QT_TRANSLATE_NOOP("ResultMessage", "Unknown conversion direction."))
+            .withFields({"type"});
     for (const auto &counts : {mealy, moore}) {
         if (counts.states < 1 || counts.states > 999999 || counts.inputs < 1 ||
             counts.inputs > 10 || counts.outputs < 1 || counts.outputs > 10)
@@ -38,10 +40,10 @@ Result ReactionVariant::validate() const {
                 "For both automata, specify 1–999999 states and 1–10 signals of each kind."));
     }
     if (reaction.isEmpty())
-        return fail(QT_TRANSLATE_NOOP("ResultMessage", "Enter at least one reaction step."));
+        return fail(QT_TRANSLATE_NOOP("ResultMessage", "Enter at least one reaction step."))
+            .withFields({"reaction"});
     const QRegularExpression inputPattern(QStringLiteral("^x[0-9]$"));
     const QRegularExpression outputPattern(QStringLiteral("^y[0-9]$"));
-    QSet<QString> inputs, outputs;
     for (int i = 0; i < reaction.size(); ++i) {
         const auto &step = reaction[i];
         if (!inputPattern.match(step.input).hasMatch())
@@ -50,7 +52,6 @@ Result ReactionVariant::validate() const {
                             "Step %1: enter one input x0–x9; gaps between steps are not allowed."),
                         {QString::number(i + 1)})
                 .withOffender(QStringLiteral("0:%1").arg(i));
-        inputs.insert(step.input);
         QSet<QString> unique;
         for (const auto &output : step.outputs) {
             if (!outputPattern.match(output).hasMatch() || unique.contains(output))
@@ -60,16 +61,10 @@ Result ReactionVariant::validate() const {
                             {QString::number(i + 1)})
                     .withOffender(QStringLiteral("1:%1").arg(i));
             unique.insert(output);
-            outputs.insert(output);
         }
     }
-    // A trace need not exercise the entire alphabet; suffix numbers are labels,
-    // not indexes into the declared counts (one signal may be called x9).
-    if (inputs.size() > mealy.inputs || inputs.size() > moore.inputs ||
-        outputs.size() > mealy.outputs || outputs.size() > moore.outputs)
-        return fail(QT_TRANSLATE_NOOP(
-            "ResultMessage",
-            "The reaction uses more distinct signals than declared for Mealy or Moore."));
+    // Reading remains structural: older tasks can be opened to correct their counts.
+    // Exact agreement with the source automaton is required when saving/exporting.
     return Result::success();
 }
 
@@ -77,11 +72,39 @@ Result ReactionVariant::validateForSave() const {
     const auto valid = validate();
     if (!valid.ok())
         return valid;
+    const bool mealySource = type == VariantType::MealyToMoore;
+    const auto &source = mealySource ? mealy : moore;
+    const QString prefix = mealySource ? "mealy" : "moore";
+    QSet<QString> inputs, outputs;
+    for (const auto &step : reaction) {
+        inputs.insert(step.input);
+        for (const auto &output : step.outputs)
+            outputs.insert(output);
+    }
+    QStringList fields;
+    if (inputs.size() != source.inputs)
+        fields.append(prefix + ".inputs");
+    if (outputs.size() != source.outputs)
+        fields.append(prefix + ".outputs");
+    if (!fields.isEmpty())
+        return Result::errorMessage(
+                   mealySource
+                       ? QT_TRANSLATE_NOOP("ResultMessage",
+                                           "Mealy signal counts must match the reaction: inputs — "
+                                           "%1 declared, %2 used; outputs — %3 declared, %4 used.")
+                       : QT_TRANSLATE_NOOP("ResultMessage",
+                                           "Moore signal counts must match the reaction: inputs — "
+                                           "%1 declared, %2 used; outputs — %3 declared, %4 used."),
+                   {QString::number(source.inputs), QString::number(inputs.size()),
+                    QString::number(source.outputs), QString::number(outputs.size())},
+                   ResultCategory::Validation)
+            .withFields(fields);
     if (image.data.isEmpty())
         return Result::error(QStringLiteral("A task image is required."),
                              ResultCategory::Validation)
             .withCode(ErrorCode::VariantMissingImage)
-            .withOffender(QString::number(number));
+            .withOffender(QString::number(number))
+            .withFields({"image"});
     return Result::success();
 }
 
