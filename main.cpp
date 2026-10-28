@@ -11,7 +11,7 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    a.setApplicationName("M2MTools Lite");
+    a.setApplicationName("M2MTools");
     a.setAttribute(Qt::AA_DontShowIconsInMenus, false);
     TranslationManager translationManager(&a);
     translationManager.loadSystemLocale();

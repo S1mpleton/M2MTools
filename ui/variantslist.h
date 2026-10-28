@@ -4,6 +4,7 @@
 #include "data/variantservice.h"
 #include <QDialog>
 #include <optional>
+#include <functional>
 
 class QComboBox;
 class QPushButton;
@@ -24,6 +25,10 @@ public:
     VariantType selectedVariantType() const { return m_selectedType; }
 
     bool hasSelection() const { return m_hasSelection; }
+    void setBeforeLoad(std::function<bool()> beforeLoad) { m_beforeLoad = std::move(beforeLoad); }
+
+protected:
+    void changeEvent(QEvent *event) override;
 
 signals:
     void variantDeleted(int number);
@@ -43,6 +48,7 @@ private:
     int m_selectedNumber = 0;
     VariantType m_selectedType = VariantType::MooreToMealy;
     bool m_hasSelection = false;
+    std::function<bool()> m_beforeLoad;
 
     QComboBox* m_swapFirst = nullptr;
     QComboBox* m_swapSecond = nullptr;

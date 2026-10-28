@@ -35,6 +35,8 @@ namespace {
 }
 
 QString TranslateResult::forUi(const Result& r) {
+    if (r.hasMessageTemplate())
+        return r.localizedMessage();
     using EC = ErrorCode;
 
     switch (r.code()) {
@@ -244,8 +246,7 @@ QString TranslateResult::forUi(const Result& r) {
 
     case EC::None:
     {
-        const QByteArray source = r.message().toUtf8();
-        return QCoreApplication::translate("ResultMessage", source.constData());
+        return r.localizedMessage();
     }
 
     default:

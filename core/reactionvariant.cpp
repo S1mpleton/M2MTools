@@ -22,35 +22,42 @@ Result ReactionVariant::validate() const {
     const auto imageValidation = image.validate();
     if (!imageValidation.ok())
         return imageValidation;
-    auto fail = [](const QString &text) { return Result::error(text, ResultCategory::Validation); };
+    auto fail = [](const char *source, const QStringList &arguments = {}) {
+        return Result::errorMessage(source, arguments, ResultCategory::Validation);
+    };
     if (number < 1 || number > 999999)
-        return fail(QStringLiteral("Номер варианта: от 1 до 999999."));
+        return fail(
+            QT_TRANSLATE_NOOP("ResultMessage", "Variant number must be between 1 and 999999."));
     if (type != VariantType::MealyToMoore && type != VariantType::MooreToMealy)
-        return fail(QStringLiteral("Неизвестное направление преобразования."));
+        return fail(QT_TRANSLATE_NOOP("ResultMessage", "Unknown conversion direction."));
     for (const auto &counts : {mealy, moore}) {
         if (counts.states < 1 || counts.states > 999999 || counts.inputs < 1 ||
             counts.inputs > 10 || counts.outputs < 1 || counts.outputs > 10)
-            return fail(QStringLiteral("Для обоих автоматов задайте число состояний от 1 до 999999 "
-                                       "и число сигналов от 1 до 10."));
+            return fail(QT_TRANSLATE_NOOP(
+                "ResultMessage",
+                "For both automata, specify 1–999999 states and 1–10 signals of each kind."));
     }
     if (reaction.isEmpty())
-        return fail(QStringLiteral("Введите хотя бы один такт реакции."));
+        return fail(QT_TRANSLATE_NOOP("ResultMessage", "Enter at least one reaction step."));
     const QRegularExpression inputPattern(QStringLiteral("^x[0-9]$"));
     const QRegularExpression outputPattern(QStringLiteral("^y[0-9]$"));
     QSet<QString> inputs, outputs;
     for (int i = 0; i < reaction.size(); ++i) {
         const auto &step = reaction[i];
         if (!inputPattern.match(step.input).hasMatch())
-            return fail(QStringLiteral(
-                            "Такт %1: нужен один вход x0–x9; пропуски между тактами недопустимы.")
-                            .arg(i + 1))
+            return fail(QT_TRANSLATE_NOOP(
+                            "ResultMessage",
+                            "Step %1: enter one input x0–x9; gaps between steps are not allowed."),
+                        {QString::number(i + 1)})
                 .withOffender(QStringLiteral("0:%1").arg(i));
         inputs.insert(step.input);
         QSet<QString> unique;
         for (const auto &output : step.outputs) {
             if (!outputPattern.match(output).hasMatch() || unique.contains(output))
-                return fail(QStringLiteral("Такт %1: выходы y0–y9 через запятую, без повторов.")
-                                .arg(i + 1))
+                return fail(QT_TRANSLATE_NOOP("ResultMessage",
+                                              "Step %1: enter outputs y0–y9 separated by commas, "
+                                              "without duplicates."),
+                            {QString::number(i + 1)})
                     .withOffender(QStringLiteral("1:%1").arg(i));
             unique.insert(output);
             outputs.insert(output);
@@ -60,9 +67,28 @@ Result ReactionVariant::validate() const {
     // not indexes into the declared counts (one signal may be called x9).
     if (inputs.size() > mealy.inputs || inputs.size() > moore.inputs ||
         outputs.size() > mealy.outputs || outputs.size() > moore.outputs)
-        return fail(QStringLiteral(
-            "В реакции больше различных сигналов, чем указано в количествах Мили или Мура."));
+        return fail(QT_TRANSLATE_NOOP(
+            "ResultMessage",
+            "The reaction uses more distinct signals than declared for Mealy or Moore."));
     return Result::success();
+}
+
+Result ReactionVariant::validateForSave() const {
+    const auto valid = validate();
+    if (!valid.ok())
+        return valid;
+    if (image.data.isEmpty())
+        return Result::error(QStringLiteral("A task image is required."),
+                             ResultCategory::Validation)
+            .withCode(ErrorCode::VariantMissingImage)
+            .withOffender(QString::number(number));
+    return Result::success();
+}
+
+bool ReactionVariant::operator==(const ReactionVariant &other) const {
+    return number == other.number && type == other.type && mealy == other.mealy &&
+           moore == other.moore && reaction == other.reaction && image.data == other.image.data &&
+           image.fileName == other.image.fileName;
 }
 
 QJsonObject ReactionVariant::toJson() const {
@@ -84,7 +110,10 @@ QJsonObject ReactionVariant::toJson() const {
 }
 
 Result ReactionVariant::fromJson(const QJsonObject &object, ReactionVariant *result) {
-    auto invalid = [] { return Result::error(QStringLiteral("Повреждены данные варианта Lite.")); };
+    auto invalid = [] {
+        return Result::errorMessage(
+            QT_TRANSLATE_NOOP("ResultMessage", "The variant data is corrupted."));
+    };
     if (!result)
         return invalid();
     ReactionVariant data;

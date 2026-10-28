@@ -4,7 +4,8 @@
 
 namespace {
 Result error(const QSqlQuery &q) {
-    return Result::error(QStringLiteral("Ошибка базы данных."), ResultCategory::Database)
+    return Result::error(QStringLiteral("Database query failed."), ResultCategory::Database)
+        .withCode(ErrorCode::DatabaseQueryFailed)
         .withDetails(q.lastError().text());
 }
 VariantRow row(const QSqlQuery &q) {
@@ -80,7 +81,9 @@ Result VariantRepository::loadVariant(int number) const {
     if (!q.isActive())
         return error(q);
     if (!q.next())
-        return Result::error(QStringLiteral("Вариант не найден."));
+        return Result::error(QStringLiteral("Variant not found."))
+            .withCode(ErrorCode::VariantNotFound)
+            .withOffender(QString::number(number));
     const int id = q.value(0).toInt();
     QJsonObject object{{"number", number},
                        {"type", q.value(1).toString()},
@@ -99,7 +102,8 @@ Result VariantRepository::loadVariant(int number) const {
     while (q.next()) {
         const auto outputs = QJsonDocument::fromJson(q.value(2).toString().toUtf8());
         if (q.value(0).toInt() != steps.size() || !outputs.isArray())
-            return Result::error(QStringLiteral("Повреждён порядок тактов или список выходов."));
+            return Result::errorMessage(QT_TRANSLATE_NOOP(
+                "ResultMessage", "The stored step order or output list is corrupted."));
         steps.append(QJsonObject{{"input", q.value(1).toString()}, {"outputs", outputs.array()}});
     }
     object.insert("reaction", steps);

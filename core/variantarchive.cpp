@@ -169,10 +169,12 @@ Result VariantArchive::save(const QString& path,
     QJsonArray variantArray;
     QSet<int> numbers;
     for (const ReactionVariant& variant : variants) {
-        const auto valid = variant.validate();
+        const auto valid = variant.validateForSave();
         if (!valid.ok()) return valid;
         if (numbers.contains(variant.number))
-            return Result::error(QStringLiteral("Повтор номера варианта в архиве."));
+            return Result::error(QStringLiteral("Duplicate variant number in archive"))
+                .withCode(ErrorCode::ArchiveDuplicateVariantNumber)
+                .withOffender(QString::number(variant.number));
         numbers.insert(variant.number);
         variantArray.append(variant.toJson());
     }
@@ -208,8 +210,9 @@ Result VariantArchive::save(const QString& path,
             .withCode(ErrorCode::ArchiveSaveFailed)
             .withDetails(file.errorString());
     }
-    return Result::success(
-        QStringLiteral("Saved %1 variants to the archive").arg(variants.size()));
+    return Result::successMessage(
+        QT_TRANSLATE_NOOP("ResultMessage", "Saved %1 variants to the archive"),
+        {QString::number(variants.size())});
 }
 
 Result VariantArchive::load(const QString& path,
@@ -290,6 +293,7 @@ Result VariantArchive::load(const QString& path,
         loaded.append(data);
     }
     *variants = loaded;
-    return Result::success(
-        QStringLiteral("Loaded %1 variants from the archive").arg(loaded.size()));
+    return Result::successMessage(
+        QT_TRANSLATE_NOOP("ResultMessage", "Loaded %1 variants from the archive"),
+        {QString::number(loaded.size())});
 }

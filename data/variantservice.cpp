@@ -16,13 +16,15 @@ VariantService::VariantService(Database* db, VariantRepository* repo, QObject* p
 
 
 Result VariantService::saveVariant(const ReactionVariant& data) {
-    const auto validation = data.validate();
+    const auto validation = data.validateForSave();
     if (!validation.ok()) return validation;
     Result findResult = m_repo->findVariant(data.number);
     if (!findResult.ok()) return findResult;
 
     Transaction tx(m_db);
-    if (!tx.active()) return Result::error(QStringLiteral("Не удалось начать транзакцию."));
+    if (!tx.active())
+        return Result::error(QStringLiteral("Failed to begin transaction"))
+            .withCode(ErrorCode::DatabaseTransactionFailed);
 
     if (findResult.hasPayload()) {
         return Result::error(
@@ -38,24 +40,24 @@ Result VariantService::saveVariant(const ReactionVariant& data) {
 
     // 4. COMMIT
     if (!tx.commit()) {
-        return Result::error(
-            QString("Failed to commit transaction"),
-            ResultCategory::Database);
+        return Result::error(QString("Failed to commit transaction"), ResultCategory::Database)
+            .withCode(ErrorCode::DatabaseCommitFailed);
     }
 
-    return Result::success(
-        QString("Variant №%1 saved successfully").arg(data.number));
-
+    return Result::successMessage(QT_TRANSLATE_NOOP("ResultMessage", "Variant #%1 saved"),
+                                  {QString::number(data.number)});
 }
 
 Result VariantService::replaceVariant(const ReactionVariant& data) {
-    const auto validation = data.validate();
+    const auto validation = data.validateForSave();
     if (!validation.ok()) return validation;
     Result existing = m_repo->findVariant(data.number);
     if (!existing.ok()) return existing;
 
     Transaction transaction(m_db);
-    if (!transaction.active()) return Result::error(QStringLiteral("Не удалось начать транзакцию."));
+    if (!transaction.active())
+        return Result::error(QStringLiteral("Failed to begin transaction"))
+            .withCode(ErrorCode::DatabaseTransactionFailed);
     if (existing.hasPayload()) {
         Result removeResult =
             m_repo->removeVariant(existing.payloadAs<VariantRow>().id);
@@ -72,9 +74,8 @@ Result VariantService::replaceVariant(const ReactionVariant& data) {
             .withCode(ErrorCode::DatabaseCommitFailed)
             .withDetails(error);
     }
-    return Result::success(
-        QStringLiteral("Variant №%1 replaced successfully")
-            .arg(data.number));
+    return Result::successMessage(QT_TRANSLATE_NOOP("ResultMessage", "Variant #%1 replaced"),
+                                  {QString::number(data.number)});
 }
 
 Result VariantService::insertVariantData(const ReactionVariant& data) {
@@ -94,7 +95,9 @@ Result VariantService::removeVariant(int variantNumber) {
     VariantRow variant = existing.payloadAs<VariantRow>();
 
     Transaction tx(m_db);
-    if (!tx.active()) return Result::error(QStringLiteral("Не удалось начать транзакцию."));
+    if (!tx.active())
+        return Result::error(QStringLiteral("Failed to begin transaction"))
+            .withCode(ErrorCode::DatabaseTransactionFailed);
 
     if (existing.hasPayload()) {
         Result clearResult = m_repo->removeVariant(variant.id);
@@ -108,32 +111,36 @@ Result VariantService::removeVariant(int variantNumber) {
             .withCode(ErrorCode::DatabaseCommitFailed);
     }
 
-    return Result::success(
-        QString("Variant №%1 deleted successfully").arg(variant.number));
+    return Result::successMessage(QT_TRANSLATE_NOOP("ResultMessage", "Variant #%1 deleted"),
+                                  {QString::number(variant.number)});
 }
 
 Result VariantService::swapVariants(int firstNumber, int secondNumber) {
     if (firstNumber <= 0 || secondNumber <= 0) {
-        return Result::error(QStringLiteral("Variant numbers must be positive"),
-                             ResultCategory::Validation);
+        return Result::errorMessage(
+            QT_TRANSLATE_NOOP("ResultMessage", "Variant numbers must be positive"), {},
+            ResultCategory::Validation);
     }
     if (firstNumber == secondNumber)
-        return Result::success(QStringLiteral("Variant numbers are equal"));
+        return Result::successMessage(
+            QT_TRANSLATE_NOOP("ResultMessage", "Variant numbers are equal"));
 
     Result firstResult = m_repo->findVariant(firstNumber);
     if (!firstResult.ok()) return firstResult;
     Result secondResult = m_repo->findVariant(secondNumber);
     if (!secondResult.ok()) return secondResult;
     if (!firstResult.hasPayload() && !secondResult.hasPayload()) {
-        return Result::error(
-            QStringLiteral("Neither variant №%1 nor №%2 exists")
-                .arg(firstNumber).arg(secondNumber),
-            ResultCategory::Service)
+        return Result::errorMessage(
+                   QT_TRANSLATE_NOOP("ResultMessage", "Neither variant #%1 nor #%2 exists"),
+                   {QString::number(firstNumber), QString::number(secondNumber)},
+                   ResultCategory::Service)
             .withCode(ErrorCode::VariantNotFound);
     }
 
     Transaction tx(m_db);
-    if (!tx.active()) return Result::error(QStringLiteral("Не удалось начать транзакцию."));
+    if (!tx.active())
+        return Result::error(QStringLiteral("Failed to begin transaction"))
+            .withCode(ErrorCode::DatabaseTransactionFailed);
     if (firstResult.hasPayload() && secondResult.hasPayload()) {
         const VariantRow first = firstResult.payloadAs<VariantRow>();
         const VariantRow second = secondResult.payloadAs<VariantRow>();
@@ -164,9 +171,9 @@ Result VariantService::swapVariants(int firstNumber, int secondNumber) {
             .withCode(ErrorCode::DatabaseCommitFailed)
             .withDetails(error);
     }
-    return Result::success(
-        QStringLiteral("Variants №%1 and №%2 swapped")
-            .arg(firstNumber).arg(secondNumber));
+    return Result::successMessage(
+        QT_TRANSLATE_NOOP("ResultMessage", "Variants #%1 and #%2 swapped"),
+        {QString::number(firstNumber), QString::number(secondNumber)});
 }
 
 Result VariantService::compactVariantNumbers() {
@@ -186,10 +193,13 @@ Result VariantService::compactVariantNumbers() {
         }
     }
     if (!needsCompaction)
-        return Result::success(QStringLiteral("Variant numbers are already compact"));
+        return Result::successMessage(
+            QT_TRANSLATE_NOOP("ResultMessage", "Variant numbers are already compact"));
 
     Transaction tx(m_db);
-    if (!tx.active()) return Result::error(QStringLiteral("Не удалось начать транзакцию."));
+    if (!tx.active())
+        return Result::error(QStringLiteral("Failed to begin transaction"))
+            .withCode(ErrorCode::DatabaseTransactionFailed);
     for (int i = 0; i < variants.size(); ++i) {
         Result result = m_repo->updateVariantNumber(
             variants[i].id, -1000000 - i);
@@ -209,7 +219,7 @@ Result VariantService::compactVariantNumbers() {
             .withCode(ErrorCode::DatabaseCommitFailed)
             .withDetails(error);
     }
-    return Result::success(QStringLiteral("Variant numbers compacted"));
+    return Result::successMessage(QT_TRANSLATE_NOOP("ResultMessage", "Variant numbers compacted"));
 }
 
 Result VariantService::exportArchive(const QString& path) {
@@ -223,16 +233,9 @@ Result VariantService::exportArchive(const QString& path) {
         if (!loadResult.ok() || !loadResult.hasPayload())
             return loadResult;
         ReactionVariant data = loadResult.payloadAs<ReactionVariant>();
-        Result validation = data.validate();
-        if (!validation.ok()) {
-            return Result::error(
-                QStringLiteral("Variant #%1 is incomplete: %2")
-                    .arg(row.number).arg(validation.message()),
-                ResultCategory::Validation)
-                .withCode(validation.code())
-                .withOffender(validation.offender())
-                .withDetails(validation.details());
-        }
+        Result validation = data.validateForSave();
+        if (!validation.ok())
+            return validation;
         variants.append(data);
     }
     return VariantArchive::save(path, variants);
@@ -244,7 +247,9 @@ Result VariantService::importArchive(const QString& path) {
     if (!loadResult.ok()) return loadResult;
 
     Transaction transaction(m_db);
-    if (!transaction.active()) return Result::error(QStringLiteral("Не удалось начать транзакцию."));
+    if (!transaction.active())
+        return Result::error(QStringLiteral("Failed to begin transaction"))
+            .withCode(ErrorCode::DatabaseTransactionFailed);
     Result allResult = m_repo->findAllVariants();
     if (!allResult.ok()) return allResult;
     for (const VariantRow& row :
@@ -265,8 +270,9 @@ Result VariantService::importArchive(const QString& path) {
             .withCode(ErrorCode::DatabaseCommitFailed)
             .withDetails(error);
     }
-    return Result::success(
-        QStringLiteral("Imported %1 variants from the archive").arg(variants.size()));
+    return Result::successMessage(
+        QT_TRANSLATE_NOOP("ResultMessage", "Imported %1 variants from the archive"),
+        {QString::number(variants.size())});
 }
 
 Result VariantService::loadVariant(int variantNumber) {
@@ -280,11 +286,7 @@ Result VariantService::isExist(int variantNumber) {
     }
 
     const bool exists = findResult.hasPayload();
-    return Result::success(QStringLiteral("Variant #%1 existence check completed: %2")
-                               .arg(variantNumber)
-                               .arg(exists ? QStringLiteral("exists")
-                                           : QStringLiteral("not found")))
-        .withPayload(exists);
+    return Result::success().withPayload(exists);
 }
 
 Result VariantService::findAllVariants() const {

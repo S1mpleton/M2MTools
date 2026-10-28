@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QIntValidator>
 #include <QPushButton>
+#include <QEvent>
 
 #include <algorithm>
 
@@ -193,12 +194,21 @@ void VariantsList::onLoadClicked() {
     const int row = ui->variantsTableWidget->currentRow();
     auto ref = variantRefAt(row);
     if (!ref) return;
+    if (m_beforeLoad && !m_beforeLoad()) return;
 
     m_selectedNumber = ref->number;
     m_selectedType = ref->type;
     m_hasSelection = true;
 
     accept();
+}
+
+void VariantsList::changeEvent(QEvent *event) {
+    QDialog::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(this);
+        populateTable();
+    }
 }
 
 void VariantsList::onDeleteClicked() {

@@ -3,8 +3,11 @@
 #include "data/database.h"
 #include "data/schemamanager.h"
 #include "data/variantservice.h"
+#include "infrastructure/logger.h"
 #include "infrastructure/translationmanager.h"
+#include "ui/logwindow.h"
 #include "ui/mainwindow.h"
+#include "ui/translateresult.h"
 #include "ui/variantslist.h"
 #include "ui/widgets/reactiontable.h"
 #include "ui/widgets/variantimagepanel.h"
@@ -26,6 +29,7 @@
 #include <QMimeData>
 #include <QPainter>
 #include <QPalette>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTemporaryDir>
@@ -68,6 +72,154 @@ ReactionVariant sample() {
 bool equal(const ReactionVariant &a, const ReactionVariant &b) {
     return a.toJson() == b.toJson();
 }
+
+// Fail immediately on unexpected modal questions instead of hanging the test.
+class QuestionGuard : public QObject {
+  public:
+    QuestionGuard() {
+        qApp->installEventFilter(this);
+    }
+    ~QuestionGuard() override {
+        qApp->removeEventFilter(this);
+    }
+    QMessageBox::StandardButton answer = QMessageBox::NoButton;
+    int count = 0;
+
+  protected:
+    bool eventFilter(QObject *object, QEvent *event) override {
+        auto *box = qobject_cast<QMessageBox *>(object);
+        if (box && event->type() == QEvent::Show) {
+            require(answer != QMessageBox::NoButton, "no unexpected unsaved-changes question");
+            const auto choice = answer;
+            answer = QMessageBox::NoButton;
+            ++count;
+            QTimer::singleShot(0, box, [box, choice] {
+                require(box->button(choice) != nullptr, "expected question button exists");
+                QTest::mouseClick(box->button(choice), Qt::LeftButton);
+            });
+        }
+        return QObject::eventFilter(object, event);
+    }
+};
+
+void testVariantNavigation(VariantService &service, TranslationManager &translator,
+                           const QString &imagePath, const QString &archivePath) {
+    QuestionGuard questions;
+    MainWindow window(&service, &translator, nullptr);
+    window.show();
+    qApp->processEvents();
+    require(!window.windowTitle().contains("Lite"), "main title has no Lite suffix");
+    auto *table = window.findChild<ReactionTable *>();
+    auto *image = window.findChild<VariantImagePanel *>();
+    auto click = [&window](const char *name) {
+        QTest::mouseClick(window.findChild<QPushButton *>(name), Qt::LeftButton);
+        qApp->processEvents();
+    };
+    auto load = [&](int number, bool shouldLoad = true) {
+        QTimer::singleShot(0, &window, [&, number, shouldLoad] {
+            auto *dialog = qobject_cast<VariantsList *>(QApplication::activeModalWidget());
+            require(dialog != nullptr, "browser opens before any save question");
+            auto *list = dialog->findChild<QTableWidget *>("variantsTableWidget");
+            for (int row = 0; row < list->rowCount(); ++row) {
+                if (list->item(row, 0)->text().toInt() != number)
+                    continue;
+                list->setCurrentCell(row, 0);
+                QTest::mouseClick(dialog->findChild<QPushButton *>("loadPushButton"),
+                                  Qt::LeftButton);
+                if (!shouldLoad) {
+                    require(dialog->isVisible(), "cancel or failed save leaves browser open");
+                    dialog->reject();
+                }
+                return;
+            }
+            require(false, "requested variant appears in browser");
+        });
+        click("openVariantButton");
+    };
+
+    // Changing metadata or attaching a picture does not make an empty reaction prompt.
+    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(3);
+    require(image->loadFromFile(imagePath), "attach picture to empty reaction");
+    click("newVariantButton");
+    require(questions.count == 0 && table->steps().isEmpty(), "empty new variant has no question");
+    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(2);
+    require(window.close(), "empty modified variant closes without question");
+    window.show();
+    load(4);
+    table->item(0, 0)->setText("x9");
+    table->item(0, 0)->setText("x2");
+    const int originalCount = window.findChild<QSpinBox *>("mealyStatesCount")->value();
+    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(originalCount + 1);
+    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(originalCount);
+    click("removeImageButton");
+    require(image->loadFromFile(imagePath), "restore original attachment");
+    table->setCurrentCell(0, table->columnCount() - 1);
+    table->insertStep();
+    for (auto *editor : table->findChildren<QLineEdit *>("reactionCellEditor"))
+        if (editor->isVisible())
+            QTest::keyClick(editor, Qt::Key_Escape);
+    qApp->processEvents();
+    require(!window.isWindowModified(), "reverted edits and empty trailing columns are unchanged");
+    load(7);
+    require(questions.count == 0, "loading from unchanged nonempty variant has no question");
+    click("newVariantButton");
+
+    table->item(0, 0)->setText("x2");
+    QTimer::singleShot(0, &window, [] {
+        auto *dialog = qobject_cast<VariantsList *>(QApplication::activeModalWidget());
+        require(dialog != nullptr, "dirty draft does not block browsing");
+        dialog->reject();
+    });
+    click("openVariantButton");
+    require(questions.count == 0 && table->item(0, 0)->text() == "x2",
+            "closing browser preserves draft without question");
+    questions.answer = QMessageBox::Cancel;
+    load(4, false);
+    require(questions.count == 1 && table->item(0, 0)->text() == "x2", "cancel preserves draft");
+    questions.answer = QMessageBox::Save;
+    load(4, false);
+    require(questions.count == 2 && window.isWindowModified(),
+            "failed image validation keeps draft");
+    require(!service.isExist(1).payloadAs<bool>(), "failed save does not create variant");
+    require(image->loadFromFile(imagePath), "complete draft with required image");
+    questions.answer = QMessageBox::Save;
+    load(4);
+    require(questions.count == 3 && service.loadVariant(1).ok(),
+            "Save then Load preserves draft in database");
+    table->item(1, 0)->setText("y2");
+    questions.answer = QMessageBox::Discard;
+    load(7);
+    require(questions.count == 4 &&
+                service.loadVariant(4).payloadAs<ReactionVariant>().reaction[0].outputs ==
+                    QStringList{"y3"},
+            "Discard loads selected variant without changing stored source");
+    require(window.close(), "unchanged loaded variant closes without question");
+
+    const auto exported = service.exportArchive(archivePath);
+    require(exported.ok() && translateResult(exported).contains(QString::fromUtf8("Сохранено")),
+            "export message with count is translated");
+    const auto imported = service.importArchive(archivePath);
+    require(imported.ok() && translateResult(imported).contains(QString::fromUtf8("Импортировано")),
+            "import message with count is translated");
+    Logger::setDebounceInterval(0);
+    Logger::log(exported);
+    LogWindow log;
+    log.show();
+    qApp->processEvents();
+    auto *logText = log.findChild<QPlainTextEdit *>("logTextEdit");
+    require(logText && logText->toPlainText().contains(QString::fromUtf8("Сохранено")),
+            "Designer logger displays localized results");
+    require(translator.setLocale("en").ok(), "switch to English");
+    qApp->processEvents();
+    require(translateResult(exported).startsWith("Saved ") &&
+                logText->toPlainText().contains("Saved "),
+            "existing result and log history switch to English");
+    require(translator.setLocale("ru_RU").ok(), "restore Russian");
+    qApp->processEvents();
+    require(logText->toPlainText().contains(QString::fromUtf8("Сохранено")),
+            "existing log history switches back to Russian");
+}
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     TranslationManager translator;
@@ -145,15 +297,18 @@ int main(int argc, char **argv) {
         require(schema.createSchema(&error), qPrintable(error));
         VariantRepository repo(db.get());
         VariantService service(db.get(), &repo);
-        require(service.saveVariant(withoutImage).ok(), "save reaction without image");
-        require(service.exportArchive(dir.filePath("previous.m2m")).ok(), "archive without images");
+        require(!service.saveVariant(withoutImage).ok(), "new variant requires an image");
+        require(repo.insertVariant(withoutImage).ok(),
+                "simulate stored legacy variant without image");
+        require(!service.exportArchive(dir.filePath("previous.m2m")).ok(),
+                "export requires complete variants");
         require(db->exec("DROP TABLE VariantImages"), "simulate previous Lite schema");
         require(schema.createSchema(&error), qPrintable(error));
         require(equal(withoutImage, service.loadVariant(4).payloadAs<ReactionVariant>()),
                 "additive migration preserves previous variants");
         require(schema.createSchema(&error), "migration is idempotent");
-        require(service.importArchive(dir.filePath("previous.m2m")).ok(),
-                "previous archives remain importable");
+        require(!service.replaceVariant(withoutImage).ok(),
+                "legacy variant needs image before saving");
         require(service.replaceVariant(data).ok(), "attach image to an existing variant");
         require(!service.replaceVariant(invalid).ok(), "invalid replacement refused");
         require(equal(data, service.loadVariant(4).payloadAs<ReactionVariant>()),
@@ -415,18 +570,18 @@ int main(int argc, char **argv) {
         require(imagePanel->image().data == saved.image.data && !preview->pixmap().isNull(),
                 "opening saved variant restores image and preview");
         QTest::mouseClick(window.findChild<QPushButton *>("removeImageButton"), Qt::LeftButton);
-        QTimer::singleShot(0, [] {
-            auto *confirm = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            require(confirm != nullptr, "replacement confirmation opened");
-            QTest::mouseClick(confirm->button(QMessageBox::Yes), Qt::LeftButton);
-        });
         QTest::mouseClick(window.findChild<QPushButton *>("saveVariantButton"), Qt::LeftButton);
-        saved.image = {};
         require(equal(saved, service.loadVariant(7).payloadAs<ReactionVariant>()),
-                "removed image stays removed after saving");
+                "missing mandatory image leaves saved variant unchanged");
+        require(window.findChild<QLabel *>("validationMessage")
+                    ->text()
+                    .contains(QString::fromUtf8("изображ")),
+                "missing image feedback is translated");
+        require(imagePanel->loadFromFile(imagePath), "restore image after failed save");
         auto attachments = db->query("SELECT COUNT(*) FROM VariantImages");
-        require(attachments.next() && attachments.value(0).toInt() == 1,
+        require(attachments.next() && attachments.value(0).toInt() == 2,
                 "replace and import do not leave orphaned attachments");
+        testVariantNavigation(service, translator, imagePath, dir.filePath("localized.m2m"));
     }
     data = sample();
     {

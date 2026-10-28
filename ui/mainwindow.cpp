@@ -6,6 +6,7 @@
 #include "ui/translateresult.h"
 #include "ui/variantslist.h"
 #include "ui/widgets/reactiontable.h"
+#include "ui/widgets/variantimagepanel.h"
 #include "ui_mainwindow.h"
 #include <QActionGroup>
 #include <QCloseEvent>
@@ -17,6 +18,7 @@
 #include <QPushButton>
 #include <QShowEvent>
 #include <QSpinBox>
+#include <QTimer>
 
 using Icon = AppIcons::Kind;
 MainWindow::MainWindow(VariantService *service, QWidget *parent)
@@ -31,6 +33,8 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     m_mealy = {ui->mealyStatesCount, ui->mealyInputsCount, ui->mealyOutputsCount};
     m_moore = {ui->mooreStatesCount, ui->mooreInputsCount, ui->mooreOutputsCount};
     m_feedback = ui->validationMessage;
+    m_imagePanel = new VariantImagePanel(ui->diagramGroup, ui->diagramDropZone, ui->imageFileLabel,
+                                         ui->loadImageButton, ui->removeImageButton);
     ui->addReactionStep->setIcon(AppIcons::icon(Icon::Add));
     ui->removeReactionStep->setIcon(AppIcons::icon(Icon::Remove));
     ui->newVariantButton->setIcon(AppIcons::icon(Icon::New));
@@ -43,8 +47,8 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     connect(ui->openVariantButton, &QPushButton::clicked, this, &MainWindow::openVariant);
     auto changed = [this] {
         if (!m_loading) {
-            m_dirty = true;
-            setWindowModified(true);
+            updateModified();
+            m_lastResult.reset();
             m_feedback->clear();
             ui->validationMessage->refreshHeight();
         }
@@ -56,10 +60,15 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     for (auto *spin : m_moore)
         connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, changed);
     connect(m_reaction, &QTableWidget::cellChanged, this, changed);
-    connect(m_reaction->model(), &QAbstractItemModel::columnsInserted, this, changed);
-    connect(m_reaction->model(), &QAbstractItemModel::columnsRemoved, this, changed);
-    connect(ui->diagramGroup, &VariantImagePanel::imageChanged, this, changed);
-    connect(ui->diagramGroup, &VariantImagePanel::loadFailed, this, &MainWindow::showResult);
+    // Columns receive their cells after the model emits its structural signals.
+    auto columnsChanged = [this, changed] {
+        if (!m_loading)
+            QTimer::singleShot(0, this, changed);
+    };
+    connect(m_reaction->model(), &QAbstractItemModel::columnsInserted, this, columnsChanged);
+    connect(m_reaction->model(), &QAbstractItemModel::columnsRemoved, this, columnsChanged);
+    connect(m_imagePanel, &VariantImagePanel::imageChanged, this, changed);
+    connect(m_imagePanel, &VariantImagePanel::loadFailed, this, &MainWindow::showResult);
     setupMenus();
     refreshTexts();
     ReactionVariant initial;
@@ -135,6 +144,10 @@ void MainWindow::refreshTexts() {
     ui->retranslateUi(this);
     m_reaction->retranslate();
     ui->reactionHint->refreshHeight();
+    if (m_lastResult) {
+        m_feedback->setText(translateResult(*m_lastResult));
+        ui->validationMessage->refreshHeight();
+    }
     const bool russian = m_translator && m_translator->currentLocale() == "ru_RU";
     ui->actionRussian->setChecked(russian);
     ui->actionEnglish->setChecked(!russian);
@@ -151,7 +164,7 @@ ReactionVariant MainWindow::readData() const {
     data.mealy = {m_mealy[0]->value(), m_mealy[1]->value(), m_mealy[2]->value()};
     data.moore = {m_moore[0]->value(), m_moore[1]->value(), m_moore[2]->value()};
     data.reaction = m_reaction->steps();
-    data.image = ui->diagramGroup->image();
+    data.image = m_imagePanel->image();
     return data;
 }
 void MainWindow::loadData(const ReactionVariant &data) {
@@ -165,14 +178,16 @@ void MainWindow::loadData(const ReactionVariant &data) {
             std::array<int, 3>{data.moore.states, data.moore.inputs, data.moore.outputs}[i]);
     }
     m_reaction->setSteps(data.reaction);
-    ui->diagramGroup->setImage(data.image);
-    m_dirty = false;
+    m_imagePanel->setImage(data.image);
+    m_baseline = readData();
+    m_lastResult.reset();
     setWindowModified(false);
     m_feedback->clear();
     ui->validationMessage->refreshHeight();
     m_loading = false;
 }
 void MainWindow::showResult(const Result &result) {
+    m_lastResult = result;
     Logger::log(result);
     m_feedback->setText(translateResult(result));
     ui->validationMessage->refreshHeight();
@@ -180,10 +195,12 @@ void MainWindow::showResult(const Result &result) {
 bool MainWindow::save() {
     m_reaction->setFocus(); // Finish editing before reading the sequence.
     const auto data = readData();
-    const auto valid = data.validate();
+    const auto valid = data.validateForSave();
     if (!valid.ok()) {
         showResult(valid);
-        m_reaction->markError(valid.offender(), valid.message());
+        m_reaction->markError(valid.offender(), translateResult(valid));
+        if (valid.code() == ErrorCode::VariantMissingImage)
+            ui->loadImageButton->setFocus();
         return false;
     }
     const auto exists = m_service->isExist(data.number);
@@ -201,17 +218,20 @@ bool MainWindow::save() {
     showResult(saved);
     if (!saved.ok())
         return false;
-    m_dirty = false;
+    m_baseline = data;
     setWindowModified(false);
-    m_feedback->setText(tr("Variant #%1 saved").arg(data.number));
-    ui->validationMessage->refreshHeight();
     return true;
 }
-bool MainWindow::confirmDiscard() {
-    if (!m_dirty)
+void MainWindow::updateModified() {
+    setWindowModified(!(readData() == m_baseline));
+}
+bool MainWindow::confirmDiscard(QWidget *parent) {
+    m_reaction->setFocus(); // Commit an active editor, including menu/shortcut actions.
+    const auto current = readData();
+    if (current.reaction.isEmpty() || current == m_baseline)
         return true;
     const auto answer = QMessageBox::question(
-        this, tr("Unsaved changes"), tr("Save changes before continuing?"),
+        parent ? parent : this, tr("Unsaved changes"), tr("Save changes before continuing?"),
         QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
     return answer == QMessageBox::Discard || (answer == QMessageBox::Save && save());
 }
@@ -229,14 +249,20 @@ void MainWindow::newVariant() {
     loadData(data);
 }
 void MainWindow::openVariant() {
-    if (!confirmDiscard())
-        return;
+    m_reaction->setFocus();
     VariantsList dialog(m_service, this);
+    dialog.setBeforeLoad([this, &dialog] { return confirmDiscard(&dialog); });
     connect(&dialog, &VariantsList::variantDeleted, this, [this](int number) {
         if (m_number->value() == number) {
             ReactionVariant data;
             data.number = m_service->firstAvailableVariantNumber();
-            loadData(data);
+            if (readData() == m_baseline)
+                loadData(data);
+            else {
+                // Deleting a stored variant must not erase its edited draft.
+                m_baseline = data;
+                updateModified();
+            }
         }
     });
     connect(&dialog, &VariantsList::variantsSwapped, this, [this](int a, int b) {
@@ -245,7 +271,12 @@ void MainWindow::openVariant() {
             m_number->setValue(b);
         else if (m_number->value() == b)
             m_number->setValue(a);
+        if (m_baseline.number == a)
+            m_baseline.number = b;
+        else if (m_baseline.number == b)
+            m_baseline.number = a;
         m_loading = false;
+        updateModified();
     });
     if (dialog.exec() != QDialog::Accepted || !dialog.hasSelection())
         return;
@@ -263,7 +294,7 @@ void MainWindow::importArchive() {
     if (path.isEmpty())
         return;
     if (QMessageBox::question(this, tr("Import database"),
-                              tr("Replace the current Lite database with the archive contents?")) !=
+                              tr("Replace the current database with the archive contents?")) !=
         QMessageBox::Yes)
         return;
     const auto result = m_service->importArchive(path);

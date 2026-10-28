@@ -7,13 +7,13 @@
 
 namespace {
 Result invalidImage() {
-    return Result::error(
-        QCoreApplication::translate("VariantImage", "The selected file is not a supported image."),
+    return Result::errorMessage(
+        QT_TRANSLATE_NOOP("ResultMessage", "The selected file is not a supported image."), {},
         ResultCategory::Validation);
 }
 Result invalidSize() {
-    return Result::error(
-        QCoreApplication::translate("VariantImage", "The image size must not exceed 10 MB."),
+    return Result::errorMessage(
+        QT_TRANSLATE_NOOP("ResultMessage", "The image size must not exceed 10 MB."), {},
         ResultCategory::Validation);
 }
 } // namespace
@@ -60,8 +60,8 @@ Result VariantImage::fromFile(const QString &path, VariantImage *image) {
         return invalidImage();
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly))
-        return Result::error(
-                   QCoreApplication::translate("VariantImage", "Could not open the image file."))
+        return Result::errorMessage(
+                   QT_TRANSLATE_NOOP("ResultMessage", "Could not open the image file."))
             .withDetails(file.errorString());
     if (file.size() > MaximumBytes)
         return invalidSize();

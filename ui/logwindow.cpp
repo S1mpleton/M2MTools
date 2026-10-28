@@ -1,153 +1,109 @@
 #include "logwindow.h"
-#include "ui/appicons.h"
 #include "infrastructure/logger.h"
+#include "ui/appicons.h"
 #include "ui/dialogs/resultmessenger.h"
 #include "ui/feedbackstyle.h"
 #include "ui/translateresult.h"
+#include "ui_logwindow.h"
 
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QPlainTextEdit>
-#include <QCheckBox>
-#include <QPushButton>
-#include <QComboBox>
-#include <QLabel>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QTextStream>
-#include <QCloseEvent>
 #include <QApplication>
+#include <QCheckBox>
 #include <QClipboard>
+#include <QCloseEvent>
+#include <QComboBox>
+#include <QFileDialog>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
 #include <QScrollBar>
+#include <QTextStream>
+#include <QVBoxLayout>
 
-
-LogWindow::LogWindow(QWidget* parent)
-    : QDialog(parent)
-{
-    setWindowTitle(tr("Application Log"));
+LogWindow::LogWindow(QWidget *parent) : QDialog(parent), ui(new Ui::LogWindow) {
+    ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose, false);
-
-    auto* controlsLayout = new QHBoxLayout;
-
-    m_showInfoBox = new QCheckBox(this);
-    m_showInfoBox->setChecked(true);
-    m_showWarningsBox = new QCheckBox(this);
-    m_showWarningsBox->setChecked(true);
-    m_showErrorsBox = new QCheckBox(this);
-    m_showErrorsBox->setChecked(true);
-
-    m_autoScrollBox = new QCheckBox(this);
-    m_autoScrollBox->setChecked(true);
-
-    m_copyButton = new QPushButton(this);
-    m_clearButton = new QPushButton(this);
-    m_saveButton = new QPushButton(this);
-
+    m_textEdit = ui->logTextEdit;
+    m_autoScrollBox = ui->autoScrollBox;
+    m_showInfoBox = ui->showInfoBox;
+    m_showWarningsBox = ui->showWarningsBox;
+    m_showErrorsBox = ui->showErrorsBox;
+    m_copyButton = ui->copyButton;
+    m_clearButton = ui->clearButton;
+    m_saveButton = ui->saveButton;
     m_copyButton->setIcon(AppIcons::icon(AppIcons::Kind::Copy));
     m_clearButton->setIcon(AppIcons::icon(AppIcons::Kind::Clear));
     m_saveButton->setIcon(AppIcons::icon(AppIcons::Kind::Save));
-    retranslateUi();
-
-    controlsLayout->addWidget(m_showInfoBox);
-    controlsLayout->addWidget(m_showWarningsBox);
-    controlsLayout->addWidget(m_showErrorsBox);
-    controlsLayout->addStretch();
-    controlsLayout->addWidget(m_autoScrollBox);
-    controlsLayout->addWidget(m_copyButton);
-    controlsLayout->addWidget(m_clearButton);
-    controlsLayout->addWidget(m_saveButton);
-
-    m_textEdit = new QPlainTextEdit(this);
-    m_textEdit->setReadOnly(true);
-    m_textEdit->setMaximumBlockCount(kMaxBlocks);
-    m_textEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
-    m_textEdit->setTextInteractionFlags(
-        Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
-
-    QFont monoFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    m_textEdit->setFont(monoFont);
-
-    // --- Layout ---
-    auto* mainLayout = new QVBoxLayout(this);
-    mainLayout->addLayout(controlsLayout);
-    mainLayout->addWidget(m_textEdit);
-
-    resize(900, 500);
+    m_textEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 
     // --- Load history ---
-    for (const Result& r : Logger::instance().history())
+    for (const Result &r : Logger::instance().history())
         appendResult(r);
 
     // --- Connect by new ---
-    connect(&Logger::instance(), &Logger::newResult,
-            this, &LogWindow::onNewResult);
+    connect(&Logger::instance(), &Logger::newResult, this, &LogWindow::onNewResult);
 
     // --- Buttons ---
-    connect(m_clearButton, &QPushButton::clicked,
-            this, &LogWindow::onClearClicked);
-    connect(m_saveButton, &QPushButton::clicked,
-            this, &LogWindow::onSaveToFileClicked);
-    connect(m_copyButton, &QPushButton::clicked,
-            this, &LogWindow::onCopySelectedClicked);
+    connect(m_clearButton, &QPushButton::clicked, this, &LogWindow::onClearClicked);
+    connect(m_saveButton, &QPushButton::clicked, this, &LogWindow::onSaveToFileClicked);
+    connect(m_copyButton, &QPushButton::clicked, this, &LogWindow::onCopySelectedClicked);
 
-    connect(m_autoScrollBox, &QCheckBox::toggled,
-            this, &LogWindow::onAutoScrollToggled);
-    connect(m_showInfoBox, &QCheckBox::toggled,
-            this, &LogWindow::onFilterChanged);
-    connect(m_showWarningsBox, &QCheckBox::toggled,
-            this, &LogWindow::onFilterChanged);
-    connect(m_showErrorsBox, &QCheckBox::toggled,
-            this, &LogWindow::onFilterChanged);
+    connect(m_autoScrollBox, &QCheckBox::toggled, this, &LogWindow::onAutoScrollToggled);
+    connect(m_showInfoBox, &QCheckBox::toggled, this, &LogWindow::onFilterChanged);
+    connect(m_showWarningsBox, &QCheckBox::toggled, this, &LogWindow::onFilterChanged);
+    connect(m_showErrorsBox, &QCheckBox::toggled, this, &LogWindow::onFilterChanged);
 }
 
-LogWindow::~LogWindow() = default;
+LogWindow::~LogWindow() {
+    delete ui;
+}
 
-
-void LogWindow::onNewResult(const Result& result) {
+void LogWindow::onNewResult(const Result &result) {
     appendResult(result);
 
     if (m_autoScrollBox->isChecked()) {
-        m_textEdit->verticalScrollBar()->setValue(
-            m_textEdit->verticalScrollBar()->maximum());
+        m_textEdit->verticalScrollBar()->setValue(m_textEdit->verticalScrollBar()->maximum());
     }
 }
 
-void LogWindow::appendResult(const Result& result) {
+void LogWindow::appendResult(const Result &result) {
     if (!passesFilter(result))
         return;
 
-    const UiFeedbackLevel level = result.isError()
-        ? UiFeedbackLevel::Error
-        : result.isWarning()
-            ? UiFeedbackLevel::Warning
-            : UiFeedbackLevel::Success;
+    const UiFeedbackLevel level = result.isError()     ? UiFeedbackLevel::Error
+                                  : result.isWarning() ? UiFeedbackLevel::Warning
+                                                       : UiFeedbackLevel::Success;
     const QString color = UiFeedbackStyle::foreground(level).name();
 
     const QString timestamp = result.timestamp().toString("hh:mm:ss");
 
     QString text = QStringLiteral("[%1] [%2] [%3] %4")
-                       .arg(timestamp,
-                            resultSeverityToString(result.severity()).toHtmlEscaped(),
-                            resultCategoryToString(result.category()).toHtmlEscaped(),
-                            TranslateResult::forLog(result).toHtmlEscaped());
+                       .arg(timestamp, resultSeverityDisplayName(result.severity()).toHtmlEscaped(),
+                            resultCategoryDisplayName(result.category()).toHtmlEscaped(),
+                            TranslateResult::forUi(result).toHtmlEscaped());
+    if (!result.details().isEmpty())
+        text += " | " + tr("Details: %1").arg(result.details()).toHtmlEscaped();
 
-    const QString html = QStringLiteral(
-                             "<span style='color:%1; white-space: pre;'>%2</span>")
-                             .arg(color, text);
+    const QString html =
+        QStringLiteral("<span style='color:%1; white-space: pre;'>%2</span>").arg(color, text);
 
     m_textEdit->appendHtml(html);
 }
 
-bool LogWindow::passesFilter(const Result& result) const {
-    if (result.isSuccess() && !m_showInfoBox->isChecked()) return false;
-    if (result.isWarning() && !m_showWarningsBox->isChecked()) return false;
-    if (result.isError() && !m_showErrorsBox->isChecked()) return false;
+bool LogWindow::passesFilter(const Result &result) const {
+    if (result.isSuccess() && !m_showInfoBox->isChecked())
+        return false;
+    if (result.isWarning() && !m_showWarningsBox->isChecked())
+        return false;
+    if (result.isError() && !m_showErrorsBox->isChecked())
+        return false;
     return true;
 }
 
 void LogWindow::onFilterChanged() {
     m_textEdit->clear();
-    for (const Result& r : Logger::instance().history())
+    for (const Result &r : Logger::instance().history())
         appendResult(r);
 }
 
@@ -167,11 +123,11 @@ void LogWindow::onClearClicked() {
 }
 
 void LogWindow::onSaveToFileClicked() {
-    const QString path = QFileDialog::getSaveFileName(
-        this, tr("Save Log"), QString(),
-        tr("Text files (*.txt);;All files (*)"));
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save Log"), QString(),
+                                                      tr("Text files (*.txt);;All files (*)"));
 
-    if (path.isEmpty()) return;
+    if (path.isEmpty())
+        return;
 
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -184,16 +140,14 @@ void LogWindow::onSaveToFileClicked() {
     file.close();
 }
 
-void LogWindow::onAutoScrollToggled(bool /*checked*/) {
-}
+void LogWindow::onAutoScrollToggled(bool /*checked*/) {}
 
-
-void LogWindow::closeEvent(QCloseEvent* event) {
+void LogWindow::closeEvent(QCloseEvent *event) {
     hide();
     event->ignore();
 }
 
-void LogWindow::changeEvent(QEvent* event) {
+void LogWindow::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
@@ -201,15 +155,6 @@ void LogWindow::changeEvent(QEvent* event) {
 }
 
 void LogWindow::retranslateUi() {
-    setWindowTitle(tr("Application Log"));
-
-    m_showInfoBox->setText(tr("Info"));
-    m_showWarningsBox->setText(tr("Warnings"));
-    m_showErrorsBox->setText(tr("Errors"));
-
-    m_autoScrollBox->setText(tr("Auto-scroll"));
-
-    m_copyButton->setText(tr("Copy Selected"));
-    m_clearButton->setText(tr("Clear View"));
-    m_saveButton->setText(tr("Save to File..."));
+    ui->retranslateUi(this);
+    onFilterChanged();
 }

@@ -1,17 +1,16 @@
 #pragma once
 #include "core/variantimage.h"
-#include <QGroupBox>
+#include <QObject>
+class QGroupBox;
+class QLabel;
+class QPushButton;
 #include <QPixmap>
 
-namespace Ui {
-class VariantImagePanel;
-}
-
-class VariantImagePanel final : public QGroupBox {
+class VariantImagePanel final : public QObject {
     Q_OBJECT
   public:
-    explicit VariantImagePanel(QWidget *parent = nullptr);
-    ~VariantImagePanel() override;
+    VariantImagePanel(QGroupBox *group, QLabel *preview, QLabel *fileLabel, QPushButton *loadButton,
+                      QPushButton *removeButton);
     VariantImage image() const {
         return m_image;
     }
@@ -24,12 +23,15 @@ class VariantImagePanel final : public QGroupBox {
 
   protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
-    void changeEvent(QEvent *event) override;
 
   private:
     void chooseImage();
     void refreshPreview();
-    Ui::VariantImagePanel *ui;
+    QGroupBox *m_group;
+    QLabel *m_preview;
+    QLabel *m_fileLabel;
+    QPushButton *m_loadButton;
+    QPushButton *m_removeButton;
     VariantImage m_image;
     QPixmap m_pixmap;
 };

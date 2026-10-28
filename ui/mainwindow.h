@@ -3,6 +3,7 @@
 #include "data/variantservice.h"
 #include <QMainWindow>
 #include <array>
+#include <optional>
 class QComboBox;
 class QSpinBox;
 class QLabel;
@@ -10,6 +11,7 @@ class QAction;
 class ReactionTable;
 class TranslationManager;
 class LogWindow;
+class VariantImagePanel;
 namespace Ui {
 class MainWindow;
 }
@@ -37,14 +39,17 @@ class MainWindow : public QMainWindow {
     std::array<QSpinBox *, 3> m_mealy, m_moore;
     QLabel *m_feedback;
     LogWindow *m_log = nullptr;
-    bool m_dirty = false;
+    ReactionVariant m_baseline;
+    std::optional<Result> m_lastResult;
+    VariantImagePanel *m_imagePanel;
     bool m_loading = false;
     void setupMenus();
     void refreshTexts();
     void loadData(const ReactionVariant &data);
     ReactionVariant readData() const;
     void showResult(const Result &result);
-    bool confirmDiscard();
+    void updateModified();
+    bool confirmDiscard(QWidget *parent = nullptr);
     bool save();
     void newVariant();
     void openVariant();

@@ -11,7 +11,7 @@ bool SchemaManager::createSchema(QString *error) {
     if (!old.isActive() || old.next()) {
         if (error)
             *error =
-                QStringLiteral("Это база полной версии. Для Lite нужна отдельная база реакций.");
+                tr("This is a full-edition database. A separate reaction database is required.");
         return false;
     }
     Transaction transaction(m_db);
@@ -43,7 +43,7 @@ bool SchemaManager::createSchema(QString *error) {
     auto version = m_db->query("SELECT version FROM LiteMetadata;");
     if (!version.next() || version.value(0).toInt() != 1 || version.next()) {
         if (error)
-            *error = QStringLiteral("Неизвестная версия базы Lite.");
+            *error = tr("Unknown reaction database version.");
         return false;
     }
     if (!transaction.commit(error))

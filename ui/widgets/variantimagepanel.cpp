@@ -1,33 +1,32 @@
 #include "ui/widgets/variantimagepanel.h"
 #include "ui/appicons.h"
-#include "ui_variantimagepanel.h"
 #include <QBuffer>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
+#include <QGroupBox>
 #include <QImageReader>
+#include <QLabel>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QUrl>
 
-VariantImagePanel::VariantImagePanel(QWidget *parent)
-    : QGroupBox(parent), ui(new Ui::VariantImagePanel) {
-    ui->setupUi(this);
-    ui->loadImageButton->setIcon(AppIcons::icon(AppIcons::Kind::Image));
-    ui->removeImageButton->setIcon(AppIcons::icon(AppIcons::Kind::Remove));
-    ui->diagramDropZone->installEventFilter(this);
-    ui->imageFileLabel->installEventFilter(this);
-    connect(ui->loadImageButton, &QPushButton::clicked, this, &VariantImagePanel::chooseImage);
-    connect(ui->removeImageButton, &QPushButton::clicked, this, [this] {
+VariantImagePanel::VariantImagePanel(QGroupBox *group, QLabel *preview, QLabel *fileLabel,
+                                     QPushButton *loadButton, QPushButton *removeButton)
+    : QObject(group), m_group(group), m_preview(preview), m_fileLabel(fileLabel),
+      m_loadButton(loadButton), m_removeButton(removeButton) {
+    m_group->installEventFilter(this);
+    m_loadButton->setIcon(AppIcons::icon(AppIcons::Kind::Image));
+    m_removeButton->setIcon(AppIcons::icon(AppIcons::Kind::Remove));
+    m_preview->installEventFilter(this);
+    m_fileLabel->installEventFilter(this);
+    connect(m_loadButton, &QPushButton::clicked, this, &VariantImagePanel::chooseImage);
+    connect(m_removeButton, &QPushButton::clicked, this, [this] {
         setImage({});
         emit imageChanged();
     });
     refreshPreview();
-}
-
-VariantImagePanel::~VariantImagePanel() {
-    delete ui;
 }
 
 void VariantImagePanel::setImage(const VariantImage &image) {
@@ -58,18 +57,19 @@ bool VariantImagePanel::loadFromFile(const QString &path) {
 
 void VariantImagePanel::chooseImage() {
     const auto path =
-        QFileDialog::getOpenFileName(this, tr("Select the task image"), {},
+        QFileDialog::getOpenFileName(m_group, tr("Select the task image"), {},
                                      tr("Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)"));
     if (!path.isEmpty())
         loadFromFile(path);
 }
 
 bool VariantImagePanel::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::Resize &&
-        (watched == ui->diagramDropZone || watched == ui->imageFileLabel))
+    if (watched == m_group && event->type() == QEvent::LanguageChange)
         refreshPreview();
-    if (watched != ui->diagramDropZone)
-        return QGroupBox::eventFilter(watched, event);
+    if (event->type() == QEvent::Resize && (watched == m_preview || watched == m_fileLabel))
+        refreshPreview();
+    if (watched != m_preview)
+        return QObject::eventFilter(watched, event);
     if (event->type() == QEvent::MouseButtonRelease &&
         static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
         chooseImage();
@@ -84,32 +84,24 @@ bool VariantImagePanel::eventFilter(QObject *watched, QEvent *event) {
             return true;
         }
     }
-    return QGroupBox::eventFilter(watched, event);
+    return QObject::eventFilter(watched, event);
 }
 
 void VariantImagePanel::refreshPreview() {
-    ui->removeImageButton->setEnabled(!m_image.data.isEmpty());
+    m_removeButton->setEnabled(!m_image.data.isEmpty());
     if (m_image.data.isEmpty()) {
-        ui->diagramDropZone->setPixmap({});
-        ui->diagramDropZone->setText(tr("Drag an image here\nor click to select a file"));
-        ui->imageFileLabel->setText(tr("No file selected"));
-        ui->imageFileLabel->setToolTip({});
+        m_preview->setPixmap({});
+        m_preview->setText(tr("Drag an image here\nor click to select a file"));
+        m_fileLabel->setText(tr("No file selected"));
+        m_fileLabel->setToolTip({});
         return;
     }
-    const auto area = ui->diagramDropZone->contentsRect().size() - QSize(8, 8);
-    ui->diagramDropZone->setPixmap(m_pixmap.scaled(area.expandedTo(QSize(1, 1)),
-                                                   Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    const auto area = m_preview->contentsRect().size() - QSize(8, 8);
+    m_preview->setPixmap(m_pixmap.scaled(area.expandedTo(QSize(1, 1)), Qt::KeepAspectRatio,
+                                         Qt::SmoothTransformation));
     const auto title =
         tr("%1 · %2 KB").arg(m_image.fileName).arg((m_image.data.size() + 1023) / 1024);
-    ui->imageFileLabel->setText(ui->imageFileLabel->fontMetrics().elidedText(
-        title, Qt::ElideMiddle, ui->imageFileLabel->contentsRect().width()));
-    ui->imageFileLabel->setToolTip(title);
-}
-
-void VariantImagePanel::changeEvent(QEvent *event) {
-    QGroupBox::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange) {
-        ui->retranslateUi(this);
-        refreshPreview();
-    }
+    m_fileLabel->setText(m_fileLabel->fontMetrics().elidedText(
+        title, Qt::ElideMiddle, m_fileLabel->contentsRect().width()));
+    m_fileLabel->setToolTip(title);
 }

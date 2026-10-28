@@ -29,8 +29,8 @@ QStringList TranslationManager::availableLocales() const {
 
 Result TranslationManager::setLocale(const QString& locale) {
     if (locale == m_currentLocale) {
-        return Result::success(
-            QStringLiteral("Language '%1' is already active").arg(locale));
+        return Result::successMessage(
+            QT_TRANSLATE_NOOP("ResultMessage", "Language '%1' is already active"), {locale});
     }
 
     if (locale == "en") {
@@ -44,13 +44,13 @@ Result TranslationManager::setLocale(const QString& locale) {
         }
         m_currentLocale = locale;
         emit languageChanged(locale);
-        return Result::success(
-            QStringLiteral("Language changed to '%1'").arg(locale));
+        return Result::successMessage(
+            QT_TRANSLATE_NOOP("ResultMessage", "Language changed to '%1'"), {locale});
     }
 
     if (!m_availableLocales.contains(locale)) {
-        return Result::error(
-                   QStringLiteral("Locale '%1' is not supported").arg(locale),
+        return Result::errorMessage(
+                   QT_TRANSLATE_NOOP("ResultMessage", "Locale '%1' is not supported"), {locale},
                    ResultCategory::Translation)
             .withOffender(locale);
     }
@@ -63,8 +63,8 @@ Result TranslationManager::setLocale(const QString& locale) {
     m_currentLocale = locale;
     emit languageChanged(locale);
 
-    return Result::success(
-               QStringLiteral("Language changed to '%1'").arg(locale))
+    return Result::successMessage(QT_TRANSLATE_NOOP("ResultMessage", "Language changed to '%1'"),
+                                  {locale})
         .withPayload(locale);
 }
 
@@ -93,10 +93,9 @@ Result TranslationManager::loadTranslation(const QString& locale) {
                                 .arg(kTranslationsPath, kTranslationPrefix, locale);
 
     if (!appTranslator->load(appPath)) {
-        return Result::error(
-                   QStringLiteral("Failed to load translation file for '%1'")
-                       .arg(locale),
-                   ResultCategory::Translation)
+        return Result::errorMessage(
+                   QT_TRANSLATE_NOOP("ResultMessage", "Failed to load translation file for '%1'"),
+                   {locale}, ResultCategory::Translation)
             .withDetails(QStringLiteral("Path: %1").arg(appPath))
             .withOffender(locale);
     }
@@ -110,6 +109,7 @@ Result TranslationManager::loadTranslation(const QString& locale) {
         m_qtTranslator = std::move(qtTranslator);
     }
 
-    return Result::success(QStringLiteral("Translation '%1' loaded").arg(locale))
+    return Result::successMessage(QT_TRANSLATE_NOOP("ResultMessage", "Translation '%1' loaded"),
+                                  {locale})
         .withDetails(QStringLiteral("Loaded translation for '%1'").arg(locale));
 }

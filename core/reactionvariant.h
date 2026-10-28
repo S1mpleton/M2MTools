@@ -14,12 +14,18 @@ struct AutomatonCounts {
     int states = 1;
     int inputs = 1;
     int outputs = 1;
+    bool operator==(const AutomatonCounts &other) const {
+        return states == other.states && inputs == other.inputs && outputs == other.outputs;
+    }
 };
 
 // Order is part of the task: neither steps nor output lists may be sorted.
 struct ReactionStep {
     QString input;
     QStringList outputs;
+    bool operator==(const ReactionStep &other) const {
+        return input == other.input && outputs == other.outputs;
+    }
 };
 
 struct ReactionVariant {
@@ -31,6 +37,8 @@ struct ReactionVariant {
     VariantImage image;
 
     Result validate() const;
+    Result validateForSave() const;
+    bool operator==(const ReactionVariant &other) const;
     QJsonObject toJson() const;
     static Result fromJson(const QJsonObject &object, ReactionVariant *result);
 };
