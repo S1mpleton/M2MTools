@@ -1,20 +1,27 @@
 # Window icons
 
-These icons come from the GNOME Project's Adwaita icon theme:
+The application icon uses the approved M2M family artwork: a navy state graph
+and coral pencil on an ivory rounded square. The matching M2MConvertor icon
+uses mint conversion arrows.
+
+`m2mtools-source.png` is the generated master artwork with transparent outer
+corners. `m2mtools.png` is the 256 px Qt resource. `m2mtools.ico` contains 16, 24,
+32, 48, 64, 128 and 256 px images and is embedded in the Windows executable.
+
+The event-log icon comes from the GNOME Project's Adwaita icon theme:
 <https://www.gnome.org> · <https://gitlab.gnome.org/GNOME/adwaita-icon-theme>
 
-- `m2mtools.svg`: `scalable/places/network-workgroup.svg`
 - `event-log.svg`: `scalable/mimetypes/text-x-generic.svg`
 
-The SVG artwork is unchanged. PNG and multiresolution ICO files are format
-conversions for Qt window icons and the Windows executable. Attribution and
+The event-log SVG artwork is unchanged. Its PNG and multiresolution ICO files
+are format conversions. Attribution and
 license terms are preserved in [LICENSE-ADWAITA.txt](LICENSE-ADWAITA.txt).
 
 To regenerate with librsvg and ImageMagick:
 
 ```sh
-rsvg-convert -w 256 -h 256 -o m2mtools.png m2mtools.svg
+magick m2mtools-source.png -resize 256x256 m2mtools.png
 rsvg-convert -w 256 -h 256 -o event-log.png event-log.svg
-magick m2mtools.png -define icon:auto-resize=256,128,64,48,32,24,16 m2mtools.ico
+magick m2mtools-source.png -define icon:auto-resize=256,128,64,48,32,24,16 m2mtools.ico
 magick event-log.png -define icon:auto-resize=256,128,64,48,32,24,16 event-log.ico
 ```
