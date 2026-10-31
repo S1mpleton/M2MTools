@@ -116,6 +116,12 @@ void ReactionTable::markRowError(int row, const QString &message) {
 }
 
 void ReactionTable::keyPressEvent(QKeyEvent *event) {
+    if ((event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) &&
+        state() != QAbstractItemView::EditingState) {
+        if (!event->isAutoRepeat()) removeStep();
+        event->accept();
+        return;
+    }
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
         if (!event->isAutoRepeat())
             insertStep();

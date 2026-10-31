@@ -107,7 +107,7 @@ void VariantsList::configureSwapControls() {
     m_swapSecond = ui->swapSecondComboBox;
     m_swapButton = ui->swapVariantsButton;
     for (QComboBox *combo : {m_swapFirst, m_swapSecond}) {
-        combo->setValidator(new QIntValidator(1, 999999, combo));
+        combo->setValidator(new QIntValidator(1, 99, combo));
         combo->setCurrentIndex(-1);
     }
     m_swapButton->setIcon(AppIcons::icon(AppIcons::Kind::Swap));

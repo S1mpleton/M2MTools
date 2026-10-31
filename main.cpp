@@ -3,6 +3,7 @@
 #include "infrastructure/logger.h"
 #include "infrastructure/translationmanager.h"
 #include "ui/mainwindow.h"
+#include "ui/appicons.h"
 
 
 #include <QApplication>
@@ -12,6 +13,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     a.setApplicationName("M2MTools");
+    a.setWindowIcon(AppIcons::applicationIcon());
     a.setAttribute(Qt::AA_DontShowIconsInMenus, false);
     TranslationManager translationManager(&a);
     translationManager.loadSystemLocale();

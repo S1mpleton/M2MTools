@@ -191,6 +191,12 @@ class Engine : public QIconEngine {
 QIcon AppIcons::icon(Kind kind) {
     return QIcon(new Engine(kind));
 }
+QIcon AppIcons::applicationIcon() {
+    return QIcon(QStringLiteral(":/icons/m2mtools.png"));
+}
+QIcon AppIcons::logWindowIcon() {
+    return QIcon(QStringLiteral(":/icons/event-log.png"));
+}
 
 void AppIcons::configureMenuBar(QMenuBar *bar) {
     auto *style = new MenuStyle;

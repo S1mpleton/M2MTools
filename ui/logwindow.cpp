@@ -23,6 +23,7 @@
 
 LogWindow::LogWindow(QWidget *parent) : QDialog(parent), ui(new Ui::LogWindow) {
     ui->setupUi(this);
+    setWindowIcon(AppIcons::logWindowIcon());
     setAttribute(Qt::WA_DeleteOnClose, false);
     m_textEdit = ui->logTextEdit;
     m_autoScrollBox = ui->autoScrollBox;

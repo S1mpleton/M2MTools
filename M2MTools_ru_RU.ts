@@ -256,10 +256,6 @@
             <translation>Мура — количества</translation>
         </message>
         <message>
-            <source>One column is one step. Input: x0–x9. Outputs: y0–y9 separated by commas; empty or '-' means no output. Enter inserts a step after the current column.</source>
-            <translation>Один столбец — один такт. Вход: x0–x9. Выходы: y0–y9 через запятую; пустая ячейка или «-» — нет выхода. Enter вставляет такт после текущего столбца.</translation>
-        </message>
-        <message>
             <source>Insert step after selection</source>
             <translation>Вставить такт после выбранного</translation>
         </message>
@@ -488,10 +484,6 @@
             <translation>Данные варианта повреждены.</translation>
         </message>
         <message>
-            <source>Operation completed successfully</source>
-            <translation>Операция успешно выполнена</translation>
-        </message>
-        <message>
             <source>Saved %1 variants to the archive</source>
             <translation>Сохранено вариантов в архив: %1</translation>
         </message>
@@ -526,10 +518,6 @@
         <message>
             <source>Variant #%1 deleted</source>
             <translation>Вариант №%1 удалён</translation>
-        </message>
-        <message>
-            <source>Variant numbers must be positive</source>
-            <translation>Номера вариантов должны быть положительными</translation>
         </message>
         <message>
             <source>Variant numbers are equal</source>
@@ -582,6 +570,22 @@
         <message>
             <source>Moore signal counts must match the reaction: inputs — %1 declared, %2 used; outputs — %3 declared, %4 used.</source>
             <translation>Количество сигналов Мура должно совпадать с реакцией: входы — указано %1, введено %2; выходы — указано %3, введено %4.</translation>
+        </message>
+        <message>
+            <source>Use variant numbers 1–99, 4–10 states, 3–6 inputs and 4–10 outputs for both automata.</source>
+            <translation>Номер варианта — от 1 до 99. Для обоих автоматов: состояний — 4–10, входных сигналов — 3–6, выходных — 4–10.</translation>
+        </message>
+        <message>
+            <source>Variant numbers must be between 1 and 99.</source>
+            <translation>Номера вариантов должны быть от 1 до 99.</translation>
+        </message>
+        <message>
+            <source>All variant numbers from 1 to 99 are in use.</source>
+            <translation>Все номера вариантов от 1 до 99 заняты.</translation>
+        </message>
+        <message>
+            <source>Operation completed successfully</source>
+            <translation>Операция успешно выполнена</translation>
         </message>
     </context>
     <context>

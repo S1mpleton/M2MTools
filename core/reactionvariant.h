@@ -11,9 +11,9 @@ VariantType variantTypeStringToType(const QString &text);
 QString variantTypeDisplayName(VariantType type);
 
 struct AutomatonCounts {
-    int states = 1;
-    int inputs = 1;
-    int outputs = 1;
+    int states = 4;
+    int inputs = 3;
+    int outputs = 4;
     bool operator==(const AutomatonCounts &other) const {
         return states == other.states && inputs == other.inputs && outputs == other.outputs;
     }
@@ -37,6 +37,7 @@ struct ReactionVariant {
     VariantImage image;
 
     Result validate() const;
+    Result validateInputLimits() const;
     Result validateForSave() const;
     bool operator==(const ReactionVariant &other) const;
     QJsonObject toJson() const;

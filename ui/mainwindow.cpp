@@ -28,6 +28,7 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     : QMainWindow(parent), m_service(service), m_translator(translator) {
     ui = new Ui::MainWindow;
     ui->setupUi(this);
+    setWindowIcon(AppIcons::applicationIcon());
     m_reaction = ui->reactionTable;
     m_number = ui->variantNumber;
     m_type = ui->conversionType;
@@ -76,7 +77,7 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     setupMenus();
     refreshTexts();
     ReactionVariant initial;
-    initial.number = m_service->firstAvailableVariantNumber();
+    initial.number = qMax(1, m_service->firstAvailableVariantNumber());
     loadData(initial);
 }
 MainWindow::~MainWindow() {
@@ -93,7 +94,6 @@ void MainWindow::showEvent(QShowEvent *event) {
         ui->centralwidget->layout()->activate();
         layout()->activate();
         resize(minimumSizeHint().expandedTo(minimumSize()));
-        ui->reactionHint->refreshHeight();
         ui->validationMessage->refreshHeight();
     }
     layout()->activate();
@@ -147,7 +147,6 @@ void MainWindow::refreshTexts() {
         return;
     ui->retranslateUi(this);
     m_reaction->retranslate();
-    ui->reactionHint->refreshHeight();
     if (m_lastResult) {
         m_feedback->updateMessageText(translateResult(*m_lastResult));
     }
@@ -182,12 +181,17 @@ void MainWindow::loadData(const ReactionVariant &data) {
     }
     m_reaction->setSteps(data.reaction);
     m_imagePanel->setImage(data.image);
-    m_baseline = readData();
+    m_baseline = data;
     m_lastResult.reset();
-    setWindowModified(false);
+    setWindowModified(!(readData() == m_baseline));
     m_feedback->clearMessage();
     clearValidationFeedback();
     m_loading = false;
+    const auto limits = data.validateInputLimits();
+    if (!limits.ok()) {
+        showResult(limits);
+        markValidationError(limits);
+    }
 }
 void MainWindow::showResult(const Result &result) {
     m_lastResult = result;
@@ -272,8 +276,14 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 void MainWindow::newVariant() {
     if (!confirmDiscard())
         return;
+    const int number = m_service->firstAvailableVariantNumber();
+    if (number == 0) {
+        showResult(Result::errorMessage(QT_TRANSLATE_NOOP("ResultMessage",
+            "All variant numbers from 1 to 99 are in use."), {}, ResultCategory::Validation));
+        return;
+    }
     ReactionVariant data;
-    data.number = m_service->firstAvailableVariantNumber();
+    data.number = number;
     loadData(data);
 }
 void MainWindow::openVariant() {
@@ -283,7 +293,7 @@ void MainWindow::openVariant() {
     connect(&dialog, &VariantsList::variantDeleted, this, [this](int number) {
         if (m_number->value() == number) {
             ReactionVariant data;
-            data.number = m_service->firstAvailableVariantNumber();
+            data.number = qMax(1, m_service->firstAvailableVariantNumber());
             if (readData() == m_baseline)
                 loadData(data);
             else {
@@ -328,7 +338,7 @@ void MainWindow::importArchive() {
     const auto result = m_service->importArchive(path);
     if (result.ok()) {
         ReactionVariant data;
-        data.number = m_service->firstAvailableVariantNumber();
+        data.number = qMax(1, m_service->firstAvailableVariantNumber());
         loadData(data);
     }
     showResult(result);

@@ -68,10 +68,28 @@ Result ReactionVariant::validate() const {
     return Result::success();
 }
 
+Result ReactionVariant::validateInputLimits() const {
+    QStringList fields;
+    if (number < 1 || number > 99) fields.append("number");
+    for (const auto &prefix : {QStringLiteral("mealy"), QStringLiteral("moore")}) {
+        const auto &counts = prefix == "mealy" ? mealy : moore;
+        if (counts.states < 4 || counts.states > 10) fields.append(prefix + ".states");
+        if (counts.inputs < 3 || counts.inputs > 6) fields.append(prefix + ".inputs");
+        if (counts.outputs < 4 || counts.outputs > 10) fields.append(prefix + ".outputs");
+    }
+    if (!fields.isEmpty())
+        return Result::errorMessage(QT_TRANSLATE_NOOP("ResultMessage",
+            "Use variant numbers 1–99, 4–10 states, 3–6 inputs and 4–10 outputs for both automata."),
+            {}, ResultCategory::Validation).withFields(fields);
+    return Result::success();
+}
+
 Result ReactionVariant::validateForSave() const {
     const auto valid = validate();
     if (!valid.ok())
         return valid;
+    const auto limits = validateInputLimits();
+    if (!limits.ok()) return limits;
     const bool mealySource = type == VariantType::MealyToMoore;
     const auto &source = mealySource ? mealy : moore;
     const QString prefix = mealySource ? "mealy" : "moore";

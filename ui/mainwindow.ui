@@ -40,7 +40,7 @@
          <number>1</number>
         </property>
         <property name="maximum">
-         <number>999999</number>
+         <number>99</number>
         </property>
        </widget>
       </item>
@@ -88,10 +88,10 @@
          <item row="0" column="1">
           <widget class="QSpinBox" name="mealyStatesCount">
            <property name="minimum">
-            <number>1</number>
+            <number>4</number>
            </property>
            <property name="maximum">
-            <number>999999</number>
+            <number>10</number>
            </property>
           </widget>
          </item>
@@ -105,10 +105,10 @@
          <item row="1" column="1">
           <widget class="QSpinBox" name="mealyInputsCount">
            <property name="minimum">
-            <number>1</number>
+            <number>3</number>
            </property>
            <property name="maximum">
-            <number>10</number>
+            <number>6</number>
            </property>
           </widget>
          </item>
@@ -122,7 +122,7 @@
          <item row="2" column="1">
           <widget class="QSpinBox" name="mealyOutputsCount">
            <property name="minimum">
-            <number>1</number>
+            <number>4</number>
            </property>
            <property name="maximum">
             <number>10</number>
@@ -151,10 +151,10 @@
          <item row="0" column="1">
           <widget class="QSpinBox" name="mooreStatesCount">
            <property name="minimum">
-            <number>1</number>
+            <number>4</number>
            </property>
            <property name="maximum">
-            <number>999999</number>
+            <number>10</number>
            </property>
           </widget>
          </item>
@@ -168,10 +168,10 @@
          <item row="1" column="1">
           <widget class="QSpinBox" name="mooreInputsCount">
            <property name="minimum">
-            <number>1</number>
+            <number>3</number>
            </property>
            <property name="maximum">
-            <number>10</number>
+            <number>6</number>
            </property>
           </widget>
          </item>
@@ -185,7 +185,7 @@
          <item row="2" column="1">
           <widget class="QSpinBox" name="mooreOutputsCount">
            <property name="minimum">
-            <number>1</number>
+            <number>4</number>
            </property>
            <property name="maximum">
             <number>10</number>
@@ -202,7 +202,7 @@
       <property name="title">
        <string>Task image</string>
       </property>
-      <layout class="QHBoxLayout" name="imageLayout">
+      <layout class="QVBoxLayout" name="imageLayout" stretch="1,0,0">
        <property name="spacing">
         <number>10</number>
        </property>
@@ -241,33 +241,7 @@
         </widget>
        </item>
        <item>
-        <layout class="QVBoxLayout" name="imageActionsLayout">
-         <item>
-          <widget class="QLabel" name="imageFileLabel">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="textFormat">
-            <enum>Qt::PlainText</enum>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="imageActionsSpacer">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>0</width>
-             <height>0</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
+        <layout class="QHBoxLayout" name="imageActionsLayout">
          <item>
           <widget class="QPushButton" name="loadImageButton">
            <property name="text">
@@ -283,6 +257,19 @@
           </widget>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="imageFileLabel">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -309,16 +296,6 @@
            <horstretch>0</horstretch>
            <verstretch>1</verstretch>
           </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="WrappingLabel" name="reactionHint">
-         <property name="text">
-          <string>One column is one step. Input: x0–x9. Outputs: y0–y9 separated by commas; empty or '-' means no output. Enter inserts a step after the current column.</string>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
          </property>
         </widget>
        </item>

@@ -116,9 +116,9 @@ Result VariantService::removeVariant(int variantNumber) {
 }
 
 Result VariantService::swapVariants(int firstNumber, int secondNumber) {
-    if (firstNumber <= 0 || secondNumber <= 0) {
+    if (firstNumber <= 0 || secondNumber <= 0 || firstNumber > 99 || secondNumber > 99) {
         return Result::errorMessage(
-            QT_TRANSLATE_NOOP("ResultMessage", "Variant numbers must be positive"), {},
+            QT_TRANSLATE_NOOP("ResultMessage", "Variant numbers must be between 1 and 99."), {},
             ResultCategory::Validation);
     }
     if (firstNumber == secondNumber)
@@ -301,6 +301,6 @@ int VariantService::firstAvailableVariantNumber() const {
     for (const VariantRow& row : result.payloadAs<QList<VariantRow>>())
         if (row.number > 0) used.insert(row.number);
     int number = 1;
-    while (used.contains(number)) ++number;
-    return number;
+    while (number <= 99 && used.contains(number)) ++number;
+    return number <= 99 ? number : 0;
 }

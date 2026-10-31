@@ -54,9 +54,9 @@ void require(bool ok, const char *text) {
 ReactionVariant sample() {
     ReactionVariant d;
     d.number = 4;
-    d.mealy = {2, 3, 3};
-    d.moore = {5, 3, 3};
-    d.reaction = {{"x2", {"y3"}}, {"x1", {"y0", "y2"}}, {"x3", {}}, {"x2", {"y2", "y0"}}};
+    d.mealy = {4, 3, 4};
+    d.moore = {5, 3, 4};
+    d.reaction = {{"x2", {"y3"}}, {"x1", {"y0", "y2"}}, {"x3", {}}, {"x2", {"y2", "y0", "y1"}}};
     QImage picture(360, 100, QImage::Format_RGB32);
     picture.fill(Qt::white);
     {
@@ -81,7 +81,7 @@ bool equal(const ReactionVariant &a, const ReactionVariant &b) {
 
 void testSourceCounts() {
     auto data = sample();
-    data.moore = {900, 8, 9};
+    data.moore = {10, 6, 9};
     require(data.validateForSave().ok(),
             "Mealy source ignores target counts and state count relation");
     data.mealy.inputs = 4;
@@ -90,23 +90,23 @@ void testSourceCounts() {
     require(data.validateForSave().fields() == QStringList{"mealy.inputs"},
             "excess inputs identify source input field");
     data.mealy.inputs = 3;
-    data.mealy.outputs = 4;
+    data.mealy.outputs = 5;
     require(data.validateForSave().fields() == QStringList{"mealy.outputs"},
             "missing outputs identify source output field");
     data.type = VariantType::MooreToMealy;
-    data.moore.inputs = data.moore.outputs = 3;
-    data.mealy = {700, 1, 10};
+    data.moore.inputs = 3; data.moore.outputs = 4;
+    data.mealy = {10, 3, 10};
     require(data.validateForSave().ok(), "Moore source ignores Mealy target counts");
     data.moore.inputs = 4;
-    data.moore.outputs = 2;
+    data.moore.outputs = 5;
     require(data.validateForSave().fields() == QStringList({"moore.inputs", "moore.outputs"}),
             "both mismatched Moore signal fields are reported");
     ReactionVariant legacy;
     require(ReactionVariant::fromJson(data.toJson(), &legacy).ok() &&
                 !legacy.validateForSave().ok(),
             "older mismatched counts can be read for correction, but cannot be saved");
-    data.moore.inputs = data.moore.outputs = 1;
-    data.reaction = {{"x9", {"y9"}}, {"x9", {"y9"}}, {"x9", {}}};
+    data.moore.inputs = 3; data.moore.outputs = 4;
+    data.reaction = {{"x9", {"y9", "y1"}}, {"x5", {"y4"}}, {"x7", {"y7"}}, {"x9", {}}};
     require(data.validateForSave().ok(), "distinct signals counted once; suffixes are not indexes");
 }
 
@@ -151,8 +151,8 @@ void testValidationHighlights(VariantService &service, const QString &imagePath,
     auto *sourceInputs = window.findChild<QSpinBox *>("mealyInputsCount");
     auto *targetInputs = window.findChild<QSpinBox *>("mooreInputsCount");
     auto *preview = window.findChild<QLabel *>("diagramDropZone");
-    table->setSteps({{"x2", {"y0"}}});
-    sourceInputs->setValue(2);
+    table->setSteps(sample().reaction);
+    sourceInputs->setValue(4);
     qApp->processEvents();
     auto save = [&window] {
         QTest::mouseClick(window.findChild<QPushButton *>("saveVariantButton"), Qt::LeftButton);
@@ -173,7 +173,7 @@ void testValidationHighlights(VariantService &service, const QString &imagePath,
                 "visible error accents adapt to palette changes");
         require(window.grab().save(screenshotPath + ".counts-dark.png"), "count error after palette change");
     }
-    sourceInputs->setValue(1);
+    sourceInputs->setValue(3);
     require(!sourceInputs->property("feedbackInvalid").toBool(),
             "editing restores normal field style");
     save();
@@ -190,10 +190,10 @@ void testValidationHighlights(VariantService &service, const QString &imagePath,
     require(!window.isWindowModified(), "corrected counts and image allow save");
     QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
     window.findChild<QComboBox *>("conversionType")->setCurrentIndex(1);
-    table->setSteps({{"x2", {"y0"}}});
-    sourceInputs->setValue(9);
+    table->setSteps(sample().reaction);
+    sourceInputs->setValue(6);
     auto *sourceOutputs = window.findChild<QSpinBox *>("mooreOutputsCount");
-    sourceOutputs->setValue(2);
+    sourceOutputs->setValue(5);
     qApp->processEvents();
     save();
     require(sourceOutputs->property("feedbackInvalid").toBool() &&
@@ -266,11 +266,11 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
     };
 
     // Changing metadata or attaching a picture does not make an empty reaction prompt.
-    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(3);
+    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(6);
     require(image->loadFromFile(imagePath), "attach picture to empty reaction");
     click("newVariantButton");
     require(questions.count == 0 && table->steps().isEmpty(), "empty new variant has no question");
-    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(2);
+    window.findChild<QSpinBox *>("mealyStatesCount")->setValue(5);
     require(window.close(), "empty modified variant closes without question");
     window.show();
     load(4);
@@ -292,8 +292,7 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
     require(questions.count == 0, "loading from unchanged nonempty variant has no question");
     click("newVariantButton");
 
-    table->item(0, 0)->setText("x2");
-    table->item(1, 0)->setText("y0");
+    table->setSteps(sample().reaction);
     QTimer::singleShot(0, &window, [] {
         auto *dialog = qobject_cast<VariantsList *>(QApplication::activeModalWidget());
         require(dialog != nullptr, "dirty draft does not block browsing");
@@ -349,6 +348,51 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
             "existing log history switches back to Russian");
 }
 
+void testNumberLimitAndLegacyEditing(TranslationManager &translator) {
+    std::unique_ptr<Database> db(Database::open(":memory:"));
+    require(bool(db), "open number-limit database");
+    SchemaManager schema(db.get());
+    require(schema.createSchema(), "create number-limit schema");
+    VariantRepository repo(db.get());
+    VariantService service(db.get(), &repo);
+    auto data = sample();
+    require(db->exec("BEGIN"), "begin number-limit fixture");
+    for (int number = 1; number <= 99; ++number) {
+        data.number = number;
+        require(repo.insertVariant(data).ok(), "store numbered fixture");
+    }
+    require(db->exec("COMMIT"), "finish number-limit fixture");
+    require(service.firstAvailableVariantNumber() == 0, "full numbering never offers variant 100");
+    data.number = 100;
+    require(service.saveVariant(data).fields().contains("number"), "service rejects variant 100");
+    MainWindow window(&service, &translator, nullptr);
+    window.show(); qApp->processEvents();
+    QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
+    require(window.findChild<FeedbackLabel *>()->text().contains("99") &&
+        window.findChild<ReactionTable *>()->steps().isEmpty(), "full numbering reports the limit without replacing a variant");
+    require(service.removeVariant(42).ok() && service.firstAvailableVariantNumber() == 42,
+        "a deleted number becomes available within the allowed range");
+    data = sample(); data.number = 98; data.mealy.states = 2;
+    require(service.removeVariant(98).ok() && repo.insertVariant(data).ok(), "store a readable legacy variant");
+    QTimer::singleShot(0, &window, [&] {
+        auto *dialog = qobject_cast<VariantsList *>(QApplication::activeModalWidget());
+        require(dialog, "legacy variant browser opens");
+        auto *table = dialog->findChild<QTableWidget *>("variantsTableWidget");
+        for (int row = 0; row < table->rowCount(); ++row) {
+            if (table->item(row, 0)->text().toInt() != 98) continue;
+            table->setCurrentCell(row, 0);
+            dialog->findChild<QPushButton *>("loadPushButton")->click();
+            return;
+        }
+        require(false, "legacy variant remains listed");
+    });
+    window.findChild<QPushButton *>("openVariantButton")->click();
+    auto *states = window.findChild<QSpinBox *>("mealyStatesCount");
+    require(states->value() == 4 && states->property("feedbackInvalid").toBool() &&
+        window.isWindowModified() && service.loadVariant(98).payloadAs<ReactionVariant>().mealy.states == 2,
+        "legacy limits require an explicit save and never silently change stored data");
+}
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     TranslationManager translator;
@@ -357,6 +401,7 @@ int main(int argc, char **argv) {
     require(dir.isValid(), "temporary directory");
     auto data = sample();
     testSourceCounts();
+    testNumberLimitAndLegacyEditing(translator);
     testFeedbackTiming();
     require(data.validate().ok(), "valid ordered reaction");
     auto withoutImage = data;
@@ -400,12 +445,29 @@ int main(int argc, char **argv) {
     invalid.mealy.outputs = 2;
     require(!invalid.validateForSave().ok(), "source output count checked");
     auto boundary = data;
-    boundary.mealy.inputs = boundary.moore.inputs = 10;
-    boundary.mealy.outputs = boundary.moore.outputs = 1;
+    boundary.number = 99;
+    boundary.mealy = boundary.moore = {10, 6, 10};
     boundary.reaction.clear();
-    for (int i = 0; i < 10; ++i)
-        boundary.reaction.append({QString("x%1").arg(i), {"y9"}});
-    require(boundary.validateForSave().ok(), "all ten inputs accepted");
+    for (int i = 0; i < 6; ++i)
+        boundary.reaction.append({QString("x%1").arg(i), i < 5 ?
+            QStringList{QString("y%1").arg(2*i), QString("y%1").arg(2*i+1)} : QStringList{}});
+    require(boundary.validateForSave().ok(), "upper editing bounds and all ten outputs accepted");
+    for (const auto field : {"number", "mealy.states", "mealy.inputs", "mealy.outputs",
+                            "moore.states", "moore.inputs", "moore.outputs"}) {
+        for (const bool upper : {false, true}) {
+            auto outside = data;
+            const QString name(field);
+            if (name == "number") outside.number = upper ? 100 : 0;
+            else {
+                auto &counts = name.startsWith("mealy") ? outside.mealy : outside.moore;
+                if (name.endsWith("states")) counts.states = upper ? 11 : 3;
+                if (name.endsWith("inputs")) counts.inputs = upper ? 7 : 2;
+                if (name.endsWith("outputs")) counts.outputs = upper ? 11 : 3;
+            }
+            require(outside.validateInputLimits().fields().contains(name) && !outside.validateForSave().ok(),
+                "both bounds are enforced for every input field before saving");
+        }
+    }
     ReactionValidator input(false), output(true);
     int pos = 0;
     for (auto text : QStringList{"x0", "x9"})
@@ -484,6 +546,17 @@ int main(int argc, char **argv) {
         app.processEvents();
         require(window.findChildren<ReactionTable *>().size() == 1, "only reaction editor");
         require(window.findChildren<QSpinBox *>().size() == 7, "number and six counts, no names");
+        require(!window.windowIcon().pixmap(32,32).isNull(), "main window has a bundled icon");
+        LogWindow iconLog;
+        require(!iconLog.windowIcon().pixmap(32,32).isNull() &&
+            iconLog.windowIcon().pixmap(32,32).toImage() != window.windowIcon().pixmap(32,32).toImage(),
+            "event log has its own bundled icon");
+        for (auto *spin : window.findChildren<QSpinBox *>()) {
+            const auto name = spin->objectName();
+            const int lower = name == "variantNumber" ? 1 : name.endsWith("InputsCount") ? 3 : 4;
+            const int upper = name == "variantNumber" ? 99 : name.endsWith("InputsCount") ? 6 : 10;
+            require(spin->minimum() == lower && spin->maximum() == upper, "numeric editor has the requested bounds");
+        }
         for (auto *action : window.menuBar()->actions())
             require(window.menuBar()->actionGeometry(action).width() >=
                         window.menuBar()->fontMetrics().horizontalAdvance(action->text()) + 20,
@@ -570,6 +643,29 @@ int main(int argc, char **argv) {
                     "Enter in the middle preserves later steps and their order");
             if (auto *current = activeEditor())
                 QTest::keyClick(current, Qt::Key_Escape);
+            keyboardTable.setSteps(data.reaction);
+            keyboardTable.setCurrentCell(1, 1);
+            QTest::keyClick(&keyboardTable, Qt::Key_Backspace);
+            require(keyboardTable.columnCount() == 3 && keyboardTable.steps()[1].input == "x3" &&
+                keyboardTable.steps()[2].outputs == data.reaction[3].outputs,
+                "Backspace deletes the selected step, keeping both rows and their order");
+            keyboardTable.setCurrentCell(0, 2);
+            QTest::keyClick(&keyboardTable, Qt::Key_Delete);
+            require(keyboardTable.columnCount() == 2 && keyboardTable.steps()[1].input == "x3",
+                "Delete removes the selected final step");
+            keyboardTable.setCurrentCell(0, 1);
+            keyboardTable.editItem(keyboardTable.item(0, 1));
+            app.processEvents();
+            line = activeEditor(); require(line, "cell editor opens for keyboard deletion check");
+            QTest::keyClick(line, Qt::Key_Backspace);
+            line->selectAll(); QTest::keyClick(line, Qt::Key_Delete);
+            require(keyboardTable.columnCount() == 2 && line->text().isEmpty(),
+                "Backspace and Delete edit text while a cell is being edited");
+            QTest::keyClick(line, Qt::Key_Escape);
+            keyboardTable.setSteps({{"x0", {"y0"}}});
+            QTest::keyClick(&keyboardTable, Qt::Key_Delete);
+            require(keyboardTable.columnCount() == 1 && keyboardTable.steps().isEmpty(),
+                "deleting the only filled step leaves one empty editable column");
             keyboardTable.setSteps({});
             keyboardTable.removeStep();
             require(keyboardTable.columnCount() == 1, "last column cannot leave an empty table");
@@ -589,7 +685,7 @@ int main(int argc, char **argv) {
         window.activateWindow();
         window.setFocus();
         table->setSteps(data.reaction);
-        require(table->rowCount() == 2 && table->steps()[3].outputs == QStringList({"y2", "y0"}),
+        require(table->rowCount() == 2 && table->steps()[3].outputs == QStringList({"y2", "y0", "y1"}),
                 "two-row UI retains sequence");
         table->item(0, 1)->setText("");
         invalid = data;
@@ -620,9 +716,9 @@ int main(int argc, char **argv) {
             else if (name.endsWith("InputsCount"))
                 spin->setValue(3);
             else if (name.endsWith("OutputsCount"))
-                spin->setValue(3);
+                spin->setValue(4);
             else
-                spin->setValue(name.startsWith("mealy") ? 2 : 5);
+                spin->setValue(name.startsWith("mealy") ? 4 : 5);
         }
         // Exercise the real delegate, including committing an active cell on save.
         table->setCurrentCell(1, 3);
@@ -636,28 +732,30 @@ int main(int argc, char **argv) {
         }();
         require(editor != nullptr, "delegate opens editor");
         editor->selectAll();
-        QTest::keyClicks(editor, "y2,y0,y3");
+        QTest::keyClicks(editor, "y2,y0,y1,y3");
         QTest::mouseClick(window.findChild<QPushButton *>("saveVariantButton"), Qt::LeftButton);
-        data.reaction[3].outputs = {"y2", "y0", "y3"};
+        data.reaction[3].outputs = {"y2", "y0", "y1", "y3"};
         auto saved = data;
         saved.number = 7;
         require(equal(saved, service.loadVariant(7).payloadAs<ReactionVariant>()),
                 "UI save writes counts, ordered reaction and image");
         app.processEvents();
-        const auto *hint = window.findChild<QLabel *>("reactionHint");
-        require(table->geometry().bottom() < hint->geometry().top(),
-                "reaction hint does not overlap the table scrollbar");
-        // Regression: wrapped hints must stay below the table at narrow widths
-        // and with the larger fonts used by Windows display scaling.
+        require(!window.findChild<QLabel *>("reactionHint"), "the hint below the reaction is removed");
+        auto checkImageControls = [&] {
+            for (const char *name : {"loadImageButton", "removeImageButton", "imageFileLabel"}) {
+                const auto *control = window.findChild<QWidget *>(name);
+                require(control->geometry().top() > preview->geometry().bottom(),
+                    "image actions and file information stay below the preview");
+            }
+        };
+        checkImageControls();
         const QFont originalFont = window.font();
         QFont larger = originalFont;
         larger.setPointSizeF(qMax(10.0, originalFont.pointSizeF()) * 1.5);
         window.setFont(larger);
         window.resize(window.minimumSizeHint());
         app.processEvents();
-        require(table->geometry().bottom() < hint->geometry().top() &&
-                    hint->height() >= hint->heightForWidth(hint->width()),
-                "large-font wrapped text stays fully outside the table");
+        checkImageControls();
         window.setFont(originalFont);
         app.processEvents();
         window.resize(window.minimumSize());
@@ -675,7 +773,7 @@ int main(int argc, char **argv) {
             dark.setColor(QPalette::HighlightedText, Qt::white);
             app.setPalette(dark);
             QTest::qWait(20);
-            require(table->item(1, 3)->text() == QStringLiteral("y2,y0,y3"),
+            require(table->item(1, 3)->text() == QStringLiteral("y2,y0,y1,y3"),
                     "theme change preserves edited cell");
             require(window.grab().save(QString::fromLocal8Bit(argv[1]) + ".dark.png"),
                     "dark screenshot");
