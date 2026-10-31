@@ -66,7 +66,8 @@ void VariantImagePanel::chooseImage() {
 bool VariantImagePanel::eventFilter(QObject *watched, QEvent *event) {
     if (watched == m_group && event->type() == QEvent::LanguageChange)
         refreshPreview();
-    if (event->type() == QEvent::Resize && (watched == m_preview || watched == m_fileLabel))
+    if ((event->type() == QEvent::Resize || event->type() == QEvent::FontChange ||
+         event->type() == QEvent::StyleChange) && (watched == m_preview || watched == m_fileLabel))
         refreshPreview();
     if (watched != m_preview)
         return QObject::eventFilter(watched, event);
@@ -88,6 +89,7 @@ bool VariantImagePanel::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void VariantImagePanel::refreshPreview() {
+    m_fileLabel->setMinimumWidth(m_fileLabel->fontMetrics().horizontalAdvance(tr("No file selected")));
     m_removeButton->setEnabled(!m_image.data.isEmpty());
     if (m_image.data.isEmpty()) {
         m_preview->setPixmap({});

@@ -2,6 +2,7 @@
 #include "ui/delegates/reactiondelegate.h"
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QScrollBar>
 #include <QSignalBlocker>
 #include <QStyle>
 
@@ -12,17 +13,27 @@ ReactionTable::ReactionTable(QWidget *parent) : QTableWidget(2, 0, parent) {
     connect(delegate, &ReactionDelegate::nextStepRequested, this, &ReactionTable::insertStep);
     setSortingEnabled(false);
     horizontalHeader()->setSectionsMovable(false);
-    horizontalHeader()->setDefaultSectionSize(90);
-    horizontalHeader()->setMinimumSectionSize(65);
-    verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    horizontalHeader()->setMinimumSectionSize(0);
+    horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    horizontalHeader()->setStretchLastSection(false);
+    horizontalHeader()->setResizeContentsPrecision(2);
+    verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setWordWrap(false);
     setAlternatingRowColors(true);
-    setMinimumHeight(minimumSizeHint().height());
+    connect(horizontalHeader(), &QHeaderView::geometriesChanged, this, &ReactionTable::updateTableSize);
     setSteps({});
     connect(this, &QTableWidget::cellChanged, this, [this] { clearCellFeedback(); });
     retranslate();
 }
+ReactionTable::~ReactionTable() {
+    // QTableWidget tears down its headers after the derived object is gone.
+    disconnect(horizontalHeader(), &QHeaderView::geometriesChanged, this, &ReactionTable::updateTableSize);
+}
 void ReactionTable::retranslate() {
     setVerticalHeaderLabels({tr("Input"), tr("Output")});
+    updateTableSize();
 }
 void ReactionTable::prepareColumn(int column) {
     QSignalBlocker block(this);
@@ -43,6 +54,8 @@ void ReactionTable::setSteps(const QVector<ReactionStep> &steps) {
         item(1, c)->setText(steps[c].outputs.join(','));
     }
     setCurrentCell(0, 0);
+    resizeColumnsToContents();
+    updateTableSize();
 }
 QVector<ReactionStep> ReactionTable::steps() const {
     // Ignore only unused space at the right, never gaps inside the sequence.
@@ -132,16 +145,29 @@ void ReactionTable::keyPressEvent(QKeyEvent *event) {
 }
 QSize ReactionTable::minimumSizeHint() const {
     const int rowHeight = qMax(verticalHeader()->minimumSectionSize(), fontMetrics().height() + 12);
-    return QSize(200, 2 * rowHeight + horizontalHeader()->sizeHint().height() + 2 * frameWidth() +
-                          style()->pixelMetric(QStyle::PM_ScrollBarExtent));
+    const int scrollbarHeight = qMax(horizontalScrollBar()->sizeHint().height(),
+                                    style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, this));
+    const int scrollbarSpacing = qMax(0, style()->pixelMetric(QStyle::PM_ScrollView_ScrollBarSpacing, nullptr, this));
+    return QSize(200, rowCount() * rowHeight + horizontalHeader()->sizeHint().height() +
+                          2 * frameWidth() + scrollbarHeight + scrollbarSpacing);
 }
 QSize ReactionTable::sizeHint() const {
     return minimumSizeHint();
 }
+void ReactionTable::updateTableSize() {
+    const int rowHeight = qMax(verticalHeader()->minimumSectionSize(), fontMetrics().height() + 12);
+    if (verticalHeader()->defaultSectionSize() != rowHeight)
+        verticalHeader()->setDefaultSectionSize(rowHeight);
+    const int height = minimumSizeHint().height();
+    if (minimumHeight() != height || maximumHeight() != height) {
+        setFixedHeight(height);
+        updateGeometry();
+    }
+}
 void ReactionTable::changeEvent(QEvent *event) {
     QTableWidget::changeEvent(event);
     if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange) {
-        setMinimumHeight(minimumSizeHint().height());
-        updateGeometry();
+        updateTableSize();
+        resizeColumnsToContents();
     }
 }

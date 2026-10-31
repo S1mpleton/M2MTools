@@ -6,6 +6,7 @@ class ReactionTable : public QTableWidget {
     Q_OBJECT
   public:
     explicit ReactionTable(QWidget *parent = nullptr);
+    ~ReactionTable() override;
     QVector<ReactionStep> steps() const;
     void setSteps(const QVector<ReactionStep> &steps);
     void insertStep();
@@ -23,4 +24,5 @@ class ReactionTable : public QTableWidget {
 
   private:
     void prepareColumn(int column);
+    void updateTableSize();
 };

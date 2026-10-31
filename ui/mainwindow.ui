@@ -199,10 +199,16 @@
     </item>
     <item>
      <widget class="QGroupBox" name="diagramGroup">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
       <property name="title">
        <string>Task image</string>
       </property>
-      <layout class="QVBoxLayout" name="imageLayout" stretch="1,0,0">
+      <layout class="QVBoxLayout" name="imageLayout" stretch="1,0">
        <property name="spacing">
         <number>10</number>
        </property>
@@ -241,9 +247,15 @@
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="imageActionsLayout">
+        <layout class="QHBoxLayout" name="imageActionsLayout" stretch="0,0,1">
          <item>
           <widget class="QPushButton" name="loadImageButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="text">
             <string>Load image</string>
            </property>
@@ -251,31 +263,46 @@
          </item>
          <item>
           <widget class="QPushButton" name="removeImageButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="text">
             <string>Remove image</string>
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QLabel" name="imageFileLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="imageFileLabel">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="textFormat">
-          <enum>Qt::PlainText</enum>
-         </property>
-        </widget>
        </item>
       </layout>
      </widget>
     </item>
     <item>
      <widget class="QGroupBox" name="reactionGroup">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="title">
        <string>Automaton reaction</string>
       </property>
@@ -292,9 +319,9 @@
           <number>1</number>
          </property>
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
-           <verstretch>1</verstretch>
+           <verstretch>0</verstretch>
           </sizepolicy>
          </property>
         </widget>

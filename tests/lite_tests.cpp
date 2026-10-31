@@ -23,6 +23,7 @@
 #include <QFile>
 #include <QGraphicsOpacityEffect>
 #include <QGroupBox>
+#include <QHeaderView>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
@@ -35,6 +36,7 @@
 #include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QSpinBox>
 #include <QStyle>
@@ -77,6 +79,16 @@ ReactionVariant sample() {
 }
 bool equal(const ReactionVariant &a, const ReactionVariant &b) {
     return a.toJson() == b.toJson();
+}
+
+void checkReactionGeometry(ReactionTable *table) {
+    qApp->processEvents(); qApp->processEvents();
+    const auto lastCell = table->visualItemRect(table->item(1, 0));
+    require(lastCell.top() >= 0 && lastCell.bottom() < table->viewport()->height() &&
+        table->verticalScrollBar()->maximum() == 0, "both reaction rows fit without vertical scrolling");
+    require(table->viewport()->mapTo(table, lastCell.bottomLeft()).y() <
+        table->horizontalScrollBar()->mapTo(table, QPoint()).y(),
+        "horizontal scrollbar stays below the complete output row");
 }
 
 void testSourceCounts() {
@@ -669,6 +681,27 @@ int main(int argc, char **argv) {
             keyboardTable.setSteps({});
             keyboardTable.removeStep();
             require(keyboardTable.columnCount() == 1, "last column cannot leave an empty table");
+            keyboardTable.setSteps(data.reaction);
+            checkReactionGeometry(&keyboardTable);
+            const int compactWidth = keyboardTable.columnWidth(0);
+            const int fixedHeight = keyboardTable.height();
+            const QString original = keyboardTable.item(1,0)->text();
+            keyboardTable.item(1,0)->setText("y0,y1,y2,y3,y4,y5,y6,y7,y8,y9");
+            app.processEvents(); app.processEvents();
+            require(keyboardTable.columnWidth(0) > compactWidth &&
+                keyboardTable.columnWidth(0) >= keyboardTable.fontMetrics().horizontalAdvance(keyboardTable.item(1,0)->text()),
+                "columns grow automatically to fit long output lists");
+            keyboardTable.item(1,0)->setText(original);
+            app.processEvents(); app.processEvents();
+            require(keyboardTable.columnWidth(0) == compactWidth, "columns shrink when a value becomes shorter");
+            keyboardTable.setSteps(QVector<ReactionStep>(40, data.reaction[0]));
+            app.processEvents(); app.processEvents();
+            require(keyboardTable.horizontalScrollBar()->maximum() > 0 && keyboardTable.height() == fixedHeight,
+                "many reaction steps enable horizontal scrolling without changing height");
+            checkReactionGeometry(&keyboardTable);
+            keyboardTable.resize(700, 1000);
+            require(keyboardTable.height() == fixedHeight, "resizing keeps the reaction height fixed");
+            checkReactionGeometry(&keyboardTable);
         }
         {
             VariantsList variants(&service);
@@ -747,8 +780,27 @@ int main(int argc, char **argv) {
                 require(control->geometry().top() > preview->geometry().bottom(),
                     "image actions and file information stay below the preview");
             }
+            const auto *load = window.findChild<QPushButton *>("loadImageButton");
+            const auto *remove = window.findChild<QPushButton *>("removeImageButton");
+            const auto *file = window.findChild<QLabel *>("imageFileLabel");
+            require(load->width() == load->sizeHint().width() && remove->width() == remove->sizeHint().width(),
+                "image buttons keep the minimum width for their full captions");
+            require(load->geometry().center().y() == remove->geometry().center().y() &&
+                qAbs(load->geometry().center().y() - file->geometry().center().y()) <= 1 &&
+                load->geometry().left() == preview->geometry().left() &&
+                file->geometry().right() == preview->geometry().right() &&
+                remove->geometry().right() < file->geometry().left(),
+                "image buttons stay left and file information stays right on one row");
         };
         checkImageControls();
+        checkReactionGeometry(table);
+        const int reactionHeight = table->height();
+        const int groupHeight = window.findChild<QGroupBox *>("reactionGroup")->height();
+        const auto compactSize = window.size();
+        window.resize(compactSize + QSize(400, 200)); app.processEvents();
+        checkImageControls(); checkReactionGeometry(table);
+        require(table->height() == reactionHeight && window.findChild<QGroupBox *>("reactionGroup")->height() == groupHeight,
+            "the reaction table and its group keep their height when the window expands");
         const QFont originalFont = window.font();
         QFont larger = originalFont;
         larger.setPointSizeF(qMax(10.0, originalFont.pointSizeF()) * 1.5);
@@ -756,6 +808,7 @@ int main(int argc, char **argv) {
         window.resize(window.minimumSizeHint());
         app.processEvents();
         checkImageControls();
+        checkReactionGeometry(table);
         window.setFont(originalFont);
         app.processEvents();
         window.resize(window.minimumSize());
