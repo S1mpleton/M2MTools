@@ -13,10 +13,8 @@ ReactionTable::ReactionTable(QWidget *parent) : QTableWidget(2, 0, parent) {
     connect(delegate, &ReactionDelegate::nextStepRequested, this, &ReactionTable::insertStep);
     setSortingEnabled(false);
     horizontalHeader()->setSectionsMovable(false);
-    horizontalHeader()->setMinimumSectionSize(0);
-    horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     horizontalHeader()->setStretchLastSection(false);
-    horizontalHeader()->setResizeContentsPrecision(2);
     verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -54,7 +52,6 @@ void ReactionTable::setSteps(const QVector<ReactionStep> &steps) {
         item(1, c)->setText(steps[c].outputs.join(','));
     }
     setCurrentCell(0, 0);
-    resizeColumnsToContents();
     updateTableSize();
 }
 QVector<ReactionStep> ReactionTable::steps() const {
@@ -155,6 +152,11 @@ QSize ReactionTable::sizeHint() const {
     return minimumSizeHint();
 }
 void ReactionTable::updateTableSize() {
+    const int columnWidth = fontMetrics().horizontalAdvance(QStringLiteral("00000000")) + 12;
+    if (horizontalHeader()->minimumSectionSize() != columnWidth) {
+        horizontalHeader()->setMinimumSectionSize(columnWidth);
+        horizontalHeader()->setDefaultSectionSize(columnWidth);
+    }
     const int rowHeight = qMax(verticalHeader()->minimumSectionSize(), fontMetrics().height() + 12);
     if (verticalHeader()->defaultSectionSize() != rowHeight)
         verticalHeader()->setDefaultSectionSize(rowHeight);
@@ -168,6 +170,5 @@ void ReactionTable::changeEvent(QEvent *event) {
     QTableWidget::changeEvent(event);
     if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange) {
         updateTableSize();
-        resizeColumnsToContents();
     }
 }

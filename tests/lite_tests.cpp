@@ -685,15 +685,30 @@ int main(int argc, char **argv) {
             checkReactionGeometry(&keyboardTable);
             const int compactWidth = keyboardTable.columnWidth(0);
             const int fixedHeight = keyboardTable.height();
+            require(compactWidth == keyboardTable.horizontalHeader()->minimumSectionSize() &&
+                compactWidth >= keyboardTable.fontMetrics().horizontalAdvance("00000000"),
+                "default and minimum column widths fit approximately eight characters");
             const QString original = keyboardTable.item(1,0)->text();
             keyboardTable.item(1,0)->setText("y0,y1,y2,y3,y4,y5,y6,y7,y8,y9");
             app.processEvents(); app.processEvents();
-            require(keyboardTable.columnWidth(0) > compactWidth &&
-                keyboardTable.columnWidth(0) >= keyboardTable.fontMetrics().horizontalAdvance(keyboardTable.item(1,0)->text()),
-                "columns grow automatically to fit long output lists");
+            require(keyboardTable.columnWidth(0) == compactWidth,
+                "long output lists do not resize a column automatically");
+            auto *header = keyboardTable.horizontalHeader();
+            const QPoint boundary(header->sectionViewportPosition(0) + compactWidth - 1,
+                                  header->viewport()->height() / 2);
+            QTest::mousePress(header->viewport(), Qt::LeftButton, Qt::NoModifier, boundary);
+            QTest::mouseMove(header->viewport(), boundary + QPoint(48,0));
+            QTest::mouseRelease(header->viewport(), Qt::LeftButton, Qt::NoModifier, boundary + QPoint(48,0));
+            const int manualWidth = keyboardTable.columnWidth(0);
+            require(manualWidth > compactWidth, "users can widen each column by dragging its header boundary");
             keyboardTable.item(1,0)->setText(original);
             app.processEvents(); app.processEvents();
-            require(keyboardTable.columnWidth(0) == compactWidth, "columns shrink when a value becomes shorter");
+            require(keyboardTable.columnWidth(0) == manualWidth,
+                "editing a shorter value preserves the user's chosen width");
+            keyboardTable.setCurrentCell(0,0); keyboardTable.insertStep();
+            if (auto *current = activeEditor()) QTest::keyClick(current, Qt::Key_Escape);
+            require(keyboardTable.columnWidth(0) == manualWidth && keyboardTable.columnWidth(1) == compactWidth,
+                "new columns use the standard width without changing existing custom widths");
             keyboardTable.setSteps(QVector<ReactionStep>(40, data.reaction[0]));
             app.processEvents(); app.processEvents();
             require(keyboardTable.horizontalScrollBar()->maximum() > 0 && keyboardTable.height() == fixedHeight,
