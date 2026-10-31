@@ -32,6 +32,7 @@ qrc_*.cpp
 Thumbs.db
 *.res
 *.rc
+!resources/windows-icon.rc
 /.qmake.cache
 /.qmake.stash
 **/.qmlls.ini
@@ -82,3 +83,8 @@ CMakeLists.txt.user*
 .uic/
 /build*/
 /.qtcreator/
+
+# Local Lite data
+variants-lite.db*
+*.m2m
+*.m2mlite

@@ -1,297 +1,524 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>800</width>
-    <height>600</height>
-   </rect>
-  </property>
-  <property name="cursor">
-   <cursorShape>ArrowCursor</cursorShape>
-  </property>
   <property name="windowTitle">
-   <string>M2MTools</string>
+   <string>M2MTools[*]</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="0">
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <property name="spacing">
-       <number>7</number>
-      </property>
+   <layout class="QVBoxLayout" name="mainLayout">
+    <property name="spacing">
+     <number>12</number>
+    </property>
+    <property name="leftMargin">
+     <number>12</number>
+    </property>
+    <property name="topMargin">
+     <number>12</number>
+    </property>
+    <property name="rightMargin">
+     <number>12</number>
+    </property>
+    <property name="bottomMargin">
+     <number>12</number>
+    </property>
+    <property name="sizeConstraint">
+     <enum>QLayout::SetMinimumSize</enum>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="variantLayout">
       <item>
-       <widget class="QGroupBox" name="groupBox">
-        <property name="title">
-         <string>Variant data</string>
+       <widget class="QLabel" name="variantNumberLabel">
+        <property name="text">
+         <string>Variant number</string>
         </property>
-        <layout class="QGridLayout" name="gridLayout_2">
-         <item row="2" column="1">
-          <widget class="QComboBox" name="variantTypeComboBox">
-           <item>
-            <property name="text">
-             <string>Mealy to Moore</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Moore to Mealy</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QSpinBox" name="numberVariantSpinBox">
-           <property name="minimum">
-            <number>1</number>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_2">
-           <property name="text">
-            <string>Variant type</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label">
-           <property name="text">
-            <string>Number variant</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </widget>
       </item>
       <item>
-       <widget class="QGroupBox" name="groupBox_2">
-        <property name="title">
-         <string>Names</string>
+       <widget class="QSpinBox" name="variantNumber">
+        <property name="minimum">
+         <number>1</number>
         </property>
-        <layout class="QGridLayout" name="gridLayout_3">
-         <item row="2" column="1">
-          <widget class="QLineEdit" name="OutputSignalNamesLineEdit"/>
-         </item>
+        <property name="maximum">
+         <number>99</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="conversionLabel">
+        <property name="text">
+         <string>Conversion</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="conversionType">
+        <item>
+         <property name="text">
+          <string>Mealy → Moore</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Moore → Mealy</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="countsLayout">
+      <item>
+       <widget class="QGroupBox" name="mealyGroup">
+        <property name="title">
+         <string>Mealy — counts</string>
+        </property>
+        <layout class="QFormLayout" name="mealyLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
          <item row="0" column="0">
-          <widget class="QLabel" name="label_3">
+          <widget class="QLabel" name="mealyStatesLabel">
            <property name="text">
-            <string>State names</string>
+            <string>States</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="mealyStatesCount">
+           <property name="minimum">
+            <number>4</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="mealyInputsLabel">
+           <property name="text">
+            <string>Input signals</string>
            </property>
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="InputSignalNamesLineEdit"/>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_5">
-           <property name="text">
-            <string>Output signal names</string>
+          <widget class="QSpinBox" name="mealyInputsCount">
+           <property name="minimum">
+            <number>3</number>
+           </property>
+           <property name="maximum">
+            <number>6</number>
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_4">
+         <item row="2" column="0">
+          <widget class="QLabel" name="mealyOutputsLabel">
            <property name="text">
-            <string>Input signal names</string>
+            <string>Output signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="mealyOutputsCount">
+           <property name="minimum">
+            <number>4</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="mooreGroup">
+        <property name="title">
+         <string>Moore — counts</string>
+        </property>
+        <layout class="QFormLayout" name="mooreLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="mooreStatesLabel">
+           <property name="text">
+            <string>States</string>
            </property>
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QLineEdit" name="stateNamesLineEdit"/>
+          <widget class="QSpinBox" name="mooreStatesCount">
+           <property name="minimum">
+            <number>4</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+          </widget>
          </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QGroupBox" name="groupBox_3">
-        <property name="title">
-         <string>Logic</string>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_4">
          <item row="1" column="0">
-          <widget class="QTableWidget" name="transitionTableWidget"/>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_6">
+          <widget class="QLabel" name="mooreInputsLabel">
            <property name="text">
-            <string>Transition table</string>
+            <string>Input signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="mooreInputsCount">
+           <property name="minimum">
+            <number>3</number>
+           </property>
+           <property name="maximum">
+            <number>6</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="mooreOutputsLabel">
+           <property name="text">
+            <string>Output signals</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="mooreOutputsCount">
+           <property name="minimum">
+            <number>4</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
            </property>
           </widget>
          </item>
         </layout>
        </widget>
       </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="diagramGroup">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="title">
+       <string>Task image</string>
+      </property>
+      <layout class="QVBoxLayout" name="imageLayout" stretch="1,0">
+       <property name="spacing">
+        <number>10</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="diagramDropZone">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>180</width>
+           <height>96</height>
+          </size>
+         </property>
+         <property name="acceptDrops">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="accessibleName">
+          <string>Task image preview</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="imageActionsLayout" stretch="0,0,1">
+         <item>
+          <widget class="QPushButton" name="loadImageButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Load image</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeImageButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Remove image</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="imageFileLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="reactionGroup">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="title">
+       <string>Automaton reaction</string>
+      </property>
+      <layout class="QVBoxLayout" name="reactionLayout">
+       <property name="spacing">
+        <number>10</number>
+       </property>
+       <item>
+        <widget class="ReactionTable" name="reactionTable">
+         <property name="rowCount">
+          <number>2</number>
+         </property>
+         <property name="columnCount">
+          <number>1</number>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="stepActionsLayout">
+         <item>
+          <widget class="QPushButton" name="addReactionStep">
+           <property name="text">
+            <string>Insert step after selection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeReactionStep">
+           <property name="text">
+            <string>Delete selected step</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="stepActionsSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="FeedbackLabel" name="validationMessage">
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="variantActionsLayout">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QPushButton" name="savePushButton">
-          <property name="text">
-           <string>Save</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="loadVariantPushButton">
-          <property name="text">
-           <string>Variants list</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+       <widget class="QPushButton" name="newVariantButton">
+        <property name="text">
+         <string>New variant</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="openVariantButton">
+        <property name="text">
+         <string>Variants list</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="variantActionsSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="saveVariantButton">
+        <property name="text">
+         <string>Save variant</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>800</width>
-     <height>26</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="menuMain">
+   <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>Menu</string>
+     <string>File</string>
     </property>
-    <property name="icon">
-     <iconset theme="QIcon::ThemeIcon::GoHome"/>
-    </property>
-    <addaction name="actionSaveVariant"/>
-    <addaction name="actionLoadVariant"/>
-    <addaction name="actionShowLogger"/>
-    <addaction name="separator"/>
-    <addaction name="actionExit"/>
+    <addaction name="actionNewVariant" />
+    <addaction name="actionSaveVariant" />
+    <addaction name="actionOpenVariant" />
+    <addaction name="separator" />
+    <addaction name="actionImportDatabase" />
+    <addaction name="actionExportDatabase" />
+    <addaction name="separator" />
+    <addaction name="actionExit" />
    </widget>
    <widget class="QMenu" name="menuSettings">
     <property name="title">
      <string>Settings</string>
     </property>
-    <property name="icon">
-     <iconset theme="QIcon::ThemeIcon::DocumentProperties"/>
-    </property>
-    <widget class="QMenu" name="menuType_of_check">
-     <property name="title">
-      <string>Type of check</string>
-     </property>
-     <addaction name="actionTypeSoft"/>
-     <addaction name="actionTypeStrict"/>
-    </widget>
     <widget class="QMenu" name="menuLanguage">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="cursor">
-      <cursorShape>ArrowCursor</cursorShape>
-     </property>
-     <property name="tearOffEnabled">
-      <bool>false</bool>
-     </property>
      <property name="title">
       <string>Language</string>
      </property>
-     <property name="separatorsCollapsible">
-      <bool>false</bool>
-     </property>
-     <property name="toolTipsVisible">
-      <bool>false</bool>
-     </property>
-     <addaction name="actionSetLangEn"/>
-     <addaction name="actionSetLangRu"/>
+     <addaction name="actionEnglish" />
+     <addaction name="actionRussian" />
     </widget>
-    <addaction name="menuLanguage"/>
-    <addaction name="menuType_of_check"/>
+    <addaction name="menuLanguage" />
+    <addaction name="actionShowLogger" />
    </widget>
-   <addaction name="menuMain"/>
-   <addaction name="menuSettings"/>
+   <addaction name="menuFile" />
+   <addaction name="menuSettings" />
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
-  <action name="actionExit">
-   <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::ApplicationExit"/>
-   </property>
+  <action name="actionNewVariant">
    <property name="text">
-    <string>Exit</string>
+    <string>New variant</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
    </property>
   </action>
   <action name="actionSaveVariant">
-   <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentSave"/>
-   </property>
    <property name="text">
     <string>Save variant</string>
    </property>
-  </action>
-  <action name="actionLoadVariant">
-   <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentOpen"/>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
+  </action>
+  <action name="actionOpenVariant">
    <property name="text">
-    <string>Load variant</string>
+    <string>Variants list</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
-  <action name="actionSetLangEn">
-   <property name="checkable">
-    <bool>true</bool>
+  <action name="actionImportDatabase">
+   <property name="text">
+    <string>Import database</string>
    </property>
+  </action>
+  <action name="actionExportDatabase">
+   <property name="text">
+    <string>Export database</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionEnglish">
    <property name="text">
     <string>English</string>
    </property>
-  </action>
-  <action name="actionSetLangRu">
    <property name="checkable">
     <bool>true</bool>
    </property>
-   <property name="checked">
-    <bool>false</bool>
-   </property>
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
+  </action>
+  <action name="actionRussian">
    <property name="text">
     <string>Russian</string>
    </property>
-   <property name="priority">
-    <enum>QAction::Priority::NormalPriority</enum>
-   </property>
-  </action>
-  <action name="actionTypeSoft">
    <property name="checkable">
     <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Soft</string>
-   </property>
-  </action>
-  <action name="actionTypeStrict">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Strict</string>
    </property>
   </action>
   <action name="actionShowLogger">
-   <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::WindowNew"/>
-   </property>
    <property name="text">
     <string>Show logger</string>
    </property>
-   <property name="iconVisibleInMenu">
-    <bool>true</bool>
-   </property>
-   <property name="shortcutVisibleInContextMenu">
-    <bool>true</bool>
-   </property>
   </action>
  </widget>
- <resources/>
- <connections/>
+ <customwidgets>
+  <customwidget>
+   <class>FeedbackLabel</class>
+   <extends>QLabel</extends>
+   <header>ui/widgets/feedbacklabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ReactionTable</class>
+   <extends>QTableWidget</extends>
+   <header>ui/widgets/reactiontable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>WrappingLabel</class>
+   <extends>QLabel</extends>
+   <header>ui/widgets/wrappinglabel.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources />
+ <connections />
 </ui>

@@ -1,83 +1,63 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
-
-#include "core/automatondata.h"
+#pragma once
+#include "core/reactionvariant.h"
 #include "data/variantservice.h"
-#include "infrastructure/translationmanager.h"
-
-#include "ui/logwindow.h"
-#include "ui/presenters/tablecellerrorpresenter.h"
-
-#include <QLineEdit>
 #include <QMainWindow>
-#include <QTranslator>
-
-QT_BEGIN_NAMESPACE
+#include <array>
+#include <optional>
+class QComboBox;
+class QSpinBox;
+class QLabel;
+class QAction;
+class ReactionTable;
+class TranslationManager;
+class LogWindow;
+class VariantImagePanel;
+class FeedbackLabel;
+class FieldFeedback;
 namespace Ui {
 class MainWindow;
 }
-QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
-public:
-    explicit MainWindow(VariantService* service, QWidget *parent = nullptr);
+  public:
     ~MainWindow() override;
+    explicit MainWindow(VariantService *service, QWidget *parent = nullptr);
+    MainWindow(VariantService *service, TranslationManager *translator, QWidget *parent);
 
-private slots:
-    // header slots
-    void onLanguageSelected(QAction* action);
-    void onTypeCheckSelected(QAction* action);
-
-    void onShowLogClicked();
-    void onExitAction();
-
-    // basic slots
-    void onVariantTypeChanged(int index);
-    void onVariantNumberChanged(int number);
-
-    void onStateNamesChanged(const QString& text);
-
-    void onInputNamesChanged(const QString& text);
-
-    void onOutputNamesChanged(const QString& text);
-
-    void onTableCellChanged(int row, int col);
-
-    void onLoadVariantPushButton();
-    void onSavePushButtonClicked();
-
-
-
-private:
-    Ui::MainWindow *ui;
-    AutomatonData m_data;
-
-    bool m_updatingTable = false;
-    bool m_updatingUi = false;
-
-    LogWindow* m_logWindow = nullptr;
-
-    VariantService* m_variantService = nullptr;
-    IErrorPresenter* m_stateNamesPresenter = nullptr;
-    IErrorPresenter* m_inputNamesPresenter = nullptr;
-    IErrorPresenter* m_outputNamesPresenter = nullptr;
-
-    TableCellErrorPresenter* m_cellPresenter = nullptr;
-
-    TranslationManager* m_translator = nullptr;
-
-    void setupPresenters();
-    void setupConnections();
-    void setupLanguageGroup();
-    void setupTypeСheckGroup();
-
-    void refreshTable();
-    void refreshData();
-
-protected:
+  protected:
     void changeEvent(QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
+  private:
+    Ui::MainWindow *ui = nullptr;
+    bool m_initialSizeApplied = false;
+    VariantService *m_service;
+    TranslationManager *m_translator;
+    ReactionTable *m_reaction;
+    QSpinBox *m_number;
+    QComboBox *m_type;
+    std::array<QSpinBox *, 3> m_mealy, m_moore;
+    FeedbackLabel *m_feedback;
+    FieldFeedback *m_fieldFeedback;
+    LogWindow *m_log = nullptr;
+    ReactionVariant m_baseline;
+    std::optional<Result> m_lastResult;
+    VariantImagePanel *m_imagePanel;
+    bool m_loading = false;
+    void setupMenus();
+    void refreshTexts();
+    void loadData(const ReactionVariant &data);
+    ReactionVariant readData() const;
+    void showResult(const Result &result);
+    void markValidationError(const Result &result);
+    void clearValidationFeedback();
+    void updateModified();
+    bool confirmDiscard(QWidget *parent = nullptr);
+    bool save();
+    void newVariant();
+    void openVariant();
+    void importArchive();
+    void exportArchive();
 };
-#endif // MAINWINDOW_H

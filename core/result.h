@@ -3,9 +3,10 @@
 
 #include "core/errorcode.h"
 
+#include <QDateTime>
 #include <QObject>
 #include <QString>
-#include <QDateTime>
+#include <QStringList>
 
 enum class ResultCategory {
     General,
@@ -32,83 +33,123 @@ ResultSeverity resultSeverityStringToType(QString resultSeverityString);
 QString resultSeverityToString(ResultSeverity resultSeverity);
 QString resultSeverityDisplayName(ResultSeverity resultSeverity);
 
-class Result
-{
-public:
-    static Result success(const QString& message = "Ok") {
+class Result {
+  public:
+    // Keep the template and arguments separate so existing feedback and log
+    // entries can be translated again when the language changes.
+    static Result successMessage(const char *source, const QStringList &arguments = {});
+    static Result errorMessage(const char *source, const QStringList &arguments = {},
+                               ResultCategory category = ResultCategory::General);
+    bool hasMessageTemplate() const {
+        return !m_messageSource.isEmpty();
+    }
+    QString localizedMessage() const;
+    static Result success(const QString &message = QString::fromUtf8(QT_TRANSLATE_NOOP(
+                              "ResultMessage", "Operation completed successfully"))) {
         return Result(ResultSeverity::Success, ResultCategory::General, message);
     }
 
-    static Result warning(const QString& message, ResultCategory category = ResultCategory::General) {
+    static Result warning(const QString &message,
+                          ResultCategory category = ResultCategory::General) {
         return Result(ResultSeverity::Warning, category, message);
     }
 
-    static Result error(const QString& message, ResultCategory category = ResultCategory::General) {
+    static Result error(const QString &message, ResultCategory category = ResultCategory::General) {
         return Result(ResultSeverity::Error, category, message);
     }
 
-    void updateMessage(const QString& message);
+    void updateMessage(const QString &message);
 
-    bool isSuccess() const { return m_severity == ResultSeverity::Success; }
-    bool isWarning() const { return m_severity == ResultSeverity::Warning; }
-    bool isError() const { return m_severity == ResultSeverity::Error; }
+    bool isSuccess() const {
+        return m_severity == ResultSeverity::Success;
+    }
+    bool isWarning() const {
+        return m_severity == ResultSeverity::Warning;
+    }
+    bool isError() const {
+        return m_severity == ResultSeverity::Error;
+    }
 
-    bool ok() const { return !isError(); }
+    bool ok() const {
+        return !isError();
+    }
 
-    ResultSeverity severity() const { return m_severity; }
-    ResultCategory category() const { return m_category; }
-    QString message() const { return m_message; }
+    ResultSeverity severity() const {
+        return m_severity;
+    }
+    ResultCategory category() const {
+        return m_category;
+    }
+    QString message() const {
+        return m_message;
+    }
 
-    QString details() const { return m_details; }
+    QString details() const {
+        return m_details;
+    }
 
-    QString offender() const { return m_offender; }
+    QString offender() const {
+        return m_offender;
+    }
+    QStringList fields() const {
+        return m_fields;
+    }
+    Result &withFields(const QStringList &fields) {
+        m_fields = fields;
+        return *this;
+    }
 
-    ErrorCode code() const { return m_code; }
+    ErrorCode code() const {
+        return m_code;
+    }
 
-    QDateTime timestamp() const { return m_timestamp; }
+    QDateTime timestamp() const {
+        return m_timestamp;
+    }
 
-    QVariant payload() const { return m_payload; }
-    bool hasPayload() const { return m_payload.isValid(); }
+    QVariant payload() const {
+        return m_payload;
+    }
+    bool hasPayload() const {
+        return m_payload.isValid();
+    }
 
-    template<typename T>
-    T payloadAs() const {
+    template <typename T> T payloadAs() const {
         return m_payload.value<T>();
     }
 
     // --- chainable ---
-    template<typename T>
-    Result& withPayload(const T value) {
+    template <typename T> Result &withPayload(const T value) {
         m_payload = QVariant::fromValue(value);
         return *this;
     }
 
-    Result& withOffender(const QString& offender) {
+    Result &withOffender(const QString &offender) {
         m_offender = offender;
         return *this;
     }
 
-    Result& withDetails(const QString& details) {
+    Result &withDetails(const QString &details) {
         m_details = details;
         return *this;
     }
 
-    Result& withCode(ErrorCode code) {
+    Result &withCode(ErrorCode code) {
         m_code = code;
         return *this;
     }
 
-    Result& withCategory(ResultCategory category) {
+    Result &withCategory(ResultCategory category) {
         m_category = category;
         return *this;
     }
 
-private:
-    Result(ResultSeverity severity, ResultCategory category, const QString& message)
-        : m_severity(severity)
-        , m_category(category)
-        , m_message(message)
-        , m_timestamp(QDateTime::currentDateTime())
-    {}
+  private:
+    QByteArray m_messageSource;
+    QStringList m_messageArguments;
+    Result(ResultSeverity severity, ResultCategory category, const QString &message)
+        : m_severity(severity), m_category(category), m_message(message),
+          m_timestamp(QDateTime::currentDateTime()) {}
 
     QVariant m_payload;
 
@@ -117,6 +158,7 @@ private:
     QString m_message;
     QString m_details;
     QString m_offender;
+    QStringList m_fields;
     QDateTime m_timestamp;
 
     ErrorCode m_code = ErrorCode::None;

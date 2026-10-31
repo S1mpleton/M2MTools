@@ -1,132 +1,52 @@
-cmake_minimum_required(VERSION 3.16)
-
-project(M2MTools VERSION 0.1 LANGUAGES CXX)
-
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
+cmake_minimum_required(VERSION 3.19)
+project(M2MTools VERSION 0.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Sql LinguistTools)
+find_package(OpenSSL 1.1.1 REQUIRED COMPONENTS Crypto)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools Sql)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools Sql)
+add_library(M2MCore STATIC
+    core/reactionvariant.cpp core/variantimage.cpp core/variantarchive.cpp core/result.cpp core/errorcode.cpp
+    data/database.cpp data/schemamanager.cpp data/transaction.cpp
+    data/variantrepository.cpp data/variantservice.cpp
+    infrastructure/logger.cpp)
+target_include_directories(M2MCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(M2MCore PUBLIC Qt6::Core Qt6::Gui Qt6::Sql OpenSSL::Crypto)
 
+add_library(M2MUi STATIC
+    ui/mainwindow.cpp ui/mainwindow.ui ui/appicons.cpp ui/widgets/reactiontable.cpp ui/widgets/wrappinglabel.cpp
+    ui/widgets/variantimagepanel.cpp
+    ui/widgets/feedbacklabel.cpp ui/fieldfeedback.cpp
+    ui/delegates/reactiondelegate.cpp validation/reactionvalidator.cpp
+    ui/variantslist.cpp ui/variantslist.ui ui/logwindow.cpp ui/logwindow.ui
+    ui/dialogs/resultmessenger.cpp ui/translateresult.cpp
+    infrastructure/translationmanager.cpp)
+target_link_libraries(M2MUi PUBLIC M2MCore Qt6::Widgets)
 
-set(TS_FILES M2MTools_ru_RU.ts)
-
-
-set(PROJECT_SOURCES
-        main.cpp
-        ui/mainwindow.cpp
-        ui/mainwindow.h
-        ui/mainwindow.ui
-        ${TS_FILES}
-)
-
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(M2MTools
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-        core/automatondata.h core/automatondata.cpp
-        core/namelistparser.h core/namelistparser.cpp
-
-
-        core/hash/hashprovider.h
-        core/hash/saltedsha256provider.h core/hash/saltedsha256provider.cpp
-        core/hash/rsaprovider.h core/hash/rsaprovider.cpp
-
-        validation/editvalidator.h validation/editvalidator.cpp
-        validation/listnamesvalidator.h validation/listnamesvalidator.cpp
-        validation/compositevalidator.h validation/compositevalidator.cpp
-
-        ui/delegates/mooredelegate.h ui/delegates/mooredelegate.cpp
-        ui/delegates/mealydelegate.h ui/delegates/mealydelegate.cpp
-
-        ui/presenters/fielderrorhighlighter.h ui/presenters/fielderrorhighlighter.cpp
-        ui/presenters/tablecellerrorpresenter.h ui/presenters/tablecellerrorpresenter.cpp
-        ui/presenters/ierrorpresenter.h
-        ui/presenters/errorpresenterfactory.h ui/presenters/errorpresenterfactory.cpp
-
-        resources.qrc
-        data/sqlrequests.h
-        data/database.h data/database.cpp
-        data/schemamanager.h data/schemamanager.cpp
-        data/transaction.h data/transaction.cpp
-        data/variantrepository.h data/variantrepository.cpp
-        data/variantservice.h data/variantservice.cpp
-        core/result.h
-        infrastructure/logger.h infrastructure/logger.cpp
-        core/result.cpp
-        infrastructure/translationmanager.h infrastructure/translationmanager.cpp
-        core/errorcode.h
-        ui/translateresult.h ui/translateresult.cpp
-        core/errorcode.cpp
-        data/sqlerrormapper.h data/sqlerrormapper.cpp
-        ui/variantslist.h ui/variantslist.cpp ui/variantslist.ui
-        ui/dialogs/resultmessenger.h ui/dialogs/resultmessenger.cpp
-        ui/logwindow.h ui/logwindow.cpp ui/logwindow.ui
-    )
-
-    target_include_directories(M2MTools PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET M2MTools APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-
-
-    qt_add_translations(M2MTools
-        TS_FILES M2MTools_ru_RU.ts
-    )
-    qt_add_lupdate(M2MTools)
-
-
-#    qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
-else()
-    if(ANDROID)
-        add_library(M2MTools SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(M2MTools
-            ${PROJECT_SOURCES}
-        )
-    endif()
-
-    qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
+qt_add_executable(M2MTools WIN32 MACOSX_BUNDLE main.cpp)
+target_link_libraries(M2MTools PRIVATE M2MUi)
+if(WIN32)
+    enable_language(RC)
+    target_sources(M2MTools PRIVATE resources/windows-icon.rc)
+    target_include_directories(M2MTools PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/resources)
 endif()
-
-target_link_libraries(M2MTools PRIVATE
-    Qt${QT_VERSION_MAJOR}::Widgets
-    Qt${QT_VERSION_MAJOR}::Sql
-)
-
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.M2MTools)
+set(TRANSLATION_TARGETS M2MTools)
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    qt_add_executable(M2MTests tests/lite_tests.cpp)
+    target_link_libraries(M2MTests PRIVATE M2MUi Qt6::Test)
+    list(APPEND TRANSLATION_TARGETS M2MTests)
+    add_test(NAME M2M COMMAND M2MTests)
+    set_tests_properties(M2M PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
-set_target_properties(M2MTools PROPERTIES
-    ${BUNDLE_ID_OPTION}
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
-)
-
+foreach(icon_target IN LISTS TRANSLATION_TARGETS)
+    qt_add_resources(${icon_target} window_icons
+        PREFIX "/icons" BASE "resources/icons"
+        FILES resources/icons/m2mtools.png resources/icons/event-log.png)
+endforeach()
+qt_add_translations(TARGETS ${TRANSLATION_TARGETS} TS_FILES M2MTools_ru_RU.ts)
 include(GNUInstallDirs)
-install(TARGETS M2MTools
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(M2MTools)
-endif()
+install(TARGETS M2MTools BUNDLE DESTINATION . RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

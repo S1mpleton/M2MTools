@@ -3,13 +3,40 @@
 #include <QCoreApplication>
 
 namespace {
+    [[maybe_unused]] const char* const kResultTranslationSources[] = {
+        QT_TRANSLATE_NOOP("Result", "Failed to delete data from database."),
+        QT_TRANSLATE_NOOP("Result", "Database transaction failed."),
+        QT_TRANSLATE_NOOP("Result", "Database contains corrupted data. Please contact the administrator."),
+        QT_TRANSLATE_NOOP("Result", "The archive contains an invalid variant entry."),
+        QT_TRANSLATE_NOOP("Result", "The archive contains an invalid variant number or type."),
+        QT_TRANSLATE_NOOP("Result", "The archive contains invalid symbol lists."),
+        QT_TRANSLATE_NOOP("Result", "The archive does not contain a transition table."),
+        QT_TRANSLATE_NOOP("Result", "The archive transition table is corrupted."),
+        QT_TRANSLATE_NOOP("Result", "Variant #%1 in the archive has no image."),
+        QT_TRANSLATE_NOOP("Result", "A variant in the archive failed validation."),
+        QT_TRANSLATE_NOOP("Result", "Failed to prepare the BazaVar file."),
+        QT_TRANSLATE_NOOP("Result", "Failed to open the BazaVar archive file."),
+        QT_TRANSLATE_NOOP("Result", "Failed to save the BazaVar archive."),
+        QT_TRANSLATE_NOOP("Result", "Internal error: archive data destination was not provided."),
+        QT_TRANSLATE_NOOP("Result", "The selected file is not an M2MTools archive."),
+        QT_TRANSLATE_NOOP("Result", "The BazaVar file is damaged or was created by an incompatible application."),
+        QT_TRANSLATE_NOOP("Result", "The BazaVar file data is corrupted."),
+        QT_TRANSLATE_NOOP("Result", "This BazaVar archive version or format is not supported."),
+        QT_TRANSLATE_NOOP("Result", "The archive contains duplicate variant number #%1."),
+        QT_TRANSLATE_NOOP("Result", "Database integrity check failed. The data may have been modified manually."),
+        QT_TRANSLATE_NOOP("Result", "Failed to compute content hash."),
+        QT_TRANSLATE_NOOP("Result", "The operation could not be completed. See the event log for details."),
+    };
+
     QString trResult(const char* text) {
 
         return QCoreApplication::translate("Result", text);
     }
 }
 
-QString translateResult(const Result& r) {
+QString TranslateResult::forUi(const Result& r) {
+    if (r.hasMessageTemplate())
+        return r.localizedMessage();
     using EC = ErrorCode;
 
     switch (r.code()) {
@@ -35,9 +62,16 @@ QString translateResult(const Result& r) {
                         "Internal error: transition table size "
                         "does not match the number of input signals.");
 
-    case EC::ADUnusedState:
+    case EC::ADStateWithoutIncomingTransition:
         return QCoreApplication::translate("AutomatonData",
-                        "State '%1' is not used in any transition.")
+            "State '%1' has no incoming transition. "
+            "Add a transition into this state.")
+            .arg(r.offender());
+
+    case EC::ADStateWithoutOutgoingTransition:
+        return QCoreApplication::translate("AutomatonData",
+            "State '%1' has no outgoing transition. "
+            "Add a transition from this state.")
             .arg(r.offender());
 
     case EC::ADUnusedInput:
@@ -159,6 +193,45 @@ QString translateResult(const Result& r) {
     case EC::VariantEmptyContent:
         return QCoreApplication::translate("VariantService",
                         "Variant has no content (empty states or inputs).");
+    case EC::VariantMissingImage:
+        return QCoreApplication::translate("VariantService",
+                        "Variant #%1 has no task image.").arg(r.offender());
+
+    // -- Archive --
+    case EC::ArchiveInvalidEntry:
+        return trResult("The archive contains an invalid variant entry.");
+    case EC::ArchiveInvalidMetadata:
+        return trResult("The archive contains an invalid variant number or type.");
+    case EC::ArchiveInvalidSymbols:
+        return trResult("The archive contains invalid symbol lists.");
+    case EC::ArchiveMissingTransitionTable:
+        return trResult("The archive does not contain a transition table.");
+    case EC::ArchiveCorruptedTransitionTable:
+        return trResult("The archive transition table is corrupted.");
+    case EC::ArchiveMissingImage:
+        return trResult("Variant #%1 in the archive has no image.")
+            .arg(r.offender());
+    case EC::ArchiveInvalidVariant:
+        return trResult("A variant in the archive failed validation.");
+    case EC::ArchiveEncryptionFailed:
+        return trResult("Failed to prepare the BazaVar file.");
+    case EC::ArchiveFileOpenFailed:
+        return trResult("Failed to open the BazaVar archive file.");
+    case EC::ArchiveSaveFailed:
+        return trResult("Failed to save the BazaVar archive.");
+    case EC::ArchiveInvalidTarget:
+        return trResult("Internal error: archive data destination was not provided.");
+    case EC::ArchiveInvalidFormat:
+        return trResult("The selected file is not an M2MTools archive.");
+    case EC::ArchiveDecryptionFailed:
+        return trResult("The BazaVar file is damaged or was created by an incompatible application.");
+    case EC::ArchiveCorruptedPayload:
+        return trResult("The BazaVar file data is corrupted.");
+    case EC::ArchiveUnsupportedVersion:
+        return trResult("This BazaVar archive version or format is not supported.");
+    case EC::ArchiveDuplicateVariantNumber:
+        return trResult("The archive contains duplicate variant number #%1.")
+            .arg(r.offender());
 
 
     // -- Hash --
@@ -172,9 +245,29 @@ QString translateResult(const Result& r) {
     // -- Fallback --
 
     case EC::None:
-        return r.message();
+    {
+        return r.localizedMessage();
+    }
 
     default:
-        return "(No translate) " + r.message();
+        return trResult("The operation could not be completed. "
+                        "See the event log for details.");
     }
+}
+
+QString TranslateResult::forLog(const Result& result) {
+    QString text = result.message().isEmpty()
+        ? QStringLiteral("Operation completed without a diagnostic message")
+        : result.message();
+    if (result.code() != ErrorCode::None)
+        text += QStringLiteral(" | code=%1").arg(errorCodeToString(result.code()));
+    if (!result.offender().isEmpty())
+        text += QStringLiteral(" | offender=%1").arg(result.offender());
+    if (!result.details().isEmpty())
+        text += QStringLiteral(" | details=%1").arg(result.details());
+    return text;
+}
+
+QString translateResult(const Result& result) {
+    return TranslateResult::forUi(result);
 }
