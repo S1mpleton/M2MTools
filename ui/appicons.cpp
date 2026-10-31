@@ -192,7 +192,10 @@ QIcon AppIcons::icon(Kind kind) {
     return QIcon(new Engine(kind));
 }
 QIcon AppIcons::applicationIcon() {
-    return QIcon(QStringLiteral(":/icons/m2mtools.png"));
+    QIcon result(QStringLiteral(":/icons/m2mtools.png"));
+    for (const int size : {16, 20, 24, 32})
+        result.addFile(QStringLiteral(":/icons/m2mtools-%1.png").arg(size), QSize(size, size));
+    return result;
 }
 QIcon AppIcons::logWindowIcon() {
     return QIcon(QStringLiteral(":/icons/event-log.png"));
