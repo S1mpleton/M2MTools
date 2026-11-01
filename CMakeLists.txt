@@ -47,7 +47,10 @@ foreach(icon_target IN LISTS TRANSLATION_TARGETS)
         PREFIX "/icons" BASE "resources/icons"
         FILES resources/icons/m2mtools.png resources/icons/event-log.png
             resources/icons/m2mtools-16.png resources/icons/m2mtools-20.png
-            resources/icons/m2mtools-24.png resources/icons/m2mtools-32.png)
+            resources/icons/m2mtools-24.png resources/icons/m2mtools-32.png
+            resources/icons/variant-01/m2mtools.png
+            resources/icons/variant-01/m2mtools-16.png resources/icons/variant-01/m2mtools-20.png
+            resources/icons/variant-01/m2mtools-24.png resources/icons/variant-01/m2mtools-32.png)
 endforeach()
 qt_add_translations(TARGETS ${TRANSLATION_TARGETS} TS_FILES M2MTools_ru_RU.ts)
 include(GNUInstallDirs)

@@ -1,6 +1,13 @@
 # Window icons
 
-The application icon uses the approved M2M family artwork: a navy state graph
+The active application icon is [variant 01](variant-01/README.md): the diagonal
+charcoal/silver M2M monogram with a blue exercise sheet and pencil. Its PNG
+resources and Windows ICO are stored in `variant-01/`.
+
+## Preserved state-graph set
+
+The previous application icon files remain here, unchanged and tracked in Git.
+They use the approved M2M family artwork: a navy state graph
 and coral pencil on an ivory rounded square. The matching M2MConvertor icon
 uses mint conversion arrows.
 
@@ -13,7 +20,7 @@ a larger pictogram, thicker strokes and less whitespace. The 16, 20, 24 and
 screen scale. The Windows title-bar icon dimensions are controlled by Windows.
 
 `m2mtools.ico` combines the compact drawing at 16–32 px and the standard drawing
-at 40, 48, 64, 128 and 256 px. It is embedded in the Windows executable.
+at 40, 48, 64, 128 and 256 px. This previous Windows icon is retained as an alternative.
 
 The event-log icon comes from the GNOME Project's Adwaita icon theme:
 <https://www.gnome.org> · <https://gitlab.gnome.org/GNOME/adwaita-icon-theme>
