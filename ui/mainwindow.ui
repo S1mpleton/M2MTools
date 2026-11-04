@@ -72,7 +72,7 @@
       <item>
        <widget class="QGroupBox" name="mealyGroup">
         <property name="title">
-         <string>Mealy — counts</string>
+         <string>Mealy</string>
         </property>
         <layout class="QFormLayout" name="mealyLayout">
          <property name="fieldGrowthPolicy">
@@ -135,7 +135,7 @@
       <item>
        <widget class="QGroupBox" name="mooreGroup">
         <property name="title">
-         <string>Moore — counts</string>
+         <string>Moore</string>
         </property>
         <layout class="QFormLayout" name="mooreLayout">
          <property name="fieldGrowthPolicy">

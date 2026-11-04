@@ -248,12 +248,12 @@
             <translation>Выходные сигналы</translation>
         </message>
         <message>
-            <source>Mealy — counts</source>
-            <translation>Мили — количества</translation>
+            <source>Mealy</source>
+            <translation>Мили</translation>
         </message>
         <message>
-            <source>Moore — counts</source>
-            <translation>Мура — количества</translation>
+            <source>Moore</source>
+            <translation>Мура</translation>
         </message>
         <message>
             <source>Insert step after selection</source>

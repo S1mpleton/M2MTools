@@ -83,6 +83,9 @@ bool equal(const ReactionVariant &a, const ReactionVariant &b) {
 
 void checkReactionGeometry(ReactionTable *table) {
     qApp->processEvents(); qApp->processEvents();
+    auto *rowHeader = table->verticalHeader();
+    require(rowHeader->sectionViewportPosition(1) + rowHeader->sectionSize(1) <=
+        rowHeader->viewport()->height(), "Output row header remains fully visible after table reset");
     const auto lastCell = table->visualItemRect(table->item(1, 0));
     require(lastCell.top() >= 0 && lastCell.bottom() < table->viewport()->height() &&
         table->verticalScrollBar()->maximum() == 0, "both reaction rows fit without vertical scrolling");
@@ -351,6 +354,9 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
             "Designer logger displays localized results");
     require(translator.setLocale("en").ok(), "switch to English");
     qApp->processEvents();
+    require(window.findChild<QGroupBox *>("mealyGroup")->title() == "Mealy" &&
+        window.findChild<QGroupBox *>("mooreGroup")->title() == "Moore",
+        "automaton group titles omit the counts suffix in English");
     require(translateResult(exported).startsWith("Saved ") &&
                 logText->toPlainText().contains("Saved "),
             "existing result and log history switch to English");
@@ -558,6 +564,9 @@ int main(int argc, char **argv) {
         app.processEvents();
         require(window.findChildren<ReactionTable *>().size() == 1, "only reaction editor");
         require(window.findChildren<QSpinBox *>().size() == 7, "number and six counts, no names");
+        require(window.findChild<QGroupBox *>("mealyGroup")->title() == QString::fromUtf8("Мили") &&
+            window.findChild<QGroupBox *>("mooreGroup")->title() == QString::fromUtf8("Мура"),
+            "automaton groups use the short Russian titles");
         require(!window.windowIcon().pixmap(32,32).isNull(), "main window has a bundled icon");
         LogWindow iconLog;
         require(!iconLog.windowIcon().pixmap(32,32).isNull() &&
@@ -678,9 +687,13 @@ int main(int argc, char **argv) {
             QTest::keyClick(&keyboardTable, Qt::Key_Delete);
             require(keyboardTable.columnCount() == 1 && keyboardTable.steps().isEmpty(),
                 "deleting the only filled step leaves one empty editable column");
+            checkReactionGeometry(&keyboardTable);
             keyboardTable.setSteps({});
             keyboardTable.removeStep();
             require(keyboardTable.columnCount() == 1, "last column cannot leave an empty table");
+            checkReactionGeometry(&keyboardTable);
+            keyboardTable.removeStep();
+            checkReactionGeometry(&keyboardTable);
             keyboardTable.setSteps(data.reaction);
             checkReactionGeometry(&keyboardTable);
             const int compactWidth = keyboardTable.columnWidth(0);
@@ -849,6 +862,7 @@ int main(int argc, char **argv) {
         QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
         require(table->columnCount() == 1 && table->steps().isEmpty(),
                 "New variant resets the reaction to one empty column");
+        checkReactionGeometry(table);
         require(imagePanel->image().data.isEmpty() && preview->pixmap().isNull(),
                 "New variant clears the image and preview");
         QTimer::singleShot(0, [&window] {

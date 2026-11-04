@@ -53,6 +53,7 @@ void ReactionTable::setSteps(const QVector<ReactionStep> &steps) {
     }
     setCurrentCell(0, 0);
     updateTableSize();
+    updateGeometries();
 }
 QVector<ReactionStep> ReactionTable::steps() const {
     // Ignore only unused space at the right, never gaps inside the sequence.
@@ -101,6 +102,8 @@ void ReactionTable::removeStep() {
     }
     setCurrentCell(0, qMax(0, currentColumn()));
     clearCellFeedback();
+    updateTableSize();
+    updateGeometries();
 }
 void ReactionTable::markError(const QString &offender, const QString &message) {
     const auto parts = offender.split(':');
@@ -152,6 +155,11 @@ QSize ReactionTable::sizeHint() const {
     return minimumSizeHint();
 }
 void ReactionTable::updateTableSize() {
+    // Resets briefly remove every column. Its header has no valid height then;
+    // shrinking the table during that interval clips the Output row header.
+    if (columnCount() == 0 || horizontalHeader()->count() == 0 ||
+        horizontalHeader()->sizeHint().height() <= 0)
+        return;
     const int columnWidth = fontMetrics().horizontalAdvance(QStringLiteral("00000000")) + 12;
     if (horizontalHeader()->minimumSectionSize() != columnWidth) {
         horizontalHeader()->setMinimumSectionSize(columnWidth);
