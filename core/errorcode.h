@@ -36,20 +36,13 @@ enum class ErrorCode {
 
     ADUnusedOutput,
     ADUnusedInput,
-    ADUnusedState,
+    ADStateWithoutIncomingTransition,
+    ADStateWithoutOutgoingTransition,
 
     ADInvalidCellKind,
 
     // Tabel
     ADTransitionTableSizeMismatch,
-
-    // Automat
-    ADUnreachableState,
-    ADUnknownChecker,
-
-    // Other
-    ADDisableChecker,
-
 
     // -- Database --
 
@@ -81,9 +74,28 @@ enum class ErrorCode {
     VariantLoadFailed,
     VariantRemoveFailed,
     VariantEmptyContent,
+    VariantMissingImage,
 
     VariantUnknownState,
     VariantUnknownOutput,
+
+    // Protected variant archive
+    ArchiveInvalidEntry,
+    ArchiveInvalidMetadata,
+    ArchiveInvalidSymbols,
+    ArchiveMissingTransitionTable,
+    ArchiveCorruptedTransitionTable,
+    ArchiveMissingImage,
+    ArchiveInvalidVariant,
+    ArchiveEncryptionFailed,
+    ArchiveFileOpenFailed,
+    ArchiveSaveFailed,
+    ArchiveInvalidTarget,
+    ArchiveInvalidFormat,
+    ArchiveDecryptionFailed,
+    ArchiveCorruptedPayload,
+    ArchiveUnsupportedVersion,
+    ArchiveDuplicateVariantNumber,
 
 
 

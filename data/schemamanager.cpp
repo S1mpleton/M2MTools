@@ -1,60 +1,63 @@
 #include "schemamanager.h"
+#include "data/transaction.h"
 #include "database.h"
-#include "sqlrequests.h"
 
-#include <QSqlQuery>
-#include <QSqlError>
+SchemaManager::SchemaManager(Database *db, QObject *parent) : QObject(parent), m_db(db) {}
 
-SchemaManager::SchemaManager(Database* db, QObject* parent)
-    : QObject(parent), m_db(db) {}
-
-bool SchemaManager::createSchema(QString* error) {
-    const QList<QString> requests = {
-        SQLRequests::CREATE_VARIANT_TABLE,
-        SQLRequests::CREATE_INPUT_TABLE,
-        SQLRequests::CREATE_OUTPUTS_TABLE,
-        SQLRequests::CREATE_STATE_TABLE,
-        SQLRequests::CREATE_TRANSITION_TABLE,
-        SQLRequests::CREATE_MEALY_TRANSITION_OUTPUTS_TABLE,
-        SQLRequests::CREATE_MOORE_STATE_OUTPUTS_TABLE,
-        SQLRequests::CREATE_UNIQUE_INIT_STATE_INDEX,
-    };
-
-    for (const QString& sql : requests) {
-        QString localError;
-        if (!m_db->exec(sql, {}, &localError)) {
-            const QString msg = QStringLiteral("Schema creation failed:\n%1\nSQL: %2")
-                .arg(localError, sql);
-
-            if (error) *error = msg;
-            emit schemaError(msg);
-            return false;
-        }
+bool SchemaManager::createSchema(QString *error) {
+    // Refuse full-edition databases: their original trace order was not stored.
+    auto old = m_db->query(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('States','Transitions');");
+    if (!old.isActive() || old.next()) {
+        if (error)
+            *error =
+                tr("This is a full-edition database. A separate reaction database is required.");
+        return false;
     }
-
+    Transaction transaction(m_db);
+    if (!transaction.active())
+        return false;
+    const QStringList sql = {
+        "CREATE TABLE IF NOT EXISTS LiteMetadata (version INTEGER NOT NULL CHECK(version=1));",
+        "INSERT INTO LiteMetadata SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM LiteMetadata);",
+        "CREATE TABLE IF NOT EXISTS Variants (id INTEGER PRIMARY KEY AUTOINCREMENT, number INTEGER "
+        "NOT NULL UNIQUE, "
+        "conversion TEXT NOT NULL CHECK(conversion IN ('MealyToMoore','MooreToMealy')), "
+        "mealy_states INTEGER NOT NULL CHECK(mealy_states BETWEEN 1 AND 999999), "
+        "mealy_inputs INTEGER NOT NULL CHECK(mealy_inputs BETWEEN 1 AND 10), "
+        "mealy_outputs INTEGER NOT NULL CHECK(mealy_outputs BETWEEN 1 AND 10), "
+        "moore_states INTEGER NOT NULL CHECK(moore_states BETWEEN 1 AND 999999), "
+        "moore_inputs INTEGER NOT NULL CHECK(moore_inputs BETWEEN 1 AND 10), "
+        "moore_outputs INTEGER NOT NULL CHECK(moore_outputs BETWEEN 1 AND 10));",
+        "CREATE TABLE IF NOT EXISTS ReactionSteps (variant_id INTEGER NOT NULL REFERENCES "
+        "Variants(id) ON DELETE CASCADE, "
+        "position INTEGER NOT NULL CHECK(position>=0), input TEXT NOT NULL CHECK(input GLOB "
+        "'x[0-9]'), "
+        "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));",
+        // Additive migration: existing Lite variants keep their reactions and have no attachment.
+        "CREATE TABLE IF NOT EXISTS VariantImages (variant_id INTEGER PRIMARY KEY REFERENCES "
+        "Variants(id) ON DELETE CASCADE, data BLOB NOT NULL, file_name TEXT NOT NULL);"};
+    for (const auto &request : sql)
+        if (!m_db->exec(request, {}, error))
+            return false;
+    auto version = m_db->query("SELECT version FROM LiteMetadata;");
+    if (!version.next() || version.value(0).toInt() != 1 || version.next()) {
+        if (error)
+            *error = tr("Unknown reaction database version.");
+        return false;
+    }
+    if (!transaction.commit(error))
+        return false;
     emit schemaCreated();
     return true;
 }
 
-bool SchemaManager::dropSchema(QString* error) {
-    const QList<QString> tables = {
-        "MealyTransitionOutputs",
-        "MooreStateOutputs",
-        "Transitions",
-        "States",
-        "Outputs",
-        "Inputs",
-        "Variants",
-    };
-
-    for (const QString& table : tables) {
-        QString localError;
-        if (!m_db->exec(QStringLiteral("DROP TABLE IF EXISTS %1;").arg(table),
-                        {}, &localError)) {
-            if (error) *error = localError;
-            emit schemaError(localError);
+bool SchemaManager::dropSchema(QString *error) {
+    Transaction transaction(m_db);
+    if (!transaction.active())
+        return false;
+    for (const auto &table : {"VariantImages", "ReactionSteps", "Variants", "LiteMetadata"})
+        if (!m_db->exec(QStringLiteral("DROP TABLE IF EXISTS %1;").arg(table), {}, error))
             return false;
-        }
-    }
-    return true;
+    return transaction.commit(error);
 }

@@ -1,5 +1,6 @@
 #include "logger.h"
 #include "core/result.h"
+#include "ui/translateresult.h"
 
 #include <QDebug>
 #include <QFile>
@@ -116,21 +117,12 @@ void Logger::writeNow(const Result& result) {
         result.isError()   ? "ERROR" :
         result.isWarning() ? "WARN " : "INFO ";
 
-    QString line = QStringLiteral("[%1] [%2] %3")
+    const QString line = QStringLiteral("[%1] [%2] [%3] %4")
+                       .arg(result.timestamp().toString(Qt::ISODateWithMs))
                        .arg(QString::fromLatin1(level))
-                       .arg(static_cast<int>(result.category()))
-                       .arg(result.message());
+                       .arg(resultCategoryToString(result.category()))
+                       .arg(TranslateResult::forLog(result));
 
-    if (result.code() != ErrorCode::None) {
-        line += QStringLiteral(" | code=%1").arg(errorCodeToString(result.code()));
-    }
-    if (!result.offender().isEmpty()) {
-        line += QStringLiteral(" | offender=%1").arg(result.offender());
-    }
-    if (!result.details().isEmpty()) {
-        line += QStringLiteral(" | details=%1").arg(result.details());
-    }
-
-    qDebug().noquote() << line;
+    qInfo().noquote() << line;
 }
 

@@ -1,461 +1,354 @@
-#include "mainwindow.h"
-#include "./ui_mainwindow.h"
-
-#include "validation/compositevalidator.h"
-#include "validation/editvalidator.h"
-#include "validation/listnamesvalidator.h"
-
+#include "ui/mainwindow.h"
 #include "infrastructure/logger.h"
-
-#include "ui/presenters/errorpresenterfactory.h"
-#include "ui/delegates/mealydelegate.h"
-#include "ui/delegates/mooredelegate.h"
+#include "infrastructure/translationmanager.h"
+#include "ui/appicons.h"
+#include "ui/fieldfeedback.h"
+#include "ui/logwindow.h"
+#include "ui/translateresult.h"
 #include "ui/variantslist.h"
-#include "ui/dialogs/resultmessenger.h"
-
-#include "core/namelistparser.h"
-
-#include <QDebug>
-#include <QPushButton>
-#include <QRegularExpression>
-#include <QMessageBox>
-#include <QAction>
+#include "ui/widgets/reactiontable.h"
+#include "ui/widgets/variantimagepanel.h"
+#include "ui_mainwindow.h"
 #include <QActionGroup>
+#include <QCloseEvent>
+#include <QComboBox>
+#include <QFileDialog>
+#include <QLabel>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QShowEvent>
+#include <QSpinBox>
+#include <QTimer>
 
-MainWindow::MainWindow(VariantService* service, QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , m_variantService(service)
-    , m_translator(new TranslationManager(this))
-{
+using Icon = AppIcons::Kind;
+MainWindow::MainWindow(VariantService *service, QWidget *parent)
+    : MainWindow(service, nullptr, parent) {}
+MainWindow::MainWindow(VariantService *service, TranslationManager *translator, QWidget *parent)
+    : QMainWindow(parent), m_service(service), m_translator(translator) {
+    ui = new Ui::MainWindow;
     ui->setupUi(this);
-    // setWindowTitle("M2MTools");
-
-    m_translator->loadSystemLocale();
-
-    m_logWindow = new LogWindow(this);
-
-    CompositeValidator *composite = new CompositeValidator(this);
-    composite->addValidator(new EditValidator());
-    composite->addValidator(new ListNamesValidator());
-
-    ui->stateNamesLineEdit->setValidator(composite);
-    ui->InputSignalNamesLineEdit->setValidator(composite);
-    ui->OutputSignalNamesLineEdit->setValidator(composite);
-
-    ui->transitionTableWidget->setItemDelegate(new MealyDelegate(&m_data, this));
-
-    setupLanguageGroup();
-    setupTypeСheckGroup();
-    setupPresenters();
-    setupConnections();
-    refreshTable();
+    setWindowIcon(AppIcons::applicationIcon());
+    m_reaction = ui->reactionTable;
+    m_number = ui->variantNumber;
+    m_type = ui->conversionType;
+    m_mealy = {ui->mealyStatesCount, ui->mealyInputsCount, ui->mealyOutputsCount};
+    m_moore = {ui->mooreStatesCount, ui->mooreInputsCount, ui->mooreOutputsCount};
+    m_feedback = ui->validationMessage;
+    m_fieldFeedback = new FieldFeedback(this);
+    connect(m_feedback, &FeedbackLabel::expired, this, [this] { m_lastResult.reset(); });
+    m_imagePanel = new VariantImagePanel(ui->diagramGroup, ui->diagramDropZone, ui->imageFileLabel,
+                                         ui->loadImageButton, ui->removeImageButton);
+    ui->addReactionStep->setIcon(AppIcons::icon(Icon::Add));
+    ui->removeReactionStep->setIcon(AppIcons::icon(Icon::Remove));
+    ui->newVariantButton->setIcon(AppIcons::icon(Icon::New));
+    ui->openVariantButton->setIcon(AppIcons::icon(Icon::Open));
+    ui->saveVariantButton->setIcon(AppIcons::icon(Icon::Save));
+    connect(ui->addReactionStep, &QPushButton::clicked, m_reaction, &ReactionTable::insertStep);
+    connect(ui->removeReactionStep, &QPushButton::clicked, m_reaction, &ReactionTable::removeStep);
+    connect(ui->saveVariantButton, &QPushButton::clicked, this, [this] { save(); });
+    connect(ui->newVariantButton, &QPushButton::clicked, this, &MainWindow::newVariant);
+    connect(ui->openVariantButton, &QPushButton::clicked, this, &MainWindow::openVariant);
+    auto changed = [this] {
+        if (!m_loading) {
+            updateModified();
+            clearValidationFeedback();
+        }
+    };
+    connect(m_number, qOverload<int>(&QSpinBox::valueChanged), this, changed);
+    connect(m_type, qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    for (auto *spin : m_mealy)
+        connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, changed);
+    for (auto *spin : m_moore)
+        connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, changed);
+    connect(m_reaction, &QTableWidget::cellChanged, this, changed);
+    // Columns receive their cells after the model emits its structural signals.
+    auto columnsChanged = [this, changed] {
+        if (!m_loading)
+            QTimer::singleShot(0, this, changed);
+    };
+    connect(m_reaction->model(), &QAbstractItemModel::columnsInserted, this, columnsChanged);
+    connect(m_reaction->model(), &QAbstractItemModel::columnsRemoved, this, columnsChanged);
+    connect(m_imagePanel, &VariantImagePanel::imageChanged, this, changed);
+    connect(m_imagePanel, &VariantImagePanel::loadFailed, this, [this](const Result &result) {
+        showResult(result);
+        m_fieldFeedback->mark(ui->loadImageButton, translateResult(result));
+    });
+    setupMenus();
+    refreshTexts();
+    ReactionVariant initial;
+    initial.number = qMax(1, m_service->firstAvailableVariantNumber());
+    loadData(initial);
 }
-
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
 }
 
+void MainWindow::showEvent(QShowEvent *event) {
+    QMainWindow::showEvent(event);
+    if (m_initialSizeApplied)
+        return;
+    m_initialSizeApplied = true;
+    // Settle height-for-width labels at the layout's minimum width.
+    for (int pass = 0; pass < 3; ++pass) {
+        ui->centralwidget->layout()->activate();
+        layout()->activate();
+        resize(minimumSizeHint().expandedTo(minimumSize()));
+        ui->validationMessage->refreshHeight();
+    }
+    layout()->activate();
+    resize(minimumSize());
+}
+
+void MainWindow::setupMenus() {
+    AppIcons::configureMenuBar(menuBar());
+    const QList<QPair<QAction *, Icon>> icons = {{ui->menuFile->menuAction(), Icon::File},
+                                                 {ui->menuSettings->menuAction(), Icon::Settings},
+                                                 {ui->menuLanguage->menuAction(), Icon::Language},
+                                                 {ui->actionNewVariant, Icon::New},
+                                                 {ui->actionSaveVariant, Icon::Save},
+                                                 {ui->actionOpenVariant, Icon::Open},
+                                                 {ui->actionImportDatabase, Icon::Import},
+                                                 {ui->actionExportDatabase, Icon::Export},
+                                                 {ui->actionExit, Icon::Exit},
+                                                 {ui->actionEnglish, Icon::English},
+                                                 {ui->actionRussian, Icon::Russian},
+                                                 {ui->actionShowLogger, Icon::Log}};
+    for (const auto &entry : icons) {
+        entry.first->setIcon(AppIcons::icon(entry.second));
+        entry.first->setIconVisibleInMenu(true);
+    }
+    connect(ui->actionNewVariant, &QAction::triggered, this, &MainWindow::newVariant);
+    connect(ui->actionSaveVariant, &QAction::triggered, this, [this] { save(); });
+    connect(ui->actionOpenVariant, &QAction::triggered, this, &MainWindow::openVariant);
+    connect(ui->actionImportDatabase, &QAction::triggered, this, &MainWindow::importArchive);
+    connect(ui->actionExportDatabase, &QAction::triggered, this, &MainWindow::exportArchive);
+    connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
+    auto *languages = new QActionGroup(this);
+    languages->addAction(ui->actionEnglish);
+    languages->addAction(ui->actionRussian);
+    connect(ui->actionEnglish, &QAction::triggered, this, [this] {
+        if (m_translator)
+            showResult(m_translator->setLocale("en"));
+    });
+    connect(ui->actionRussian, &QAction::triggered, this, [this] {
+        if (m_translator)
+            showResult(m_translator->setLocale("ru_RU"));
+    });
+    connect(ui->actionShowLogger, &QAction::triggered, this, [this] {
+        if (!m_log)
+            m_log = new LogWindow(this);
+        m_log->show();
+        m_log->raise();
+    });
+}
+void MainWindow::refreshTexts() {
+    if (!ui)
+        return;
+    ui->retranslateUi(this);
+    m_reaction->retranslate();
+    if (m_lastResult) {
+        m_feedback->updateMessageText(translateResult(*m_lastResult));
+    }
+    const bool russian = m_translator && m_translator->currentLocale() == "ru_RU";
+    ui->actionRussian->setChecked(russian);
+    ui->actionEnglish->setChecked(!russian);
+}
 void MainWindow::changeEvent(QEvent *event) {
-    if (event->type() == QEvent::LanguageChange) {
-        ui->retranslateUi(this);
-    }
     QMainWindow::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        refreshTexts();
 }
-
-void MainWindow::setupPresenters() {
-    m_stateNamesPresenter = ErrorPresenterFactory::forLineEdit(
-        ui->stateNamesLineEdit, ui->statusbar, this);
-
-    m_inputNamesPresenter = ErrorPresenterFactory::forLineEdit(
-        ui->InputSignalNamesLineEdit, ui->statusbar, this);
-
-    m_outputNamesPresenter = ErrorPresenterFactory::forLineEdit(
-        ui->OutputSignalNamesLineEdit, ui->statusbar, this);
-
-    m_cellPresenter = m_cellPresenter = new TableCellErrorPresenter(
-        ui->transitionTableWidget, 0, 0, ui->statusbar, this);
+ReactionVariant MainWindow::readData() const {
+    ReactionVariant data;
+    data.number = m_number->value();
+    data.type = m_type->currentIndex() == 0 ? VariantType::MealyToMoore : VariantType::MooreToMealy;
+    data.mealy = {m_mealy[0]->value(), m_mealy[1]->value(), m_mealy[2]->value()};
+    data.moore = {m_moore[0]->value(), m_moore[1]->value(), m_moore[2]->value()};
+    data.reaction = m_reaction->steps();
+    data.image = m_imagePanel->image();
+    return data;
 }
-
-void MainWindow::setupConnections() {
-    // header signals
-    connect(ui->actionShowLogger, &QAction::triggered,
-            this, &MainWindow::onShowLogClicked);
-    connect(ui->actionLoadVariant, &QAction::triggered,
-            this, &MainWindow::onLoadVariantPushButton);
-    connect(ui->actionSaveVariant, &QAction::triggered,
-            this, &MainWindow::onSavePushButtonClicked);
-
-    connect(ui->actionExit, &QAction::triggered,
-            this, &MainWindow::onExitAction);
-
-    // Body signals
-    connect(ui->variantTypeComboBox, &QComboBox::currentIndexChanged,
-            this, &MainWindow::onVariantTypeChanged);
-    connect(ui->numberVariantSpinBox, &QSpinBox::valueChanged,
-            this, &MainWindow::onVariantNumberChanged);
-
-    connect(ui->stateNamesLineEdit, &QLineEdit::textChanged,
-            this, &MainWindow::onStateNamesChanged);
-    connect(ui->InputSignalNamesLineEdit, &QLineEdit::textChanged,
-            this, &MainWindow::onInputNamesChanged);
-    connect(ui->OutputSignalNamesLineEdit, &QLineEdit::textChanged,
-            this, &MainWindow::onOutputNamesChanged);
-    connect(ui->transitionTableWidget, &QTableWidget::cellChanged,
-            this, &MainWindow::onTableCellChanged);
-
-    connect(ui->savePushButton, &QPushButton::clicked,
-            this, &MainWindow::onSavePushButtonClicked);
-    connect(ui->loadVariantPushButton, &QPushButton::clicked,
-            this, &MainWindow::onLoadVariantPushButton);
-
-    // connect(m_translator, &TranslationManager::languageChanged,
-    //         m_logWindow, &LogWindow::onLanguageUpdate);
-
-}
-
-
-void MainWindow::setupLanguageGroup() {
-    auto* group = new QActionGroup(this);
-    group->setObjectName("languageGroup");
-    group->setExclusive(true);
-
-    group->addAction(ui->actionSetLangEn);
-    group->addAction(ui->actionSetLangRu);
-
-    connect(group, &QActionGroup::triggered,
-            this, &MainWindow::onLanguageSelected);
-
-    const QString current = m_translator->currentLocale();
-    ui->actionSetLangEn->setChecked(current == "en");
-    ui->actionSetLangRu->setChecked(current != "en");
-}
-
-void MainWindow::setupTypeСheckGroup() {
-    auto* group = new QActionGroup(this);
-    group->setObjectName("typeCheckGroup");
-    group->setExclusive(true);
-
-    group->addAction(ui->actionTypeSoft);
-    group->addAction(ui->actionTypeStrict);
-
-    connect(group, &QActionGroup::triggered,
-            this, &MainWindow::onTypeCheckSelected);
-
-    const ValidationLevel level = m_data.getValidationLevel();
-    ui->actionTypeSoft->setChecked(level == ValidationLevel::Soft);
-    ui->actionTypeStrict->setChecked(level == ValidationLevel::Strict);
-}
-
-void MainWindow::onLanguageSelected(QAction* action) {
-    QString locale;
-    if (action == ui->actionSetLangEn) locale = QStringLiteral("en");
-    else if (action == ui->actionSetLangRu) locale = QStringLiteral("ru_RU");
-
-    Result r = m_translator->setLocale(locale);
-    if (!r.ok()) {
-        ResultMessenger::show(this, r);
+void MainWindow::loadData(const ReactionVariant &data) {
+    m_loading = true;
+    m_number->setValue(data.number);
+    m_type->setCurrentIndex(data.type == VariantType::MealyToMoore ? 0 : 1);
+    for (int i = 0; i < 3; ++i) {
+        m_mealy[i]->setValue(
+            std::array<int, 3>{data.mealy.states, data.mealy.inputs, data.mealy.outputs}[i]);
+        m_moore[i]->setValue(
+            std::array<int, 3>{data.moore.states, data.moore.inputs, data.moore.outputs}[i]);
     }
-
-    refreshTable();
-}
-
-void MainWindow::onTypeCheckSelected(QAction* action) {
-    Result r = Result::success();
-
-    if (action == ui->actionTypeSoft) r = m_data.setStateUsageChecker(ValidationLevel::Soft);
-    else if (action == ui->actionTypeStrict) r = m_data.setStateUsageChecker(ValidationLevel::Strict);
-
-    if (!r.ok()) {
-        ResultMessenger::show(this, r);
+    m_reaction->setSteps(data.reaction);
+    m_imagePanel->setImage(data.image);
+    m_baseline = data;
+    m_lastResult.reset();
+    setWindowModified(!(readData() == m_baseline));
+    m_feedback->clearMessage();
+    clearValidationFeedback();
+    m_loading = false;
+    const auto limits = data.validateInputLimits();
+    if (!limits.ok()) {
+        showResult(limits);
+        markValidationError(limits);
     }
-
 }
-
-// Logger
-void MainWindow::onShowLogClicked() {
-    m_logWindow->show();
-    m_logWindow->raise();
-    m_logWindow->activateWindow();
+void MainWindow::showResult(const Result &result) {
+    m_lastResult = result;
+    Logger::log(result);
+    m_feedback->showMessage(translateResult(result), result.isError() ? UiFeedbackLevel::Error
+                                                     : result.isWarning()
+                                                         ? UiFeedbackLevel::Warning
+                                                         : UiFeedbackLevel::Success);
 }
-
-
-// Database
-void MainWindow::onLoadVariantPushButton() {
-    VariantsList dialog(m_variantService, this);
-    if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
-        const int number = dialog.selectedVariantNumber();
-
-        Result r = m_variantService->loadVariant(number);
-        Logger::log(r);
-
-        if (!r.ok()) {
-            ResultMessenger::show(this, r);
-            return;
-        }
-        if (!r.hasPayload()) {
-            ResultMessenger::showWarning(this,  tr("Variant №%1 not found").arg(number));
-            return;
-        }
-
-        m_data = r.payloadAs<AutomatonData>();
-
-        refreshTable();
-        refreshData();
-
-        ui->statusbar->showMessage(tr("Variant №%1 loaded").arg(number), 3000);
+void MainWindow::clearValidationFeedback() {
+    m_fieldFeedback->clear();
+    m_reaction->clearCellFeedback();
+}
+void MainWindow::markValidationError(const Result &result) {
+    const auto message = translateResult(result);
+    const QHash<QString, QWidget *> fields{
+        {"number", m_number},          {"type", m_type},
+        {"reaction", m_reaction},      {"image", ui->diagramDropZone},
+        {"mealy.states", m_mealy[0]},  {"mealy.inputs", m_mealy[1]},
+        {"mealy.outputs", m_mealy[2]}, {"moore.states", m_moore[0]},
+        {"moore.inputs", m_moore[1]},  {"moore.outputs", m_moore[2]}};
+    for (const auto &field : result.fields()) {
+        if (fields.contains(field))
+            m_fieldFeedback->mark(fields.value(field), message);
+        if (field.endsWith(".inputs"))
+            m_reaction->markRowError(0, message);
+        if (field.endsWith(".outputs"))
+            m_reaction->markRowError(1, message);
     }
-
+    m_reaction->markError(result.offender(), message);
+    if (result.fields().contains("image"))
+        ui->loadImageButton->setFocus();
 }
-
-void MainWindow::onSavePushButtonClicked(){
-    Result validData = m_data.validate();
-    Logger::log(validData);
-    if (!validData.ok()) {
-        ResultMessenger::show(this, validData);
+bool MainWindow::save() {
+    m_reaction->setFocus(); // Finish editing before reading the sequence.
+    clearValidationFeedback();
+    const auto data = readData();
+    const auto valid = data.validateForSave();
+    if (!valid.ok()) {
+        showResult(valid);
+        markValidationError(valid);
+        return false;
+    }
+    const auto exists = m_service->isExist(data.number);
+    if (!exists.ok()) {
+        showResult(exists);
+        return false;
+    }
+    if (exists.payloadAs<bool>() &&
+        QMessageBox::question(this, tr("Replace variant?"),
+                              tr("Variant #%1 already exists. Replace it?").arg(data.number)) !=
+            QMessageBox::Yes)
+        return false;
+    const auto saved =
+        exists.payloadAs<bool>() ? m_service->replaceVariant(data) : m_service->saveVariant(data);
+    showResult(saved);
+    if (!saved.ok())
+        return false;
+    m_baseline = data;
+    setWindowModified(false);
+    return true;
+}
+void MainWindow::updateModified() {
+    setWindowModified(!(readData() == m_baseline));
+}
+bool MainWindow::confirmDiscard(QWidget *parent) {
+    m_reaction->setFocus(); // Commit an active editor, including menu/shortcut actions.
+    const auto current = readData();
+    if (current.reaction.isEmpty() || current == m_baseline)
+        return true;
+    const auto answer = QMessageBox::question(
+        parent ? parent : this, tr("Unsaved changes"), tr("Save changes before continuing?"),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
+    return answer == QMessageBox::Discard || (answer == QMessageBox::Save && save());
+}
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (confirmDiscard())
+        event->accept();
+    else
+        event->ignore();
+}
+void MainWindow::newVariant() {
+    if (!confirmDiscard())
+        return;
+    const int number = m_service->firstAvailableVariantNumber();
+    if (number == 0) {
+        showResult(Result::errorMessage(QT_TRANSLATE_NOOP("ResultMessage",
+            "All variant numbers from 1 to 99 are in use."), {}, ResultCategory::Validation));
         return;
     }
-
-    Result existResult = m_variantService->isExist(m_data.getVariantNumber());
-    Logger::log(existResult);
-    if (!existResult.ok()) {
-        ResultMessenger::show(this, existResult);
-        return;
-    }
-
-    const bool exists = existResult.payloadAs<bool>();
-    if (exists) {
-        bool isDelete = ResultMessenger::askConfirm(
-            this,
-            tr("Do you want remove variant №%1?").arg(m_data.getVariantNumber()),
-            tr("The variant №%1 is exists.").arg(m_data.getVariantNumber()));
-
-
-        if (isDelete) {
-            Result remuveResult = m_variantService->removeVariant(m_data.getVariantNumber());
-            Logger::log(remuveResult);
-            if (!remuveResult.ok()) {
-                ResultMessenger::show(this, remuveResult);
-                return;
+    ReactionVariant data;
+    data.number = number;
+    loadData(data);
+}
+void MainWindow::openVariant() {
+    m_reaction->setFocus();
+    VariantsList dialog(m_service, this);
+    dialog.setBeforeLoad([this, &dialog] { return confirmDiscard(&dialog); });
+    connect(&dialog, &VariantsList::variantDeleted, this, [this](int number) {
+        if (m_number->value() == number) {
+            ReactionVariant data;
+            data.number = qMax(1, m_service->firstAvailableVariantNumber());
+            if (readData() == m_baseline)
+                loadData(data);
+            else {
+                // Deleting a stored variant must not erase its edited draft.
+                m_baseline = data;
+                updateModified();
             }
-
-        } else {
-            return;
         }
-    }
-
-    Result resultSaveVariant = m_variantService->saveVariant(m_data);
-    Logger::log(resultSaveVariant);
-    if (!resultSaveVariant.ok()) {
-        ResultMessenger::show(this, resultSaveVariant);
+    });
+    connect(&dialog, &VariantsList::variantsSwapped, this, [this](int a, int b) {
+        m_loading = true;
+        if (m_number->value() == a)
+            m_number->setValue(b);
+        else if (m_number->value() == b)
+            m_number->setValue(a);
+        if (m_baseline.number == a)
+            m_baseline.number = b;
+        else if (m_baseline.number == b)
+            m_baseline.number = a;
+        m_loading = false;
+        updateModified();
+    });
+    if (dialog.exec() != QDialog::Accepted || !dialog.hasSelection())
         return;
-    }
-
-    ui->statusbar->showMessage(
-        tr("Variant №%1 has been saved.").arg(m_data.getVariantNumber()), 3000);
+    const auto result = m_service->loadVariant(dialog.selectedVariantNumber());
+    if (result.ok() && result.hasPayload())
+        loadData(result.payloadAs<ReactionVariant>());
+    else
+        showResult(result);
 }
-
-// Other
-void MainWindow::onExitAction() {
-    QApplication::quit();
-}
-
-
-// Variant
-void MainWindow::onVariantTypeChanged(int index) {
-    if (!index){
-        m_data.setVariantType(VariantType::MealyToMoore);
-        ui->transitionTableWidget->setItemDelegate(new MealyDelegate(&m_data, this));
-    } else {
-        m_data.setVariantType(VariantType::MooreToMealy);
-        ui->transitionTableWidget->setItemDelegate(new MooreDelegate(&m_data, this));
-    }
-
-    refreshTable();
-}
-
-void MainWindow::onVariantNumberChanged(int number) {
-    m_data.setVariantNumber(number);
-}
-
-// STATE signals
-void MainWindow::onStateNamesChanged(const QString& text) {
-    if (m_updatingUi) return;
-
-    QStringList names = NameListParser::parse(text);
-    Result result = m_data.setStateNames(names);
-
-    Logger::log(result);
-
-    if (!result.ok()) {
-        m_stateNamesPresenter->show(result);
+void MainWindow::importArchive() {
+    if (!confirmDiscard())
         return;
-    }
-
-    m_stateNamesPresenter->clear(result);
-
-    refreshTable();
-}
-
-// INPUT signals
-void MainWindow::onInputNamesChanged(const QString& text) {
-    if (m_updatingUi) return;
-
-    QStringList names = NameListParser::parse(text);
-    Result result = m_data.setInputSignalNames(names);
-
-    Logger::log(result);
-
-    if (!result.ok()) {
-        m_inputNamesPresenter->show(result);
+    const auto path =
+        QFileDialog::getOpenFileName(this, tr("Import database"), {}, tr("M2M archives (*.m2m)"));
+    if (path.isEmpty())
         return;
-    }
-
-    m_inputNamesPresenter->clear(result);
-    refreshTable();
-}
-
-// OUTPUT signals
-void MainWindow::onOutputNamesChanged(const QString& text) {
-    if (m_updatingUi) return;
-
-    QStringList names = NameListParser::parse(text);
-    Result result = m_data.setOutputSignalNames(names);
-
-    Logger::log(result);
-
-    if (!result.ok()) {
-        m_outputNamesPresenter->show(result);
+    if (QMessageBox::question(this, tr("Import database"),
+                              tr("Replace the current database with the archive contents?")) !=
+        QMessageBox::Yes)
         return;
-    }
-
-    m_outputNamesPresenter->clear(result);
-}
-
-void MainWindow::onTableCellChanged(int row, int col) {
-    if (m_updatingUi) return;
-
-    auto* item = ui->transitionTableWidget->item(row, col);
-    if (!item) return;
-
-    const QString text = item->text();
-    const CellKind kind = m_data.cellKind(row, col);
-
-    const Result result = (kind == CellKind::MooreOutput)
-        ? m_data.setMooreOutputCell(col, text)
-        : m_data.setTransitionCell(row, col, text);
-
-    m_cellPresenter->setCoordinates(row, col);
-
-    Logger::log(result);
-
+    const auto result = m_service->importArchive(path);
     if (result.ok()) {
-        m_cellPresenter->clear(result);
-    } else {
-        m_cellPresenter->show(result);
+        ReactionVariant data;
+        data.number = qMax(1, m_service->firstAvailableVariantNumber());
+        loadData(data);
     }
+    showResult(result);
 }
-
-// Ui
-void MainWindow::refreshTable() {
-    m_updatingTable = true;
-    m_updatingUi = true;
-
-    QTableWidget* t = ui->transitionTableWidget;
-    t->clear();
-
-    // --- 1. Size ---
-    const int stateCount = m_data.getStateNames().size();
-    const int inputCount = m_data.getInputSignalNames().size();
-    const int rowOffset = (m_data.getType() == VariantType::MooreToMealy) ? 2 : 1;
-
-    t->setColumnCount(stateCount + 1);
-    t->setRowCount(inputCount + rowOffset);
-
-    t->setHorizontalHeaderLabels({});
-    t->setVerticalHeaderLabels({});
-
-    // --- 2. Column headers (states / outputs) ---
-    for (int j = 0; j < stateCount; ++j) {
-        const QString state = m_data.getStateNames()[j];
-
-        if (m_data.getType() == VariantType::MooreToMealy) {
-            QString out = m_data.getMooreOutputs().value(state).join(", ");
-            if (out.isEmpty()) out = "—";
-
-            auto* outItem = new QTableWidgetItem(out);
-            outItem->setFlags(outItem->flags() | Qt::ItemIsEditable);
-            t->setItem(0, j + 1, outItem);
-
-            auto* stateItem = new QTableWidgetItem(state);
-            stateItem->setFlags(stateItem->flags() & ~Qt::ItemIsEditable);
-            t->setItem(1, j + 1, stateItem);
-        } else {
-            auto* stateItem = new QTableWidgetItem(state);
-            stateItem->setFlags(stateItem->flags() & ~Qt::ItemIsEditable);
-            t->setItem(0, j + 1, stateItem);
-        }
-    }
-
-    // --- 3. Corner cells ---
-    if (m_data.getType() == VariantType::MooreToMealy) {
-        auto* corner1 = new QTableWidgetItem(tr("Output signal"));
-        corner1->setFlags(corner1->flags() & ~Qt::ItemIsEditable);
-        t->setItem(0, 0, corner1);
-
-        auto* corner2 = new QTableWidgetItem(tr("State"));
-        corner2->setFlags(corner2->flags() & ~Qt::ItemIsEditable);
-        t->setItem(1, 0, corner2);
-    } else {
-        auto* corner = new QTableWidgetItem(tr("State"));
-        corner->setFlags(corner->flags() & ~Qt::ItemIsEditable);
-        t->setItem(0, 0, corner);
-    }
-
-    // --- 4. Row headers (input signals) ---
-    for (int i = 0; i < inputCount; ++i) {
-        auto* item = new QTableWidgetItem(m_data.getInputSignalNames()[i]);
-        item->setFlags(item->flags() & ~Qt::ItemIsEditable);
-        t->setItem(i + rowOffset, 0, item);
-    }
-
-    // --- 5. Transition cells ---
-    const auto& table = m_data.getTransitionTable();
-    for (int i = 0; i < inputCount; ++i) {
-        for (int j = 0; j < stateCount; ++j) {
-            const CellData& cell = table[i][j];
-            QString text;
-
-            if (m_data.getType() == VariantType::MooreToMealy) {
-                text = cell.nextState.isEmpty() ? "—" : cell.nextState;
-            } else {
-                QString state = cell.nextState.isEmpty() ? "—" : cell.nextState;
-                QString out = cell.outputSignals.isEmpty()
-                                  ? "—"
-                                  : cell.outputSignals.join(", ");
-                text = state + " / " + out;
-            }
-
-            auto* item = new QTableWidgetItem(text);
-            item->setFlags(item->flags() | Qt::ItemIsEditable);
-            t->setItem(i + rowOffset, j + 1, item);
-        }
-    }
-
-    m_updatingTable = false;
-    m_updatingUi = false;
+void MainWindow::exportArchive() {
+    auto path = QFileDialog::getSaveFileName(this, tr("Export database"), "BazaVar.m2m",
+                                             tr("M2M archives (*.m2m)"));
+    if (path.isEmpty())
+        return;
+    if (!path.endsWith(".m2m", Qt::CaseInsensitive))
+        path += ".m2m";
+    showResult(m_service->exportArchive(path));
 }
-
-void MainWindow::refreshData() {
-    if (m_data.getType() == VariantType::MealyToMoore){
-        ui->variantTypeComboBox->setCurrentIndex(0);
-    } else {
-        ui->variantTypeComboBox->setCurrentIndex(1);
-    }
-
-    ui->numberVariantSpinBox->setValue(m_data.getVariantNumber());
-}
-
-
-
