@@ -16,6 +16,7 @@
 #include "validation/reactionvalidator.h"
 #include <QApplication>
 #include <QBuffer>
+#include <QClipboard>
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -92,6 +93,89 @@ void checkReactionGeometry(ReactionTable *table) {
     require(table->viewport()->mapTo(table, lastCell.bottomLeft()).y() <
         table->horizontalScrollBar()->mapTo(table, QPoint()).y(),
         "horizontal scrollbar stays below the complete output row");
+}
+
+void testReactionSignalEntry() {
+    for (const bool outputs : {false, true}) {
+        ReactionValidator validator(outputs);
+        for (int digit = 0; digit <= 9; ++digit) {
+            QString text = QString::number(digit);
+            int cursor = 1;
+            require(validator.validate(text, cursor) == QValidator::Acceptable &&
+                text == QString(outputs ? "y%1" : "x%1").arg(digit) && cursor == 2,
+                "a single digit receives the row prefix and keeps the cursor after it");
+        }
+    }
+    ReactionValidator output(true);
+    QString text = "1, 2,y3,4";
+    int cursor = 4;
+    require(output.validate(text, cursor) == QValidator::Acceptable &&
+        text == "y1, y2,y3,y4" && cursor == 6,
+        "output lists receive prefixes without moving the cursor past later signals");
+
+    ReactionTable table;
+    table.resize(400, 160);
+    table.show();
+    qApp->processEvents();
+    auto activeEditor = [&table]() -> QLineEdit * {
+        for (auto *line : table.findChildren<QLineEdit *>("reactionCellEditor"))
+            if (line->isVisible()) return line;
+        return nullptr;
+    };
+    QTest::keyClicks(&table, "3");
+    auto *line = activeEditor();
+    require(line && line->text() == "x3" && line->cursorPosition() == 2,
+        "typing a digit in a selected empty input cell immediately adds x");
+    QTest::keyClick(line, Qt::Key_Space);
+    QTest::keyClicks(line, "2");
+    require(line->text() == "x3", "spaces and extra digits are rejected after an input signal");
+    QTest::keyClick(line, Qt::Key_Home);
+    QTest::keyClick(line, Qt::Key_Space);
+    line->setCursorPosition(1);
+    QTest::keyClick(line, Qt::Key_Space);
+    require(line->text() == "x3", "spaces are rejected before and inside an input signal");
+    line->selectAll();
+    QApplication::clipboard()->setText(" x2 ");
+    line->paste();
+    require(line->text() == "x3", "pasting an input containing spaces is rejected");
+    line->selectAll();
+    QApplication::clipboard()->setText("8");
+    line->paste();
+    require(line->text() == "x8" && line->cursorPosition() == 2,
+        "pasting a digit over an existing input adds x");
+    QTest::keyClick(line, Qt::Key_Return);
+    require(table.item(0, 0)->text() == "x8" && table.columnCount() == 2,
+        "Enter commits the completed input and inserts the next step");
+    if (auto *current = activeEditor()) QTest::keyClick(current, Qt::Key_Escape);
+    table.setCurrentCell(1, 0);
+    QTest::keyClicks(&table, "2");
+    line = activeEditor();
+    require(line && line->text() == "y2", "typing a digit in an empty output cell adds y");
+    QTest::keyClicks(line, ",3,y4, 5");
+    require(line->text() == "y2,y3,y4, y5" && line->hasAcceptableInput(),
+        "output digits after commas receive y and explicit prefixes are preserved");
+    QTest::keyClicks(line, ",3");
+    require(line->text() == "y2,y3,y4, y5,",
+        "automatic prefixes do not allow duplicate output signals");
+    QTest::keyClick(line, Qt::Key_Backspace);
+    line->setSelection(3, 2);
+    QTest::keyClicks(line, "7");
+    require(line->text() == "y2,y7,y4, y5" && line->cursorPosition() == 5,
+        "replacing a signal in the middle of an output list keeps the cursor by that signal");
+    line->selectAll();
+    QApplication::clipboard()->setText("0,1,y2, 3");
+    line->paste();
+    require(line->text() == "y0,y1,y2, y3" && line->cursorPosition() == line->text().size(),
+        "pasting a mixed output list adds each missing prefix");
+    line->selectAll();
+    QApplication::clipboard()->setText("y1,1");
+    line->paste();
+    require(line->text() == "y0,y1,y2, y3", "pasting duplicate shorthand outputs is rejected");
+    QTest::keyClick(line, Qt::Key_Return);
+    require(table.item(1, 0)->text() == "y0,y1,y2,y3" &&
+        table.steps()[0].outputs == QStringList{"y0", "y1", "y2", "y3"},
+        "committing shorthand output signals stores their canonical list");
+    if (auto *current = activeEditor()) QTest::keyClick(current, Qt::Key_Escape);
 }
 
 void testSourceCounts() {
@@ -418,6 +502,7 @@ int main(int argc, char **argv) {
     QTemporaryDir dir;
     require(dir.isValid(), "temporary directory");
     auto data = sample();
+    testReactionSignalEntry();
     testSourceCounts();
     testNumberLimitAndLegacyEditing(translator);
     testFeedbackTiming();
@@ -490,12 +575,13 @@ int main(int argc, char **argv) {
     int pos = 0;
     for (auto text : QStringList{"x0", "x9"})
         require(input.validate(text, pos) == QValidator::Acceptable, "input validator bounds");
-    for (auto text : QStringList{"X1", "x10", "x1,x2", "a1"})
+    for (auto text : QStringList{"X1", "x10", "10", "x1,x2", "a1", " x1", "x1 ", "x 1",
+                                "3 ", " ", "\tx1", "x1\n", QStringLiteral("x1\u00a0")})
         require(input.validate(text, pos) == QValidator::Invalid, "input validator rejects");
     for (auto text : QStringList{"y9,y0,y2", "y1, y2", "", "-"})
         require(output.validate(text, pos) == QValidator::Acceptable,
                 "output validator accepts lists");
-    for (auto text : QStringList{"y10", "y1,y1", "y1; y2", "x1"})
+    for (auto text : QStringList{"y10", "y1,y1", "y1; y2", "x1", "12", "y1,1", "1,y1", "y1,23"})
         require(output.validate(text, pos) == QValidator::Invalid, "output validator rejects");
     QString partial = "y1,y";
     require(output.validate(partial, pos) == QValidator::Intermediate, "partial output editable");

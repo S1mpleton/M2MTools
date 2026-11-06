@@ -2,28 +2,53 @@
 #include <QRegularExpression>
 #include <QSet>
 
+namespace {
+bool isSingleDigit(const QString &text) {
+    return text.size() == 1 && text[0] >= QLatin1Char('0') && text[0] <= QLatin1Char('9');
+}
+}
+
 ReactionValidator::ReactionValidator(bool outputs, QObject *parent)
     : QValidator(parent), m_outputs(outputs) {}
-QValidator::State ReactionValidator::validate(QString &input, int &) const {
-    const QString text = input.trimmed();
+QValidator::State ReactionValidator::validate(QString &input, int &position) const {
     if (!m_outputs) {
-        if (text.isEmpty() || text == "x")
+        if (isSingleDigit(input)) {
+            input.prepend('x');
+            if (position > 0) ++position;
+        }
+        if (input.isEmpty() || input == "x")
             return Intermediate;
-        return QRegularExpression(QStringLiteral("^x[0-9]$")).match(text).hasMatch() ? Acceptable
-                                                                                     : Invalid;
+        return QRegularExpression(QStringLiteral("\\Ax[0-9]\\z")).match(input).hasMatch()
+                   ? Acceptable : Invalid;
     }
+    const QString text = input.trimmed();
     if (text.isEmpty() || text == "-" || text == QStringLiteral("—"))
         return Acceptable;
-    const auto parts = text.split(',');
+    auto parts = input.split(',');
+    int offset = 0;
+    int cursor = position;
+    State state = Acceptable;
     QSet<QString> used;
     for (int i = 0; i < parts.size(); ++i) {
-        const auto part = parts[i].trimmed();
-        if (i == parts.size() - 1 && (part.isEmpty() || part == "y"))
-            return Intermediate;
+        auto part = parts[i].trimmed();
+        if (isSingleDigit(part)) {
+            const int start = parts[i].indexOf(part);
+            parts[i].insert(start, 'y');
+            if (cursor > offset + start) ++cursor;
+            part.prepend('y');
+        }
+        offset += parts[i].size() + 1;
+        if (i == parts.size() - 1 && (part.isEmpty() || part == "y")) {
+            state = Intermediate;
+            break;
+        }
         if (!QRegularExpression(QStringLiteral("^y[0-9]$")).match(part).hasMatch() ||
             used.contains(part))
             return Invalid;
         used.insert(part);
     }
-    return Acceptable;
+    // QLineEdit applies validator changes while typing and pasting, including the cursor shift.
+    input = parts.join(',');
+    position = cursor;
+    return state;
 }
