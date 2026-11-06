@@ -17,9 +17,14 @@ bool SchemaManager::createSchema(QString *error) {
     Transaction transaction(m_db);
     if (!transaction.active())
         return false;
+    const QString reactionDefinition =
+        "(variant_id INTEGER NOT NULL REFERENCES Variants(id) ON DELETE CASCADE, "
+        "position INTEGER NOT NULL CHECK(position>=0), "
+        "input TEXT NOT NULL CHECK(input='' OR input GLOB 'x[0-9]'), "
+        "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));";
     const QStringList sql = {
-        "CREATE TABLE IF NOT EXISTS LiteMetadata (version INTEGER NOT NULL CHECK(version=1));",
-        "INSERT INTO LiteMetadata SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM LiteMetadata);",
+        "CREATE TABLE IF NOT EXISTS LiteMetadata (version INTEGER NOT NULL CHECK(version=2));",
+        "INSERT INTO LiteMetadata SELECT 2 WHERE NOT EXISTS (SELECT 1 FROM LiteMetadata);",
         "CREATE TABLE IF NOT EXISTS Variants (id INTEGER PRIMARY KEY AUTOINCREMENT, number INTEGER "
         "NOT NULL UNIQUE, "
         "conversion TEXT NOT NULL CHECK(conversion IN ('MealyToMoore','MooreToMealy')), "
@@ -29,11 +34,7 @@ bool SchemaManager::createSchema(QString *error) {
         "moore_states INTEGER NOT NULL CHECK(moore_states BETWEEN 1 AND 999999), "
         "moore_inputs INTEGER NOT NULL CHECK(moore_inputs BETWEEN 1 AND 10), "
         "moore_outputs INTEGER NOT NULL CHECK(moore_outputs BETWEEN 1 AND 10));",
-        "CREATE TABLE IF NOT EXISTS ReactionSteps (variant_id INTEGER NOT NULL REFERENCES "
-        "Variants(id) ON DELETE CASCADE, "
-        "position INTEGER NOT NULL CHECK(position>=0), input TEXT NOT NULL CHECK(input GLOB "
-        "'x[0-9]'), "
-        "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));",
+        "CREATE TABLE IF NOT EXISTS ReactionSteps " + reactionDefinition,
         // Additive migration: existing Lite variants keep their reactions and have no attachment.
         "CREATE TABLE IF NOT EXISTS VariantImages (variant_id INTEGER PRIMARY KEY REFERENCES "
         "Variants(id) ON DELETE CASCADE, data BLOB NOT NULL, file_name TEXT NOT NULL);"};
@@ -41,10 +42,27 @@ bool SchemaManager::createSchema(QString *error) {
         if (!m_db->exec(request, {}, error))
             return false;
     auto version = m_db->query("SELECT version FROM LiteMetadata;");
-    if (!version.next() || version.value(0).toInt() != 1 || version.next()) {
+    const int schemaVersion = version.next() ? version.value(0).toInt() : -1;
+    if ((schemaVersion != 1 && schemaVersion != 2) || version.next()) {
         if (error)
             *error = tr("Unknown reaction database version.");
         return false;
+    }
+    version.finish();
+    if (schemaVersion == 1) {
+        // SQLite cannot alter a CHECK constraint. Copy every stored step in the
+        // same transaction before replacing the old table and schema version.
+        const QStringList migration = {
+            "CREATE TABLE ReactionStepsUpgrade " + reactionDefinition,
+            "INSERT INTO ReactionStepsUpgrade SELECT variant_id,position,input,outputs_json FROM ReactionSteps;",
+            "DROP TABLE ReactionSteps;",
+            "ALTER TABLE ReactionStepsUpgrade RENAME TO ReactionSteps;",
+            "DROP TABLE LiteMetadata;",
+            "CREATE TABLE LiteMetadata (version INTEGER NOT NULL CHECK(version=2));",
+            "INSERT INTO LiteMetadata VALUES(2);"};
+        for (const auto &request : migration)
+            if (!m_db->exec(request, {}, error))
+                return false;
     }
     if (!transaction.commit(error))
         return false;

@@ -16,7 +16,9 @@ QValidator::State ReactionValidator::validate(QString &input, int &position) con
             input.prepend('x');
             if (position > 0) ++position;
         }
-        if (input.isEmpty() || input == "x")
+        if (input.isEmpty())
+            return Acceptable; // Position and automaton kind are checked when saving the reaction.
+        if (input == "x")
             return Intermediate;
         return QRegularExpression(QStringLiteral("\\Ax[0-9]\\z")).match(input).hasMatch()
                    ? Acceptable : Invalid;

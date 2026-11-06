@@ -46,10 +46,12 @@ Result ReactionVariant::validate() const {
     const QRegularExpression outputPattern(QStringLiteral("^y[0-9]$"));
     for (int i = 0; i < reaction.size(); ++i) {
         const auto &step = reaction[i];
-        if (!inputPattern.match(step.input).hasMatch())
+        const bool terminalMooreOutput = type == VariantType::MooreToMealy &&
+            i + 1 == reaction.size() && step.input.isEmpty();
+        if (!terminalMooreOutput && !inputPattern.match(step.input).hasMatch())
             return fail(QT_TRANSLATE_NOOP(
                             "ResultMessage",
-                            "Step %1: enter one input x0–x9; gaps between steps are not allowed."),
+                            "Step %1: enter one input x0–x9. Only the final Moore step may have no input."),
                         {QString::number(i + 1)})
                 .withOffender(QStringLiteral("0:%1").arg(i));
         QSet<QString> unique;
@@ -95,7 +97,8 @@ Result ReactionVariant::validateForSave() const {
     const QString prefix = mealySource ? "mealy" : "moore";
     QSet<QString> inputs, outputs;
     for (const auto &step : reaction) {
-        inputs.insert(step.input);
+        if (!step.input.isEmpty())
+            inputs.insert(step.input);
         for (const auto &output : step.outputs)
             outputs.insert(output);
     }

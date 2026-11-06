@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     TranslationManager translationManager(&a);
     translationManager.loadSystemLocale();
 
-    Database* db = Database::open("variants-lite.db", &a);
+    Database* db = Database::openDefault(&a);
     if (!db) {
         QMessageBox::critical(
             nullptr,

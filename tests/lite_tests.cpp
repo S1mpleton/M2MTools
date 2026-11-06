@@ -20,6 +20,7 @@
 #include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGraphicsOpacityEffect>
@@ -258,6 +259,111 @@ void testSourceCounts() {
     data.moore.inputs = 3; data.moore.outputs = 4;
     data.reaction = {{"x9", {"y9", "y1"}}, {"x5", {"y4"}}, {"x7", {"y7"}}, {"x9", {}}};
     require(data.validateForSave().ok(), "distinct signals counted once; suffixes are not indexes");
+}
+
+void testTerminalMooreAndDatabaseMigration() {
+    auto terminal = sample();
+    terminal.number = 9;
+    terminal.type = VariantType::MooreToMealy;
+    terminal.moore = terminal.mealy = {4, 3, 4};
+    terminal.reaction = {{"x1", {"y1"}}, {"x1", {"y2"}}, {"x2", {"y3", "y4"}},
+        {"x2", {"y2"}}, {"x3", {"y1"}}, {"x2", {"y1"}}, {{}, {"y3", "y4"}}};
+    require(terminal.validateForSave().ok(), "the final Moore output needs no input and does not add an input signal");
+    ReactionVariant decoded;
+    require(ReactionVariant::fromJson(terminal.toJson(), &decoded).ok() && equal(terminal, decoded),
+        "JSON retains the output-only final Moore step");
+    auto invalid = terminal;
+    invalid.reaction[1].input.clear();
+    require(!invalid.validate().ok() && invalid.validate().offender() == "0:1",
+        "a missing input inside a Moore reaction remains an error");
+    invalid = terminal;
+    invalid.type = VariantType::MealyToMoore;
+    require(!invalid.validate().ok() && invalid.validate().offender() == "0:6",
+        "Mealy reactions still require an input in the final step");
+    invalid = terminal;
+    invalid.reaction.last().outputs = {"y3", "y3"};
+    require(!invalid.validate().ok(), "final Moore outputs retain duplicate validation");
+
+    ReactionTable table;
+    table.resize(700, 160); table.setSteps(terminal.reaction); table.show();
+    table.item(0, 6)->setText("x2");
+    table.setCurrentCell(0, 6); table.editItem(table.item(0, 6));
+    qApp->processEvents();
+    auto *line = table.findChild<QLineEdit *>("reactionCellEditor");
+    require(line, "final Moore input editor opens");
+    line->selectAll(); QTest::keyClick(line, Qt::Key_Delete);
+    QTest::mouseClick(table.viewport(), Qt::LeftButton, Qt::NoModifier,
+        table.visualItemRect(table.item(1, 6)).center());
+    qApp->processEvents();
+    require(table.steps() == terminal.reaction, "clearing an existing final input commits on focus loss and keeps its outputs");
+    table.insertStep();
+    for (auto *editor : table.findChildren<QLineEdit *>("reactionCellEditor"))
+        if (editor->isVisible()) QTest::keyClick(editor, Qt::Key_Escape);
+    require(table.steps() == terminal.reaction, "unused columns do not remove a final output-only step");
+
+    QTemporaryDir directory;
+    require(directory.isValid(), "migration directory");
+    const QString previousDirectory = QDir::currentPath();
+    require(QDir::setCurrent(directory.path()), "enter migration directory");
+    {
+        std::unique_ptr<Database> legacy(Database::open("variants-lite.db"));
+        require(bool(legacy), "create legacy database");
+        SchemaManager legacySchema(legacy.get());
+        require(legacySchema.createSchema(), "initialize database for migration fixture");
+        VariantRepository legacyRepo(legacy.get());
+        VariantService legacyService(legacy.get(), &legacyRepo);
+        require(legacyService.saveVariant(sample()).ok(), "store the original variant and image");
+        // Recreate the pre-upgrade CHECK constraint and version with real stored rows.
+        for (const auto &sql : QStringList{
+            "ALTER TABLE ReactionSteps RENAME TO SavedSteps;",
+            "CREATE TABLE ReactionSteps (variant_id INTEGER NOT NULL REFERENCES Variants(id) ON DELETE CASCADE, "
+            "position INTEGER NOT NULL CHECK(position>=0), input TEXT NOT NULL CHECK(input GLOB 'x[0-9]'), "
+            "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));",
+            "INSERT INTO ReactionSteps SELECT * FROM SavedSteps;", "DROP TABLE SavedSteps;",
+            "DROP TABLE LiteMetadata;", "CREATE TABLE LiteMetadata (version INTEGER NOT NULL CHECK(version=1));",
+            "INSERT INTO LiteMetadata VALUES(1);"})
+            require(legacy->exec(sql), "restore version 1 schema fixture");
+        require(legacy->exec("PRAGMA journal_mode=WAL"), "enable legacy WAL");
+        auto extra = sample(); extra.number = 8;
+        require(legacyService.saveVariant(extra).ok(), "commit another variant to the legacy WAL");
+        std::unique_ptr<Database> db(Database::openDefault());
+        require(db && db->path() == "database.db" && QFile::exists("variants-lite.db"),
+            "default database uses the new name and retains the legacy file");
+        SchemaManager schema(db.get());
+        QString error;
+        require(schema.createSchema(&error), qPrintable(error));
+        VariantRepository repo(db.get());
+        VariantService service(db.get(), &repo);
+        require(equal(sample(), repo.loadVariant(4).payloadAs<ReactionVariant>()) &&
+            equal(extra, repo.loadVariant(8).payloadAs<ReactionVariant>()),
+            "name and schema migration preserve reactions, images and committed WAL records");
+        auto oldVersion = legacy->query("SELECT version FROM LiteMetadata");
+        require(oldVersion.next() && oldVersion.value(0).toInt() == 1, "the legacy database is left unchanged");
+        oldVersion.finish();
+        require(service.saveVariant(terminal).ok() && equal(terminal, repo.loadVariant(9).payloadAs<ReactionVariant>()),
+            "the migrated database stores a null QString as an empty final Moore input");
+        require(schema.createSchema(&error), qPrintable(error));
+        auto foreignKeys = db->query("PRAGMA foreign_key_check");
+        require(foreignKeys.isActive() && !foreignKeys.next(), "migration preserves foreign keys");
+        require(service.exportArchive("terminal.m2m").ok() && service.swapVariants(9, 7).ok() &&
+            service.importArchive("terminal.m2m").ok() && equal(terminal, repo.loadVariant(9).payloadAs<ReactionVariant>()),
+            "encrypted export and import preserve the final Moore output and its empty input");
+    }
+    {
+        std::unique_ptr<Database> db(Database::openDefault());
+        require(bool(db), "reopen database.db");
+        SchemaManager schema(db.get());
+        VariantRepository repo(db.get());
+        require(schema.createSchema() && equal(terminal, repo.loadVariant(9).payloadAs<ReactionVariant>()),
+            "subsequent starts use database.db and retain the upgraded variants");
+    }
+    require(QDir().mkdir("fresh") && QDir::setCurrent(directory.filePath("fresh")), "enter fresh startup directory");
+    {
+        std::unique_ptr<Database> db(Database::openDefault());
+        require(db && QFile::exists("database.db") && !QFile::exists("variants-lite.db"),
+            "a fresh installation creates only database.db");
+    }
+    require(QDir::setCurrent(previousDirectory), "restore working directory");
 }
 
 void testFeedbackTiming() {
@@ -555,6 +661,7 @@ int main(int argc, char **argv) {
     auto data = sample();
     testReactionSignalEntry();
     testSourceCounts();
+    testTerminalMooreAndDatabaseMigration();
     testNumberLimitAndLegacyEditing(translator);
     testFeedbackTiming();
     require(data.validate().ok(), "valid ordered reaction");

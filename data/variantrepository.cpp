@@ -64,7 +64,7 @@ Result VariantRepository::insertVariant(const ReactionVariant &data) {
             "INSERT INTO ReactionSteps(variant_id,position,input,outputs_json) VALUES(:v,:p,:i,:o)",
             {{":v", id},
              {":p", i},
-             {":i", step.input},
+             {":i", step.input.isEmpty() ? QStringLiteral("") : step.input},
              {":o", QString::fromUtf8(QJsonDocument(QJsonArray::fromStringList(step.outputs))
                                           .toJson(QJsonDocument::Compact))}});
         if (!q.isActive())

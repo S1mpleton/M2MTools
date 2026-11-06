@@ -1,13 +1,39 @@
 #include "database.h"
 
+#include <QFile>
 #include <QFileInfo>
 #include <QDir>
+#include <QTemporaryFile>
 #include <QUuid>
 #include <QtSql/QSqlDatabase>
+#include <memory>
 
 Database::Database(const QString& connectionName, const QString& path, QObject* parent)
     : QObject(parent), m_connectionName(connectionName), m_path(path)
 {
+}
+
+Database* Database::openDefault(QObject* parent) {
+    const QString path = QStringLiteral("database.db");
+    const QString legacyPath = QStringLiteral("variants-lite.db");
+    if (!QFileInfo::exists(path) && QFileInfo::exists(legacyPath)) {
+        // VACUUM INTO includes committed WAL data and retains the old database.
+        // Publish a completed snapshot without overwriting an existing database.db.
+        QTemporaryFile snapshot(QDir::current().filePath(QStringLiteral(".database-migration-XXXXXX")));
+        if (!snapshot.open())
+            return nullptr;
+        const QString snapshotPath = snapshot.fileName();
+        snapshot.close();
+        {
+            std::unique_ptr<Database> legacy(open(legacyPath));
+            if (!legacy || !legacy->exec("VACUUM INTO :path", {{":path", snapshotPath}}))
+                return nullptr;
+        }
+        if (!QFile::rename(snapshotPath, path))
+            return nullptr;
+        snapshot.setAutoRemove(false);
+    }
+    return open(path, parent);
 }
 
 Database* Database::open(const QString& path, QObject* parent) {

@@ -21,6 +21,7 @@ struct AutomatonCounts {
 
 // Order is part of the task: neither steps nor output lists may be sorted.
 struct ReactionStep {
+    // Empty only for the final current-state output of a Moore reaction.
     QString input;
     QStringList outputs;
     bool operator==(const ReactionStep &other) const {

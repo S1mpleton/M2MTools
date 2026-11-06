@@ -472,8 +472,8 @@
             <translation>Введите хотя бы один такт реакции.</translation>
         </message>
         <message>
-            <source>Step %1: enter one input x0–x9; gaps between steps are not allowed.</source>
-            <translation>Такт %1: нужен один вход x0–x9; пропуски между тактами недопустимы.</translation>
+            <source>Step %1: enter one input x0–x9. Only the final Moore step may have no input.</source>
+            <translation>Такт %1: нужен один вход x0–x9. Пустой вход допустим только в последнем такте реакции Мура.</translation>
         </message>
         <message>
             <source>Step %1: enter outputs y0–y9 separated by commas, without duplicates.</source>
