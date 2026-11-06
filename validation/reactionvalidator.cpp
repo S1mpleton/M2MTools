@@ -38,7 +38,10 @@ QValidator::State ReactionValidator::validate(QString &input, int &position) con
             part.prepend('y');
         }
         offset += parts[i].size() + 1;
-        if (i == parts.size() - 1 && (part.isEmpty() || part == "y")) {
+        // The editor leaves a final separator ready for the next signal.
+        if (i == parts.size() - 1 && part.isEmpty())
+            break;
+        if (i == parts.size() - 1 && part == "y") {
             state = Intermediate;
             break;
         }

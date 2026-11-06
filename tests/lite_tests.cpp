@@ -150,32 +150,83 @@ void testReactionSignalEntry() {
     table.setCurrentCell(1, 0);
     QTest::keyClicks(&table, "2");
     line = activeEditor();
-    require(line && line->text() == "y2", "typing a digit in an empty output cell adds y");
-    QTest::keyClicks(line, ",3,y4, 5");
-    require(line->text() == "y2,y3,y4, y5" && line->hasAcceptableInput(),
-        "output digits after commas receive y and explicit prefixes are preserved");
-    QTest::keyClicks(line, ",3");
-    require(line->text() == "y2,y3,y4, y5,",
+    require(line && line->text() == "y2, " && line->cursorPosition() == 4,
+        "typing an output digit adds y and a separator with the cursor ready for the next signal");
+    QTest::keyClicks(line, "3y45");
+    require(line->text() == "y2, y3, y4, y5, " && line->hasAcceptableInput(),
+        "successive digits and explicit output prefixes both get one automatic separator");
+    QTest::keyClicks(line, "3");
+    require(line->text() == "y2, y3, y4, y5, ",
         "automatic prefixes do not allow duplicate output signals");
     QTest::keyClick(line, Qt::Key_Backspace);
-    line->setSelection(3, 2);
+    QTest::keyClick(line, Qt::Key_Backspace);
+    require(line->text() == "y2, y3, y4, y5", "Backspace removes the automatic separator without restoring it");
+    QTest::keyClicks(line, ", ");
+    line->setSelection(4, 2);
     QTest::keyClicks(line, "7");
-    require(line->text() == "y2,y7,y4, y5" && line->cursorPosition() == 5,
+    require(line->text() == "y2, y7, y4, y5, " && line->cursorPosition() == 6,
         "replacing a signal in the middle of an output list keeps the cursor by that signal");
     line->selectAll();
     QApplication::clipboard()->setText("0,1,y2, 3");
     line->paste();
-    require(line->text() == "y0,y1,y2, y3" && line->cursorPosition() == line->text().size(),
+    require(line->text() == "y0,y1,y2, y3, " && line->cursorPosition() == line->text().size(),
         "pasting a mixed output list adds each missing prefix");
     line->selectAll();
     QApplication::clipboard()->setText("y1,1");
     line->paste();
-    require(line->text() == "y0,y1,y2, y3", "pasting duplicate shorthand outputs is rejected");
-    QTest::keyClick(line, Qt::Key_Return);
-    require(table.item(1, 0)->text() == "y0,y1,y2,y3" &&
+    require(line->text() == "y0,y1,y2, y3, ", "pasting duplicate shorthand outputs is rejected");
+    QTest::mouseClick(table.viewport(), Qt::LeftButton, Qt::NoModifier,
+        table.visualItemRect(table.item(0, 0)).center());
+    qApp->processEvents();
+    require(table.item(1, 0)->text() == "y0, y1, y2, y3" &&
         table.steps()[0].outputs == QStringList{"y0", "y1", "y2", "y3"},
-        "committing shorthand output signals stores their canonical list");
+        "losing focus removes the trailing separator and formats output lists with comma and space");
+    table.setCurrentCell(1, 0);
+    table.editItem(table.item(1, 0));
+    qApp->processEvents();
+    line = activeEditor();
+    require(line && line->text() == "y0, y1, y2, y3",
+        "opening an existing output does not append a separator");
+    line->selectAll();
+    QTest::keyClicks(line, "6");
+    require(line->text() == "y6, ", "replacing an output list with a digit prepares the next output");
+    QTest::mouseClick(table.viewport(), Qt::LeftButton, Qt::NoModifier,
+        table.visualItemRect(table.item(0, 0)).center());
+    qApp->processEvents();
+    require(table.item(1, 0)->text() == "y6", "a single output loses its trailing separator on focus loss");
+    table.setCurrentCell(1, 0);
+    table.editItem(table.item(1, 0));
+    qApp->processEvents();
+    line = activeEditor();
+    require(line, "output editor reopens");
+    line->selectAll();
+    QTest::keyClicks(line, "6");
+    require(line->text() == "y6, ", "retyping the same selected output also prepares the next signal");
+    line->selectAll();
+    QTest::keyClicks(line, "y5");
+    require(line->text() == "y5, ", "an explicitly prefixed output also gets an automatic separator");
+    QTest::keyClick(line, Qt::Key_Return);
+    require(table.item(1, 0)->text() == "y5" && table.columnCount() == 3,
+        "Enter commits outputs with a trailing separator and inserts the next step");
     if (auto *current = activeEditor()) QTest::keyClick(current, Qt::Key_Escape);
+    table.setSteps({{"x0", {"y1", "y2"}}});
+    require(table.item(1, 0)->text() == "y1, y2", "loading an output list uses the same display format");
+
+    auto paintEditingCell = [&](const QString &value) {
+        table.item(1, 0)->setText(value);
+        QImage image(160, 32, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        QStyleOptionViewItem option;
+        option.initFrom(&table);
+        option.rect = image.rect();
+        option.state |= QStyle::State_Editing;
+        option.widget = &table;
+        table.itemDelegate()->paint(&painter, option, table.model()->index(1, 0));
+        return image;
+    };
+    require(paintEditingCell("y1, y2") == paintEditingCell(""),
+        "the cell delegate does not paint old text behind an active editor");
 }
 
 void testSourceCounts() {
@@ -940,7 +991,7 @@ int main(int argc, char **argv) {
             dark.setColor(QPalette::HighlightedText, Qt::white);
             app.setPalette(dark);
             QTest::qWait(20);
-            require(table->item(1, 3)->text() == QStringLiteral("y2,y0,y1,y3"),
+            require(table->item(1, 3)->text() == QStringLiteral("y2, y0, y1, y3"),
                     "theme change preserves edited cell");
             require(window.grab().save(QString::fromLocal8Bit(argv[1]) + ".dark.png"),
                     "dark screenshot");

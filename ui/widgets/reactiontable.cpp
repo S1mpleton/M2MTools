@@ -49,7 +49,7 @@ void ReactionTable::setSteps(const QVector<ReactionStep> &steps) {
         prepareColumn(c);
     for (int c = 0; c < steps.size(); ++c) {
         item(0, c)->setText(steps[c].input);
-        item(1, c)->setText(steps[c].outputs.join(','));
+        item(1, c)->setText(steps[c].outputs.join(QStringLiteral(", ")));
     }
     setCurrentCell(0, 0);
     updateTableSize();
