@@ -248,6 +248,10 @@
             <translation>Выходные сигналы</translation>
         </message>
         <message>
+            <source>Transitions</source>
+            <translation>Переходы</translation>
+        </message>
+        <message>
             <source>Mealy</source>
             <translation>Мили</translation>
         </message>
@@ -456,6 +460,10 @@
     <context>
         <name>ResultMessage</name>
         <message>
+            <source>Transition counts must be between 1 and 999999.</source>
+            <translation>Количество переходов должно быть от 1 до 999999.</translation>
+        </message>
+        <message>
             <source>Variant number must be between 1 and 999999.</source>
             <translation>Номер варианта должен быть от 1 до 999999.</translation>
         </message>
@@ -572,8 +580,8 @@
             <translation>Количество сигналов Мура должно совпадать с реакцией: входы — указано %1, введено %2; выходы — указано %3, введено %4.</translation>
         </message>
         <message>
-            <source>Use variant numbers 1–99, 4–10 states, 3–6 inputs and 4–10 outputs for both automata.</source>
-            <translation>Номер варианта — от 1 до 99. Для обоих автоматов: состояний — 4–10, входных сигналов — 3–6, выходных — 4–10.</translation>
+            <source>Use variant numbers 1–99, 4–10 states, 3–6 inputs, 4–10 outputs and 1–999999 transitions for both automata.</source>
+            <translation>Номер варианта — от 1 до 99. Для обоих автоматов: состояний — 4–10, входных сигналов — 3–6, выходных — 4–10, переходов — 1–999999.</translation>
         </message>
         <message>
             <source>Variant numbers must be between 1 and 99.</source>
@@ -645,8 +653,8 @@
             <translation>Это база полной версии. Требуется отдельная база реакций.</translation>
         </message>
         <message>
-            <source>Unknown reaction database version.</source>
-            <translation>Неизвестная версия базы реакций.</translation>
+            <source>The database structure has changed. A new database.db is required; automatic migration is not supported.</source>
+            <translation>Структура базы данных изменилась. Требуется новая database.db; автоматическая миграция не выполняется.</translation>
         </message>
     </context>
     <context>

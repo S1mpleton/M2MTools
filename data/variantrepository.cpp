@@ -38,17 +38,19 @@ Result VariantRepository::insertVariant(const ReactionVariant &data) {
     if (!valid.ok())
         return valid;
     auto q = m_db->query("INSERT INTO "
-                         "Variants(number,conversion,mealy_states,mealy_inputs,mealy_outputs,moore_"
-                         "states,moore_inputs,moore_outputs) "
-                         "VALUES(:n,:t,:ms,:mi,:mo,:rs,:ri,:ro)",
+                         "Variants(number,conversion,mealy_states,mealy_inputs,mealy_outputs,mealy_transitions,"
+                         "moore_states,moore_inputs,moore_outputs,moore_transitions) "
+                         "VALUES(:n,:t,:ms,:mi,:mo,:mt,:rs,:ri,:ro,:rt)",
                          {{":n", data.number},
                           {":t", variantTypeToString(data.type)},
                           {":ms", data.mealy.states},
                           {":mi", data.mealy.inputs},
                           {":mo", data.mealy.outputs},
+                          {":mt", data.mealy.transitions},
                           {":rs", data.moore.states},
                           {":ri", data.moore.inputs},
-                          {":ro", data.moore.outputs}});
+                          {":ro", data.moore.outputs},
+                          {":rt", data.moore.transitions}});
     if (!q.isActive())
         return error(q);
     const int id = q.lastInsertId().toInt();
@@ -74,8 +76,8 @@ Result VariantRepository::insertVariant(const ReactionVariant &data) {
 }
 Result VariantRepository::loadVariant(int number) const {
     auto q = m_db->query("SELECT "
-                         "id,conversion,mealy_states,mealy_inputs,mealy_outputs,moore_states,moore_"
-                         "inputs,moore_outputs "
+                         "id,conversion,mealy_states,mealy_inputs,mealy_outputs,mealy_transitions,"
+                         "moore_states,moore_inputs,moore_outputs,moore_transitions "
                          "FROM Variants WHERE number=:n",
                          {{":n", number}});
     if (!q.isActive())
@@ -89,10 +91,12 @@ Result VariantRepository::loadVariant(int number) const {
                        {"type", q.value(1).toString()},
                        {"mealy", QJsonObject{{"states", q.value(2).toInt()},
                                              {"inputs", q.value(3).toInt()},
-                                             {"outputs", q.value(4).toInt()}}},
-                       {"moore", QJsonObject{{"states", q.value(5).toInt()},
-                                             {"inputs", q.value(6).toInt()},
-                                             {"outputs", q.value(7).toInt()}}}};
+                                             {"outputs", q.value(4).toInt()},
+                                             {"transitions", q.value(5).toInt()}}},
+                       {"moore", QJsonObject{{"states", q.value(6).toInt()},
+                                             {"inputs", q.value(7).toInt()},
+                                             {"outputs", q.value(8).toInt()},
+                                             {"transitions", q.value(9).toInt()}}}};
     q = m_db->query("SELECT position,input,outputs_json FROM ReactionSteps WHERE variant_id=:v "
                     "ORDER BY position ASC",
                     {{":v", id}});

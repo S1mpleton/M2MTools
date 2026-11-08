@@ -14,8 +14,10 @@ struct AutomatonCounts {
     int states = 4;
     int inputs = 3;
     int outputs = 4;
+    int transitions = 1;
     bool operator==(const AutomatonCounts &other) const {
-        return states == other.states && inputs == other.inputs && outputs == other.outputs;
+        return states == other.states && inputs == other.inputs && outputs == other.outputs &&
+               transitions == other.transitions;
     }
 };
 

@@ -39,6 +39,12 @@ Result ReactionVariant::validate() const {
                 "ResultMessage",
                 "For both automata, specify 1–999999 states and 1–10 signals of each kind."));
     }
+    for (const auto &prefix : {QStringLiteral("mealy"), QStringLiteral("moore")}) {
+        const auto &counts = prefix == "mealy" ? mealy : moore;
+        if (counts.transitions < 1 || counts.transitions > 999999)
+            return fail(QT_TRANSLATE_NOOP("ResultMessage", "Transition counts must be between 1 and 999999."))
+                .withFields({prefix + ".transitions"});
+    }
     if (reaction.isEmpty())
         return fail(QT_TRANSLATE_NOOP("ResultMessage", "Enter at least one reaction step."))
             .withFields({"reaction"});
@@ -78,10 +84,11 @@ Result ReactionVariant::validateInputLimits() const {
         if (counts.states < 4 || counts.states > 10) fields.append(prefix + ".states");
         if (counts.inputs < 3 || counts.inputs > 6) fields.append(prefix + ".inputs");
         if (counts.outputs < 4 || counts.outputs > 10) fields.append(prefix + ".outputs");
+        if (counts.transitions < 1 || counts.transitions > 999999) fields.append(prefix + ".transitions");
     }
     if (!fields.isEmpty())
         return Result::errorMessage(QT_TRANSLATE_NOOP("ResultMessage",
-            "Use variant numbers 1–99, 4–10 states, 3–6 inputs and 4–10 outputs for both automata."),
+            "Use variant numbers 1–99, 4–10 states, 3–6 inputs, 4–10 outputs and 1–999999 transitions for both automata."),
             {}, ResultCategory::Validation).withFields(fields);
     return Result::success();
 }
@@ -137,7 +144,8 @@ bool ReactionVariant::operator==(const ReactionVariant &other) const {
 
 QJsonObject ReactionVariant::toJson() const {
     auto counts = [](const AutomatonCounts &c) {
-        return QJsonObject{{"states", c.states}, {"inputs", c.inputs}, {"outputs", c.outputs}};
+        return QJsonObject{{"states", c.states}, {"inputs", c.inputs}, {"outputs", c.outputs},
+                           {"transitions", c.transitions}};
     };
     QJsonArray steps;
     for (const auto &step : reaction)
@@ -176,7 +184,8 @@ Result ReactionVariant::fromJson(const QJsonObject &object, ReactionVariant *res
     auto readCounts = [](const QJsonValue &value) {
         const auto c = value.toObject();
         return AutomatonCounts{c.value("states").toInt(-1), c.value("inputs").toInt(-1),
-                               c.value("outputs").toInt(-1)};
+                               c.value("outputs").toInt(-1),
+                               c.contains("transitions") ? c.value("transitions").toInt(-1) : 1};
     };
     data.mealy = readCounts(object.value("mealy"));
     data.moore = readCounts(object.value("moore"));

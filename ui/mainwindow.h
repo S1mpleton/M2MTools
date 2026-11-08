@@ -38,7 +38,7 @@ class MainWindow : public QMainWindow {
     ReactionTable *m_reaction;
     QSpinBox *m_number;
     QComboBox *m_type;
-    std::array<QSpinBox *, 3> m_mealy, m_moore;
+    std::array<QSpinBox *, 4> m_mealy, m_moore;
     FeedbackLabel *m_feedback;
     FieldFeedback *m_fieldFeedback;
     LogWindow *m_log = nullptr;

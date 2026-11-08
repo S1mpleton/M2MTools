@@ -261,7 +261,7 @@ void testSourceCounts() {
     require(data.validateForSave().ok(), "distinct signals counted once; suffixes are not indexes");
 }
 
-void testTerminalMooreAndDatabaseMigration() {
+void testTerminalMoore() {
     auto terminal = sample();
     terminal.number = 9;
     terminal.type = VariantType::MooreToMealy;
@@ -302,49 +302,22 @@ void testTerminalMooreAndDatabaseMigration() {
     require(table.steps() == terminal.reaction, "unused columns do not remove a final output-only step");
 
     QTemporaryDir directory;
-    require(directory.isValid(), "migration directory");
+    require(directory.isValid(), "terminal Moore test directory");
     const QString previousDirectory = QDir::currentPath();
-    require(QDir::setCurrent(directory.path()), "enter migration directory");
+    require(QDir::setCurrent(directory.path()), "enter terminal Moore test directory");
     {
-        std::unique_ptr<Database> legacy(Database::open("variants-lite.db"));
-        require(bool(legacy), "create legacy database");
-        SchemaManager legacySchema(legacy.get());
-        require(legacySchema.createSchema(), "initialize database for migration fixture");
-        VariantRepository legacyRepo(legacy.get());
-        VariantService legacyService(legacy.get(), &legacyRepo);
-        require(legacyService.saveVariant(sample()).ok(), "store the original variant and image");
-        // Recreate the pre-upgrade CHECK constraint and version with real stored rows.
-        for (const auto &sql : QStringList{
-            "ALTER TABLE ReactionSteps RENAME TO SavedSteps;",
-            "CREATE TABLE ReactionSteps (variant_id INTEGER NOT NULL REFERENCES Variants(id) ON DELETE CASCADE, "
-            "position INTEGER NOT NULL CHECK(position>=0), input TEXT NOT NULL CHECK(input GLOB 'x[0-9]'), "
-            "outputs_json TEXT NOT NULL, PRIMARY KEY(variant_id,position));",
-            "INSERT INTO ReactionSteps SELECT * FROM SavedSteps;", "DROP TABLE SavedSteps;",
-            "DROP TABLE LiteMetadata;", "CREATE TABLE LiteMetadata (version INTEGER NOT NULL CHECK(version=1));",
-            "INSERT INTO LiteMetadata VALUES(1);"})
-            require(legacy->exec(sql), "restore version 1 schema fixture");
-        require(legacy->exec("PRAGMA journal_mode=WAL"), "enable legacy WAL");
-        auto extra = sample(); extra.number = 8;
-        require(legacyService.saveVariant(extra).ok(), "commit another variant to the legacy WAL");
         std::unique_ptr<Database> db(Database::openDefault());
-        require(db && db->path() == "database.db" && QFile::exists("variants-lite.db"),
-            "default database uses the new name and retains the legacy file");
+        require(db && db->path() == "database.db", "default database uses database.db");
         SchemaManager schema(db.get());
         QString error;
         require(schema.createSchema(&error), qPrintable(error));
         VariantRepository repo(db.get());
         VariantService service(db.get(), &repo);
-        require(equal(sample(), repo.loadVariant(4).payloadAs<ReactionVariant>()) &&
-            equal(extra, repo.loadVariant(8).payloadAs<ReactionVariant>()),
-            "name and schema migration preserve reactions, images and committed WAL records");
-        auto oldVersion = legacy->query("SELECT version FROM LiteMetadata");
-        require(oldVersion.next() && oldVersion.value(0).toInt() == 1, "the legacy database is left unchanged");
-        oldVersion.finish();
         require(service.saveVariant(terminal).ok() && equal(terminal, repo.loadVariant(9).payloadAs<ReactionVariant>()),
-            "the migrated database stores a null QString as an empty final Moore input");
+            "the database stores a null QString as an empty final Moore input");
         require(schema.createSchema(&error), qPrintable(error));
         auto foreignKeys = db->query("PRAGMA foreign_key_check");
-        require(foreignKeys.isActive() && !foreignKeys.next(), "migration preserves foreign keys");
+        require(foreignKeys.isActive() && !foreignKeys.next(), "terminal Moore data preserves foreign keys");
         require(service.exportArchive("terminal.m2m").ok() && service.swapVariants(9, 7).ok() &&
             service.importArchive("terminal.m2m").ok() && equal(terminal, repo.loadVariant(9).payloadAs<ReactionVariant>()),
             "encrypted export and import preserve the final Moore output and its empty input");
@@ -355,7 +328,7 @@ void testTerminalMooreAndDatabaseMigration() {
         SchemaManager schema(db.get());
         VariantRepository repo(db.get());
         require(schema.createSchema() && equal(terminal, repo.loadVariant(9).payloadAs<ReactionVariant>()),
-            "subsequent starts use database.db and retain the upgraded variants");
+            "subsequent starts use database.db and retain the saved variants");
     }
     require(QDir().mkdir("fresh") && QDir::setCurrent(directory.filePath("fresh")), "enter fresh startup directory");
     {
@@ -364,6 +337,89 @@ void testTerminalMooreAndDatabaseMigration() {
             "a fresh installation creates only database.db");
     }
     require(QDir::setCurrent(previousDirectory), "restore working directory");
+}
+
+void testTransitionCounts() {
+    auto data = sample();
+    data.mealy.transitions = 6;
+    data.moore.transitions = 11;
+    require(data.validateForSave().ok(), "transition counts are author-supplied metadata rather than the reaction length");
+    ReactionVariant decoded;
+    require(ReactionVariant::fromJson(data.toJson(), &decoded).ok() && equal(data, decoded),
+        "JSON preserves separate Mealy and Moore transition counts");
+    auto changed = data;
+    changed.mealy.transitions = 7;
+    require(!(changed == data), "transition edits are included in variant change detection");
+    auto oldArchive = data.toJson();
+    for (const auto &kind : {QStringLiteral("mealy"), QStringLiteral("moore")}) {
+        auto counts = oldArchive.value(kind).toObject();
+        counts.remove("transitions"); oldArchive.insert(kind, counts);
+        for (int invalid : {0, 1000000}) {
+            auto malformed = data.toJson();
+            auto values = malformed.value(kind).toObject();
+            values.insert("transitions", invalid); malformed.insert(kind, values);
+            require(!ReactionVariant::fromJson(malformed, &decoded).ok(), "invalid archived transition counts are rejected");
+        }
+    }
+    require(ReactionVariant::fromJson(oldArchive, &decoded).ok() &&
+        decoded.mealy.transitions == 1 && decoded.moore.transitions == 1,
+        "older archives without transition counts use the new-field default");
+
+    QTemporaryDir directory;
+    require(directory.isValid(), "transition count test directory");
+    const auto path = directory.filePath("database.db");
+    {
+        std::unique_ptr<Database> db(Database::open(path));
+        require(bool(db), "open transition database");
+        SchemaManager schema(db.get());
+        require(schema.createSchema(), "create schema with transition columns");
+        VariantRepository repo(db.get()); VariantService service(db.get(), &repo);
+        require(service.saveVariant(data).ok() && equal(data, repo.loadVariant(4).payloadAs<ReactionVariant>()),
+            "SQL writes and reads the independent transition counts");
+        const auto archive = directory.filePath("transitions.m2m");
+        require(service.exportArchive(archive).ok() && service.replaceVariant(changed).ok() &&
+            service.importArchive(archive).ok() && equal(data, repo.loadVariant(4).payloadAs<ReactionVariant>()),
+            "encrypted export and import retain the original transition counts");
+    }
+    {
+        std::unique_ptr<Database> db(Database::open(path));
+        VariantRepository repo(db.get());
+        require(equal(data, repo.loadVariant(4).payloadAs<ReactionVariant>()), "transition counts survive reopening the database");
+    }
+
+    const QString previousDirectory = QDir::currentPath();
+    require(QDir().mkdir(directory.filePath("old")) && QDir::setCurrent(directory.filePath("old")),
+        "enter the old database test directory");
+    {
+        std::unique_ptr<Database> old(Database::open("variants-lite.db"));
+        require(old && old->exec("CREATE TABLE LiteMetadata(version INTEGER NOT NULL)") &&
+            old->exec("INSERT INTO LiteMetadata VALUES(1)") &&
+            old->exec("CREATE TABLE Variants(id INTEGER PRIMARY KEY, number INTEGER)") &&
+            old->exec("INSERT INTO Variants VALUES(1,7)"), "create an old schema fixture");
+        auto structure = [&] {
+            QStringList result;
+            auto query = old->query("SELECT name,sql FROM sqlite_master ORDER BY name");
+            while (query.next()) result.append(query.value(0).toString() + query.value(1).toString());
+            return result;
+        };
+        const auto originalStructure = structure();
+        SchemaManager schema(old.get());
+        for (int version : {1, 2}) {
+            require(old->exec("UPDATE LiteMetadata SET version=:version", {{":version", version}}), "set old schema version");
+            QString error;
+            require(!schema.createSchema(&error) && error.contains("database.db") && structure() == originalStructure,
+                "old database schemas are refused without migration or structural changes");
+            auto row = old->query("SELECT number FROM Variants WHERE id=1");
+            require(row.next() && row.value(0).toInt() == 7, "refusing an old database preserves its records");
+        }
+        std::unique_ptr<Database> fresh(Database::openDefault());
+        require(bool(fresh), "create database.db alongside the untouched old file");
+        SchemaManager freshSchema(fresh.get()); VariantRepository repo(fresh.get());
+        require(freshSchema.createSchema() && repo.findAllVariants().ok() &&
+            repo.findAllVariants().payloadAs<QList<VariantRow>>().isEmpty(),
+            "startup creates a fresh database.db without migrating variants-lite.db");
+    }
+    require(QDir::setCurrent(previousDirectory), "restore working directory after schema tests");
 }
 
 void testFeedbackTiming() {
@@ -596,7 +652,9 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
     require(translator.setLocale("en").ok(), "switch to English");
     qApp->processEvents();
     require(window.findChild<QGroupBox *>("mealyGroup")->title() == "Mealy" &&
-        window.findChild<QGroupBox *>("mooreGroup")->title() == "Moore",
+        window.findChild<QGroupBox *>("mooreGroup")->title() == "Moore" &&
+        window.findChild<QLabel *>("mealyTransitionsLabel")->text() == "Transitions" &&
+        window.findChild<QLabel *>("mooreTransitionsLabel")->text() == "Transitions",
         "automaton group titles omit the counts suffix in English");
     require(translateResult(exported).startsWith("Saved ") &&
                 logText->toPlainText().contains("Saved "),
@@ -605,6 +663,9 @@ void testVariantNavigation(VariantService &service, TranslationManager &translat
     qApp->processEvents();
     require(logText->toPlainText().contains(QString::fromUtf8("Сохранено")),
             "existing log history switches back to Russian");
+    require(window.findChild<QLabel *>("mealyTransitionsLabel")->text() == QString::fromUtf8("Переходы") &&
+        window.findChild<QLabel *>("mooreTransitionsLabel")->text() == QString::fromUtf8("Переходы"),
+        "both transition labels switch back to Russian");
 }
 
 void testNumberLimitAndLegacyEditing(TranslationManager &translator) {
@@ -661,7 +722,8 @@ int main(int argc, char **argv) {
     auto data = sample();
     testReactionSignalEntry();
     testSourceCounts();
-    testTerminalMooreAndDatabaseMigration();
+    testTransitionCounts();
+    testTerminalMoore();
     testNumberLimitAndLegacyEditing(translator);
     testFeedbackTiming();
     require(data.validate().ok(), "valid ordered reaction");
@@ -713,8 +775,8 @@ int main(int argc, char **argv) {
         boundary.reaction.append({QString("x%1").arg(i), i < 5 ?
             QStringList{QString("y%1").arg(2*i), QString("y%1").arg(2*i+1)} : QStringList{}});
     require(boundary.validateForSave().ok(), "upper editing bounds and all ten outputs accepted");
-    for (const auto field : {"number", "mealy.states", "mealy.inputs", "mealy.outputs",
-                            "moore.states", "moore.inputs", "moore.outputs"}) {
+    for (const auto field : {"number", "mealy.states", "mealy.inputs", "mealy.outputs", "mealy.transitions",
+                            "moore.states", "moore.inputs", "moore.outputs", "moore.transitions"}) {
         for (const bool upper : {false, true}) {
             auto outside = data;
             const QString name(field);
@@ -724,6 +786,7 @@ int main(int argc, char **argv) {
                 if (name.endsWith("states")) counts.states = upper ? 11 : 3;
                 if (name.endsWith("inputs")) counts.inputs = upper ? 7 : 2;
                 if (name.endsWith("outputs")) counts.outputs = upper ? 11 : 3;
+                if (name.endsWith("transitions")) counts.transitions = upper ? 1000000 : 0;
             }
             require(outside.validateInputLimits().fields().contains(name) && !outside.validateForSave().ok(),
                 "both bounds are enforced for every input field before saving");
@@ -758,11 +821,10 @@ int main(int argc, char **argv) {
                 "simulate stored legacy variant without image");
         require(!service.exportArchive(dir.filePath("previous.m2m")).ok(),
                 "export requires complete variants");
-        require(db->exec("DROP TABLE VariantImages"), "simulate previous Lite schema");
         require(schema.createSchema(&error), qPrintable(error));
         require(equal(withoutImage, service.loadVariant(4).payloadAs<ReactionVariant>()),
-                "additive migration preserves previous variants");
-        require(schema.createSchema(&error), "migration is idempotent");
+                "initializing the current schema preserves existing variants");
+        require(schema.createSchema(&error), "schema initialization is idempotent");
         require(!service.replaceVariant(withoutImage).ok(),
                 "legacy variant needs image before saving");
         require(service.replaceVariant(data).ok(), "attach image to an existing variant");
@@ -807,7 +869,7 @@ int main(int argc, char **argv) {
         window.show();
         app.processEvents();
         require(window.findChildren<ReactionTable *>().size() == 1, "only reaction editor");
-        require(window.findChildren<QSpinBox *>().size() == 7, "number and six counts, no names");
+        require(window.findChildren<QSpinBox *>().size() == 9, "number and eight counts, no names");
         require(window.findChild<QGroupBox *>("mealyGroup")->title() == QString::fromUtf8("Мили") &&
             window.findChild<QGroupBox *>("mooreGroup")->title() == QString::fromUtf8("Мура"),
             "automaton groups use the short Russian titles");
@@ -818,8 +880,9 @@ int main(int argc, char **argv) {
             "event log has its own bundled icon");
         for (auto *spin : window.findChildren<QSpinBox *>()) {
             const auto name = spin->objectName();
-            const int lower = name == "variantNumber" ? 1 : name.endsWith("InputsCount") ? 3 : 4;
-            const int upper = name == "variantNumber" ? 99 : name.endsWith("InputsCount") ? 6 : 10;
+            const bool transitions = name.endsWith("TransitionsCount");
+            const int lower = name == "variantNumber" || transitions ? 1 : name.endsWith("InputsCount") ? 3 : 4;
+            const int upper = transitions ? 999999 : name == "variantNumber" ? 99 : name.endsWith("InputsCount") ? 6 : 10;
             require(spin->minimum() == lower && spin->maximum() == upper, "numeric editor has the requested bounds");
         }
         for (auto *action : window.menuBar()->actions())
@@ -1018,6 +1081,8 @@ int main(int argc, char **argv) {
             const auto name = spin->objectName();
             if (name == "variantNumber")
                 spin->setValue(7);
+            else if (name.endsWith("TransitionsCount"))
+                spin->setValue(name.startsWith("mealy") ? 12 : 17);
             else if (name.endsWith("InputsCount"))
                 spin->setValue(3);
             else if (name.endsWith("OutputsCount"))
@@ -1042,8 +1107,10 @@ int main(int argc, char **argv) {
         data.reaction[3].outputs = {"y2", "y0", "y1", "y3"};
         auto saved = data;
         saved.number = 7;
+        saved.mealy.transitions = 12;
+        saved.moore.transitions = 17;
         require(equal(saved, service.loadVariant(7).payloadAs<ReactionVariant>()),
-                "UI save writes counts, ordered reaction and image");
+                "UI save writes separate transition counts, other counts, ordered reaction and image");
         app.processEvents();
         require(!window.findChild<QLabel *>("reactionHint"), "the hint below the reaction is removed");
         auto checkImageControls = [&] {
@@ -1106,6 +1173,9 @@ int main(int argc, char **argv) {
         QTest::mouseClick(window.findChild<QPushButton *>("newVariantButton"), Qt::LeftButton);
         require(table->columnCount() == 1 && table->steps().isEmpty(),
                 "New variant resets the reaction to one empty column");
+        require(window.findChild<QSpinBox *>("mealyTransitionsCount")->value() == 1 &&
+            window.findChild<QSpinBox *>("mooreTransitionsCount")->value() == 1,
+            "New variant resets both transition counts");
         checkReactionGeometry(table);
         require(imagePanel->image().data.isEmpty() && preview->pixmap().isNull(),
                 "New variant clears the image and preview");
@@ -1125,6 +1195,9 @@ int main(int argc, char **argv) {
         QTest::mouseClick(window.findChild<QPushButton *>("openVariantButton"), Qt::LeftButton);
         require(imagePanel->image().data == saved.image.data && !preview->pixmap().isNull(),
                 "opening saved variant restores image and preview");
+        require(window.findChild<QSpinBox *>("mealyTransitionsCount")->value() == 12 &&
+            window.findChild<QSpinBox *>("mooreTransitionsCount")->value() == 17,
+            "loading a saved variant restores both transition counts");
         QTest::mouseClick(window.findChild<QPushButton *>("removeImageButton"), Qt::LeftButton);
         QTest::mouseClick(window.findChild<QPushButton *>("saveVariantButton"), Qt::LeftButton);
         require(equal(saved, service.loadVariant(7).payloadAs<ReactionVariant>()),

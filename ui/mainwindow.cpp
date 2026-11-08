@@ -32,8 +32,8 @@ MainWindow::MainWindow(VariantService *service, TranslationManager *translator, 
     m_reaction = ui->reactionTable;
     m_number = ui->variantNumber;
     m_type = ui->conversionType;
-    m_mealy = {ui->mealyStatesCount, ui->mealyInputsCount, ui->mealyOutputsCount};
-    m_moore = {ui->mooreStatesCount, ui->mooreInputsCount, ui->mooreOutputsCount};
+    m_mealy = {ui->mealyStatesCount, ui->mealyInputsCount, ui->mealyOutputsCount, ui->mealyTransitionsCount};
+    m_moore = {ui->mooreStatesCount, ui->mooreInputsCount, ui->mooreOutputsCount, ui->mooreTransitionsCount};
     m_feedback = ui->validationMessage;
     m_fieldFeedback = new FieldFeedback(this);
     connect(m_feedback, &FeedbackLabel::expired, this, [this] { m_lastResult.reset(); });
@@ -163,8 +163,8 @@ ReactionVariant MainWindow::readData() const {
     ReactionVariant data;
     data.number = m_number->value();
     data.type = m_type->currentIndex() == 0 ? VariantType::MealyToMoore : VariantType::MooreToMealy;
-    data.mealy = {m_mealy[0]->value(), m_mealy[1]->value(), m_mealy[2]->value()};
-    data.moore = {m_moore[0]->value(), m_moore[1]->value(), m_moore[2]->value()};
+    data.mealy = {m_mealy[0]->value(), m_mealy[1]->value(), m_mealy[2]->value(), m_mealy[3]->value()};
+    data.moore = {m_moore[0]->value(), m_moore[1]->value(), m_moore[2]->value(), m_moore[3]->value()};
     data.reaction = m_reaction->steps();
     data.image = m_imagePanel->image();
     return data;
@@ -173,11 +173,11 @@ void MainWindow::loadData(const ReactionVariant &data) {
     m_loading = true;
     m_number->setValue(data.number);
     m_type->setCurrentIndex(data.type == VariantType::MealyToMoore ? 0 : 1);
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         m_mealy[i]->setValue(
-            std::array<int, 3>{data.mealy.states, data.mealy.inputs, data.mealy.outputs}[i]);
+            std::array<int, 4>{data.mealy.states, data.mealy.inputs, data.mealy.outputs, data.mealy.transitions}[i]);
         m_moore[i]->setValue(
-            std::array<int, 3>{data.moore.states, data.moore.inputs, data.moore.outputs}[i]);
+            std::array<int, 4>{data.moore.states, data.moore.inputs, data.moore.outputs, data.moore.transitions}[i]);
     }
     m_reaction->setSteps(data.reaction);
     m_imagePanel->setImage(data.image);
@@ -212,7 +212,8 @@ void MainWindow::markValidationError(const Result &result) {
         {"reaction", m_reaction},      {"image", ui->diagramDropZone},
         {"mealy.states", m_mealy[0]},  {"mealy.inputs", m_mealy[1]},
         {"mealy.outputs", m_mealy[2]}, {"moore.states", m_moore[0]},
-        {"moore.inputs", m_moore[1]},  {"moore.outputs", m_moore[2]}};
+        {"moore.inputs", m_moore[1]},  {"moore.outputs", m_moore[2]},
+        {"mealy.transitions", m_mealy[3]}, {"moore.transitions", m_moore[3]}};
     for (const auto &field : result.fields()) {
         if (fields.contains(field))
             m_fieldFeedback->mark(fields.value(field), message);
