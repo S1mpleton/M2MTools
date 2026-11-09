@@ -10,6 +10,10 @@ Database::Database(const QString& connectionName, const QString& path, QObject* 
 {
 }
 
+Database* Database::openDefault(QObject* parent) {
+    return open(QStringLiteral("database.db"), parent);
+}
+
 Database* Database::open(const QString& path, QObject* parent) {
     const QFileInfo info(path);
     const QDir dir = info.absoluteDir();

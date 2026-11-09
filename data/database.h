@@ -10,6 +10,7 @@ class Database : public QObject {
     Q_OBJECT
 public:
     static Database* open(const QString& path, QObject* parent = nullptr);
+    static Database* openDefault(QObject* parent = nullptr);
 
     ~Database() override;
 

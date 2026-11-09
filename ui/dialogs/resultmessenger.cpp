@@ -1,4 +1,5 @@
 #include "resultmessenger.h"
+#include "ui/translateresult.h"
 
 QMessageBox::Icon ResultMessenger::iconFor(ResultSeverity severity) {
     switch (severity) {
@@ -19,14 +20,15 @@ QString ResultMessenger::titleFor(const Result& result) {
 }
 
 QString ResultMessenger::textFor(const Result& result) {
-    QString text = result.message();
+    QString text = TranslateResult::forUi(result);
 
-    if (!result.offender().isEmpty()) {
+    if (result.code() == ErrorCode::None && !result.offender().isEmpty()) {
         text += QStringLiteral("\n\n") + tr("Related: %1").arg(result.offender());
     }
 
     if (result.isError() && !result.details().isEmpty()) {
-        text += QStringLiteral("\n\n") + tr("Details: %1").arg(result.details());
+        text += QStringLiteral("\n\n")
+            + tr("Technical details are available in the event log.");
     }
 
     return text;
